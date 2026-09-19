@@ -1,0 +1,866 @@
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
+import {
+  ArrowLeft,
+  Mail,
+  Phone,
+  MapPin,
+  Briefcase,
+  ExternalLink,
+  Sparkles,
+  GitPullRequest,
+  FileText,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Award,
+  BookOpen,
+  Globe,
+  Loader2,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useToast } from '@/hooks/use-toast'
+import { ScoreProgressRing } from './Candidatos'
+import type { RecordModel } from 'pocketbase'
+
+export default function CandidatoDetalhes() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { toast } = useToast()
+
+  const [candidato, setCandidato] = useState<RecordModel | null>(null)
+  const [pipelineItem, setPipelineItem] = useState<RecordModel | null>(null)
+  const [matchingScore, setMatchingScore] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadingScore, setLoadingScore] = useState(false)
+  const [generatingReport, setGeneratingReport] = useState(false)
+
+  // Move stage dialog
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false)
+  const [targetStage, setTargetStage] = useState('')
+  const [moveNotes, setMoveNotes] = useState('')
+  const [recusaMotivo, setRecusaMotivo] = useState('')
+
+  const fetchCandidato = async () => {
+    if (!id) return
+    try {
+      const c = await pb.collection('candidatos').getOne(id, { expand: 'vaga' })
+      setCandidato(c)
+
+      // Fetch pipeline record
+      const pList = await pb.collection('pipeline').getFullList({
+        filter: `candidato = '${id}'`,
+        sort: '-updated',
+        limit: 1,
+      })
+      if (pList.length > 0) {
+        setPipelineItem(pList[0])
+      }
+
+      // Fetch matching score from hook
+      if (c.vaga) {
+        fetchMatchingScore(c.id, c.vaga)
+      }
+    } catch (err) {
+      console.error(err)
+      toast({
+        title: 'Candidato não encontrado',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchMatchingScore = async (cId: string, vId: string) => {
+    setLoadingScore(true)
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/matching/score?candidatoId=${cId}&vagaId=${vId}`,
+        {
+          headers: {
+            Authorization: pb.authStore.token,
+          },
+        },
+      )
+      if (res.ok) {
+        const data = await res.json()
+        setMatchingScore(data.score)
+      }
+    } catch (err) {
+      console.error('Falha ao obter score', err)
+    } finally {
+      setLoadingScore(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchCandidato()
+  }, [id])
+
+  useRealtime('candidatos', () => fetchCandidato())
+  useRealtime('pipeline', () => fetchCandidato())
+
+  const handleGenerateReport = async () => {
+    if (!candidato || !candidato.vaga) {
+      toast({
+        title: 'Vaga obrigatória',
+        description: 'Vincule o candidato a uma vaga para gerar a análise de matching.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setGeneratingReport(true)
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/matching/avaliar`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: pb.authStore.token,
+          },
+          body: JSON.stringify({
+            candidatoId: candidato.id,
+            vagaId: candidato.vaga,
+          }),
+        },
+      )
+
+      if (!res.ok) {
+        throw new Error('Falha ao processar avaliação com agente de IA')
+      }
+
+      const data = await res.json()
+      toast({
+        title: 'Relatório gerado pela IA com sucesso!',
+        description: 'Redirecionando para o dossiê executivo.',
+      })
+      navigate(`/relatorios/${data.relatorioId}`)
+    } catch (err: unknown) {
+      toast({
+        title: 'Erro na geração do relatório',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setGeneratingReport(false)
+    }
+  }
+
+  const handleConfirmMoveStage = async () => {
+    if (!pipelineItem || !targetStage) return
+    try {
+      const historicoAtual = Array.isArray(pipelineItem.historico) ? pipelineItem.historico : []
+      const novoHistorico = [
+        ...historicoAtual,
+        {
+          data: new Date().toISOString(),
+          estagio: targetStage,
+          autor: pb.authStore.record?.name || 'Gente & Gestão',
+          nota:
+            moveNotes ||
+            (targetStage === 'Recusado' ? `Motivo: ${recusaMotivo}` : 'Mudança de estágio manual.'),
+        },
+      ]
+
+      await pb.collection('pipeline').update(pipelineItem.id, {
+        estagio: targetStage,
+        motivo_recusa: targetStage === 'Recusado' ? recusaMotivo : '',
+        anotacoes: moveNotes,
+        historico: novoHistorico,
+      })
+
+      if (candidato) {
+        await pb.collection('candidatos').update(candidato.id, {
+          status: targetStage,
+        })
+      }
+
+      toast({
+        title: 'Estágio atualizado',
+        description: `Candidato movido para ${targetStage}.`,
+      })
+      setMoveDialogOpen(false)
+      fetchCandidato()
+    } catch (err) {
+      toast({ title: 'Erro ao mover candidato', variant: 'destructive' })
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-44 w-full" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    )
+  }
+
+  if (!candidato) {
+    return (
+      <div className="text-center py-12">
+        <h3 className="text-base font-bold text-slate-800">Candidato não encontrado</h3>
+        <Button onClick={() => navigate('/candidatos')} className="mt-4">
+          Voltar para listagem
+        </Button>
+      </div>
+    )
+  }
+
+  const stagesList = [
+    'Triagem',
+    'Entrevista com RH',
+    'Entrevista técnica',
+    'Match técnico/comportamental (IA)',
+    'Proposta',
+    'Aprovado',
+    'Recusado',
+  ]
+
+  const scoreVal = matchingScore?.score_geral || candidato.score_semantico || 75
+  const curriculoUrl = candidato.curriculo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/candidatos/${candidato.id}/${candidato.curriculo}`
+    : null
+
+  return (
+    <div className="space-y-6 animate-in fade-in-50 duration-300">
+      {/* Back button */}
+      <div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/candidatos')}
+          className="text-xs text-slate-600 hover:text-slate-900 -ml-2 mb-2"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+          Voltar para Candidatos
+        </Button>
+      </div>
+
+      {/* Header Profile Card */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="flex items-start sm:items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-blue-600 text-white font-extrabold flex items-center justify-center text-xl shrink-0 shadow-sm shadow-blue-500/20">
+            {candidato.nome
+              .split(' ')
+              .map((n: string) => n[0])
+              .join('')
+              .substring(0, 2)
+              .toUpperCase()}
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                {candidato.nome}
+              </h1>
+              <Badge
+                variant="outline"
+                className="text-xs font-semibold bg-slate-100 text-slate-700"
+              >
+                {candidato.status}
+              </Badge>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              <span className="font-semibold text-slate-800">
+                {candidato.cargo_atual || 'Profissional'}
+              </span>
+              {candidato.empresa_atual && <span> na {candidato.empresa_atual}</span>}
+              {candidato.localizacao && <span> · {candidato.localizacao}</span>}
+            </p>
+
+            <div className="flex items-center gap-4 text-xs text-slate-500 flex-wrap pt-1">
+              <div className="flex items-center gap-1">
+                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                <span>{candidato.email}</span>
+              </div>
+              {candidato.telefone && (
+                <div className="flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{candidato.telefone}</span>
+                </div>
+              )}
+              {candidato.linkedin && (
+                <a
+                  href={candidato.linkedin}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 hover:underline flex items-center gap-0.5"
+                >
+                  <span>LinkedIn</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+              {candidato.github && (
+                <a
+                  href={candidato.github}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-slate-700 hover:underline flex items-center gap-0.5"
+                >
+                  <span>GitHub</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          {/* Mover no pipeline dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="text-xs font-semibold border-slate-300 text-slate-700 h-10"
+              >
+                <GitPullRequest className="w-3.5 h-3.5 mr-2" />
+                Mover Estágio
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="text-xs">
+              {stagesList.map((st) => (
+                <DropdownMenuItem
+                  key={st}
+                  onClick={() => {
+                    setTargetStage(st)
+                    setMoveDialogOpen(true)
+                  }}
+                  className="cursor-pointer"
+                >
+                  {st === candidato.status && '✓ '}
+                  {st}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Gerar relatório de IA */}
+          <Button
+            onClick={handleGenerateReport}
+            disabled={generatingReport}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold h-10 shadow-xs flex-1 md:flex-initial"
+          >
+            {generatingReport ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Gerando com Agente...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 mr-2" />
+                Gerar Relatório de IA
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Tabs Layout */}
+      <Tabs defaultValue="visao-geral" className="space-y-6">
+        <TabsList className="bg-white border border-slate-200/80 p-1 shadow-xs rounded-lg">
+          <TabsTrigger value="visao-geral" className="text-xs font-semibold px-4 py-2">
+            Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="curriculo" className="text-xs font-semibold px-4 py-2">
+            Currículo (PDF)
+          </TabsTrigger>
+          <TabsTrigger value="matching" className="text-xs font-semibold px-4 py-2">
+            Matching Inteligente
+          </TabsTrigger>
+          <TabsTrigger value="historico" className="text-xs font-semibold px-4 py-2">
+            Histórico & Notas
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab 1: Visão Geral */}
+        <TabsContent value="visao-geral" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Resumo Profissional */}
+              <Card className="border-slate-200 shadow-xs bg-white p-6">
+                <CardTitle className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100">
+                  Resumo Profissional
+                </CardTitle>
+                <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line pt-4">
+                  {candidato.resumo || 'Nenhum resumo profissional cadastrado.'}
+                </p>
+              </Card>
+
+              {/* Experiências Anteriores */}
+              <Card className="border-slate-200 shadow-xs bg-white p-6">
+                <CardTitle className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100">
+                  Trajetória e Experiências
+                </CardTitle>
+
+                <div className="space-y-4 pt-4">
+                  {Array.isArray(candidato.experiencias) && candidato.experiencias.length > 0 ? (
+                    candidato.experiencias.map((exp: any, i: number) => (
+                      <div
+                        key={i}
+                        className="space-y-1 pb-3 border-b border-slate-100 last:border-0 last:pb-0"
+                      >
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-slate-900">{exp.cargo}</h4>
+                          <span className="text-[11px] font-semibold text-slate-400">
+                            {exp.periodo}
+                          </span>
+                        </div>
+                        <p className="text-xs font-medium text-blue-600">{exp.empresa}</p>
+                        {exp.descricao && (
+                          <p className="text-xs text-slate-600 leading-relaxed pt-1">
+                            {exp.descricao}
+                          </p>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400">Nenhuma experiência cadastrada.</p>
+                  )}
+                </div>
+              </Card>
+
+              {/* Educação */}
+              <Card className="border-slate-200 shadow-xs bg-white p-6">
+                <CardTitle className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100">
+                  Formação Acadêmica
+                </CardTitle>
+                <div className="space-y-3 pt-4">
+                  {Array.isArray(candidato.educacao) && candidato.educacao.length > 0 ? (
+                    candidato.educacao.map((edu: any, i: number) => (
+                      <div key={i} className="flex items-start justify-between text-xs">
+                        <div>
+                          <p className="font-bold text-slate-900">{edu.curso}</p>
+                          <p className="text-slate-600">{edu.instituicao}</p>
+                        </div>
+                        <span className="text-slate-400 font-medium">{edu.periodo}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400">Sem formação cadastrada.</p>
+                  )}
+                </div>
+              </Card>
+            </div>
+
+            {/* Coluna Lateral: Tags & Idiomas */}
+            <div className="space-y-6">
+              {/* Vaga Associada */}
+              <Card className="border-slate-200 shadow-xs bg-white p-6">
+                <CardTitle className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-3 border-b border-slate-100">
+                  Vaga Alvo
+                </CardTitle>
+                <div className="pt-3 space-y-2">
+                  <p className="text-sm font-bold text-slate-900">
+                    {candidato.expand?.vaga?.titulo || 'Sem vaga associada'}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {candidato.expand?.vaga?.departamento || ''} ·{' '}
+                    {candidato.expand?.vaga?.modalidade || ''}
+                  </p>
+                  {candidato.vaga && (
+                    <Link to={`/vagas/${candidato.vaga}`}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs mt-2 border-slate-200 text-blue-600"
+                      >
+                        Ver detalhes da vaga
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </Card>
+
+              {/* Habilidades Técnicas */}
+              <Card className="border-slate-200 shadow-xs bg-white p-6">
+                <CardTitle className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-3 border-b border-slate-100">
+                  Habilidades Técnicas
+                </CardTitle>
+                <div className="pt-3 flex flex-wrap gap-1.5">
+                  {Array.isArray(candidato.habilidades_tecnicas) &&
+                  candidato.habilidades_tecnicas.length > 0 ? (
+                    candidato.habilidades_tecnicas.map((h: string, i: number) => (
+                      <span
+                        key={i}
+                        className="text-xs font-medium px-2.5 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-200"
+                      >
+                        {h}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400">Nenhuma habilidade cadastrada.</p>
+                  )}
+                </div>
+              </Card>
+
+              {/* Competências Comportamentais */}
+              <Card className="border-slate-200 shadow-xs bg-white p-6">
+                <CardTitle className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-3 border-b border-slate-100">
+                  Competências Comportamentais
+                </CardTitle>
+                <div className="pt-3 flex flex-wrap gap-1.5">
+                  {Array.isArray(candidato.competencias_comportamentais) &&
+                  candidato.competencias_comportamentais.length > 0 ? (
+                    candidato.competencias_comportamentais.map((c: string, i: number) => (
+                      <span
+                        key={i}
+                        className="text-xs font-medium px-2.5 py-1 rounded-md bg-purple-50 text-purple-800 border border-purple-200"
+                      >
+                        {c}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400">Nenhuma competência cadastrada.</p>
+                  )}
+                </div>
+              </Card>
+
+              {/* Idiomas */}
+              <Card className="border-slate-200 shadow-xs bg-white p-6">
+                <CardTitle className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-3 border-b border-slate-100">
+                  Idiomas
+                </CardTitle>
+                <div className="pt-3 space-y-1.5">
+                  {Array.isArray(candidato.idiomas) && candidato.idiomas.length > 0 ? (
+                    candidato.idiomas.map((idm: string, i: number) => (
+                      <p key={i} className="text-xs text-slate-700 font-medium">
+                        • {idm}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400">Não informado.</p>
+                  )}
+                </div>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Tab 2: Currículo PDF */}
+        <TabsContent value="curriculo">
+          <Card className="border-slate-200 shadow-xs bg-white p-6">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div>
+                <CardTitle className="text-base font-bold text-slate-900">
+                  Visualizador de Currículo
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Documento em PDF anexado ao perfil do candidato
+                </CardDescription>
+              </div>
+
+              {curriculoUrl && (
+                <a href={curriculoUrl} target="_blank" rel="noreferrer">
+                  <Button variant="outline" size="sm" className="text-xs">
+                    Abrir em nova aba
+                    <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
+                  </Button>
+                </a>
+              )}
+            </div>
+
+            <div className="pt-6">
+              {curriculoUrl ? (
+                <div className="w-full h-[650px] rounded-lg overflow-hidden border border-slate-200">
+                  <iframe src={curriculoUrl} className="w-full h-full" title="Currículo PDF" />
+                </div>
+              ) : (
+                <div className="py-16 text-center border border-dashed border-slate-300 rounded-lg">
+                  <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <h4 className="text-sm font-semibold text-slate-800">
+                    Nenhum PDF de currículo anexado
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                    Você pode editar os dados do candidato e fazer upload do documento para
+                    visualização inline.
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 3: Matching Inteligente */}
+        <TabsContent value="matching">
+          <Card className="border-slate-200 shadow-xs bg-white p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-blue-600" />
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    Aderência com a Vaga: {candidato.expand?.vaga?.titulo || 'Geral'}
+                  </CardTitle>
+                </div>
+                <CardDescription className="text-xs text-slate-500 mt-0.5">
+                  Avaliação computada pelo Gestor de Talentos com base em competências e dados reais
+                </CardDescription>
+              </div>
+
+              <Button
+                onClick={handleGenerateReport}
+                disabled={generatingReport}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold h-9"
+              >
+                {generatingReport ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                    Reavaliando...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 mr-2" />
+                    Gerar Relatório Estruturado
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Score Ring & Pillars */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50/70 p-6 rounded-xl border border-slate-200/80">
+              <div className="flex items-center gap-4">
+                <ScoreProgressRing score={scoreVal} size={72} />
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Score Geral
+                  </span>
+                  <h3
+                    className={`text-lg font-bold ${
+                      scoreVal >= 75
+                        ? 'text-emerald-600'
+                        : scoreVal >= 50
+                          ? 'text-amber-600'
+                          : 'text-rose-600'
+                    }`}
+                  >
+                    {scoreVal >= 75
+                      ? 'Alta Aderência'
+                      : scoreVal >= 50
+                        ? 'Média Aderência'
+                        : 'Baixa Aderência'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {matchingScore?.veredito ||
+                      (scoreVal >= 75 ? 'Recomendar avanço' : 'Considerar')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 border-l-0 md:border-l border-slate-200 md:pl-6">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Aderência Técnica
+                </span>
+                <p className="text-2xl font-bold text-slate-900 tabular-nums">
+                  {matchingScore?.score_tecnico || scoreVal}%
+                </p>
+                <p className="text-xs text-slate-500">
+                  Correspondência com stacks e requisitos obrigatórios
+                </p>
+              </div>
+
+              <div className="space-y-1.5 border-l-0 md:border-l border-slate-200 md:pl-6">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Aderência Comportamental
+                </span>
+                <p className="text-2xl font-bold text-slate-900 tabular-nums">
+                  {matchingScore?.score_comportamental || Math.min(100, Math.max(50, scoreVal - 5))}
+                  %
+                </p>
+                <p className="text-xs text-slate-500">
+                  Soft skills e sinergia com a cultura da organização
+                </p>
+              </div>
+            </div>
+
+            {/* Justificativa e Pontos Fortes / Lacunas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              <div className="p-4 rounded-xl bg-emerald-50/40 border border-emerald-200/60 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs uppercase tracking-wider">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Pontos Fortes Identificados</span>
+                </div>
+                <ul className="space-y-1.5 text-xs text-slate-700">
+                  {(
+                    matchingScore?.pontos_fortes || [
+                      'Histórico comprovado nas tecnologias centrais exigidas',
+                      'Tempo de carreira compatível com o nível da posição',
+                      'Experiência consolidada em ambientes de alta demanda',
+                    ]
+                  ).map((p: string, i: number) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-emerald-600 font-bold">•</span>
+                      <span>{p}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="p-4 rounded-xl bg-amber-50/40 border border-amber-200/60 space-y-2">
+                <div className="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase tracking-wider">
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                  <span>Riscos e Pontos de Atenção</span>
+                </div>
+                <ul className="space-y-1.5 text-xs text-slate-700">
+                  {(
+                    matchingScore?.riscos_lacunas || [
+                      'Validar profundidade prática nas ferramentas desejáveis',
+                      'Alinhar expectativa de modelo de trabalho e autonomia',
+                    ]
+                  ).map((r: string, i: number) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-amber-600 font-bold">•</span>
+                      <span>{r}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Recomendação de Próximo Passo */}
+            <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-200 text-xs text-slate-700 space-y-1">
+              <span className="font-bold text-blue-900 uppercase tracking-wider text-[11px]">
+                Recomendação de Próximo Passo do Agente:
+              </span>
+              <p className="text-slate-800 font-medium">
+                {matchingScore?.recomendacao_proximo_passo ||
+                  'Agendar entrevista técnica com foco em validação de arquitetura e cases de projetos anteriores.'}
+              </p>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 4: Histórico */}
+        <TabsContent value="historico">
+          <Card className="border-slate-200 shadow-xs bg-white p-6">
+            <CardTitle className="text-base font-bold text-slate-900 pb-4 border-b border-slate-100">
+              Linha do Tempo no Processo Seletivo
+            </CardTitle>
+
+            <div className="pt-6 relative pl-6 border-l-2 border-slate-200 space-y-6">
+              {pipelineItem &&
+              Array.isArray(pipelineItem.historico) &&
+              pipelineItem.historico.length > 0 ? (
+                pipelineItem.historico.map((h: any, i: number) => (
+                  <div key={i} className="relative">
+                    <span className="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-blue-600 ring-4 ring-white" />
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-900">{h.estagio}</span>
+                        <span className="text-[11px] text-slate-400">
+                          {new Date(h.data).toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 font-medium">
+                        Por: {h.autor || 'Sistema'}
+                      </p>
+                      {h.nota && (
+                        <p className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200/70 mt-1">
+                          {h.nota}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-slate-400">Nenhum evento registrado no histórico.</p>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Modal Mover Estágio com Motivo de Recusa */}
+      <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900">
+              Mover para: {targetStage}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Atualize a fase do candidato no pipeline oficial da seleção.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 py-2">
+            {targetStage === 'Recusado' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Motivo da Recusa *</Label>
+                <select
+                  value={recusaMotivo}
+                  onChange={(e) => setRecusaMotivo(e.target.value)}
+                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-xs"
+                >
+                  <option value="">Selecione o motivo...</option>
+                  <option value="Não atende requisitos técnicos">
+                    Não atende requisitos técnicos
+                  </option>
+                  <option value="Salário / pretensão incompatível">
+                    Salário / pretensão incompatível
+                  </option>
+                  <option value="Candidato desistiu">Candidato desistiu do processo</option>
+                  <option value="Perfil comportamental não alinhado">
+                    Perfil comportamental não alinhado
+                  </option>
+                  <option value="Outro motivo">Outro motivo</option>
+                </select>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700">
+                Anotações da equipe (opcional)
+              </Label>
+              <Textarea
+                rows={3}
+                placeholder="Insira feedback, impressões da entrevista ou orientações..."
+                value={moveNotes}
+                onChange={(e) => setMoveNotes(e.target.value)}
+                className="text-xs resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="pt-3 border-t border-slate-100">
+            <Button variant="outline" size="sm" onClick={() => setMoveDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+              onClick={handleConfirmMoveStage}
+            >
+              Confirmar Movimentação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

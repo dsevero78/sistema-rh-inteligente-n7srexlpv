@@ -1,0 +1,530 @@
+{
+  "generatedAt": "2026-09-19T22:24:04.548Z",
+  "collections": [
+    {
+      "name": "users",
+      "type": "auth",
+      "apiRules": {
+        "list": "id = @request.auth.id",
+        "view": "id = @request.auth.id",
+        "create": "",
+        "update": "id = @request.auth.id",
+        "delete": "id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avatar",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
+        "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
+      ]
+    },
+    {
+      "name": "vagas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "departamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "localizacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "modalidade",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Remoto", "Presencial", "Híbrido"]
+        },
+        {
+          "name": "faixa_salarial",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requisitos_obrigatorios",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requisitos_desejaveis",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "habilidades_tecnicas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "competencias_comportamentais",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Ativa", "Pausada", "Preenchida", "Arquivada"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_vagas_status ON vagas (status)",
+        "CREATE INDEX idx_vagas_departamento ON vagas (departamento)"
+      ]
+    },
+    {
+      "name": "candidatos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cargo_atual",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "empresa_atual",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "localizacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "linkedin",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "github",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "curriculo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resumo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "habilidades_tecnicas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "competencias_comportamentais",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "experiencias",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "educacao",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "idiomas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Triagem",
+            "Entrevista com RH",
+            "Entrevista técnica",
+            "Match técnico/comportamental (IA)",
+            "Proposta",
+            "Aprovado",
+            "Recusado"
+          ]
+        },
+        {
+          "name": "score_semantico",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vector",
+          "type": "vector",
+          "required": false,
+          "system": false,
+          "vectorDimensions": 1536,
+          "vectorDistance": "cosine"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_candidatos_email ON candidatos (email)",
+        "CREATE INDEX idx_candidatos_status ON candidatos (status)",
+        "CREATE INDEX idx_candidatos_vaga ON candidatos (vaga)"
+      ]
+    },
+    {
+      "name": "pipeline",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "estagio",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Triagem",
+            "Entrevista com RH",
+            "Entrevista técnica",
+            "Match técnico/comportamental (IA)",
+            "Proposta",
+            "Aprovado",
+            "Recusado"
+          ]
+        },
+        {
+          "name": "motivo_recusa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "anotacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historico",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_pipeline_candidato ON pipeline (candidato)",
+        "CREATE INDEX idx_pipeline_vaga ON pipeline (vaga)",
+        "CREATE INDEX idx_pipeline_estagio ON pipeline (estagio)"
+      ]
+    },
+    {
+      "name": "relatorios",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Técnico", "Comportamental", "Completo"]
+        },
+        {
+          "name": "conteudo",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "veredito",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Recomendar", "Considerar", "Não recomendar"]
+        },
+        {
+          "name": "score_geral",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score_tecnico",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score_comportamental",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_relatorios_candidato ON relatorios (candidato)",
+        "CREATE INDEX idx_relatorios_vaga ON relatorios (vaga)"
+      ]
+    },
+    {
+      "name": "chat_mensagens",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && usuario = @request.auth.id",
+        "view": "@request.auth.id != '' && usuario = @request.auth.id",
+        "create": "@request.auth.id != '' && usuario = @request.auth.id",
+        "update": "@request.auth.id != '' && usuario = @request.auth.id",
+        "delete": "@request.auth.id != '' && usuario = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "usuario",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "sessao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "papel",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["user", "agent"]
+        },
+        {
+          "name": "conteudo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_chat_usuario ON chat_mensagens (usuario)",
+        "CREATE INDEX idx_chat_sessao ON chat_mensagens (sessao)"
+      ]
+    }
+  ]
+}
