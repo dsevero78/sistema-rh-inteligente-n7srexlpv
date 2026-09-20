@@ -16,6 +16,7 @@ import {
   BarChart3,
   Clock,
   ChevronRight,
+  Bell,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,20 +32,23 @@ export default function Dashboard() {
   const [candidatos, setCandidatos] = useState<RecordModel[]>([])
   const [pipelineRecords, setPipelineRecords] = useState<RecordModel[]>([])
   const [entrevistasList, setEntrevistasList] = useState<RecordModel[]>([])
+  const [alertas, setAlertas] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchData = async () => {
     try {
-      const [vList, cList, pList, eList] = await Promise.all([
+      const [vList, cList, pList, eList, aList] = await Promise.all([
         pb.collection('vagas').getFullList({ sort: '-created' }),
         pb.collection('candidatos').getFullList({ sort: '-created', expand: 'vaga' }),
         pb.collection('pipeline').getFullList({ sort: '-updated', expand: 'candidato,vaga' }),
         pb.collection('entrevistas').getFullList({ sort: 'data_hora', expand: 'candidato,vaga' }),
+        pb.collection('alertas').getFullList({ sort: '-created', expand: 'candidato,vaga' }),
       ])
       setVagas(vList)
       setCandidatos(cList)
       setPipelineRecords(pList)
       setEntrevistasList(eList)
+      setAlertas(aList)
     } catch (err) {
       console.error('Falha ao carregar dados do dashboard', err)
     } finally {
@@ -61,6 +65,7 @@ export default function Dashboard() {
   useRealtime('candidatos', () => fetchData())
   useRealtime('pipeline', () => fetchData())
   useRealtime('entrevistas', () => fetchData())
+  useRealtime('alertas', () => fetchData())
 
   // Computations
   const vagasAtivas = useMemo(() => vagas.filter((v) => v.status === 'Ativa').length, [vagas])
@@ -86,6 +91,8 @@ export default function Dashboard() {
     const preenchidas = vagas.filter((v) => v.status === 'Preenchida').length
     return Math.round((preenchidas / vagas.length) * 100)
   }, [vagas])
+
+  const alertasNovos = useMemo(() => alertas.filter((a) => a.status === 'Novo'), [alertas])
 
   // Pipeline distribution for the stacked chart
   const pipelineStats = useMemo(() => {
@@ -197,6 +204,21 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+          <Link to="/alertas">
+            <Button
+              variant="outline"
+              className="h-9 text-xs border-blue-200 bg-blue-50/70 text-blue-900 hover:bg-blue-100 font-semibold relative"
+            >
+              <Bell className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
+              Alertas de Talentos
+              {alertasNovos.length > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.2 text-[10px] bg-blue-600 text-white rounded-full font-bold">
+                  {alertasNovos.length}
+                </span>
+              )}
+            </Button>
+          </Link>
+
           <Link to="/banco-talentos">
             <Button
               variant="outline"
@@ -439,6 +461,92 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Destaque de Alertas Automáticos de Talentos */}
+      {alertas.length > 0 && (
+        <Card className="border-blue-200 bg-linear-to-r from-blue-50/60 via-white to-white p-5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-blue-100/80">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
+                <Bell className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Alertas Automáticos de Talentos Recém-Identificados
+                  </h3>
+                  {alertasNovos.length > 0 && (
+                    <Badge className="bg-blue-600 text-white text-[10px] font-bold">
+                      {alertasNovos.length} novo(s)
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500">
+                  Candidatos qualificados do Banco de Talentos com alta compatibilidade para vagas
+                  ativas.
+                </p>
+              </div>
+            </div>
+            <Link to="/alertas">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs font-semibold border-blue-200 text-blue-700 hover:bg-blue-50"
+              >
+                Ver todos os alertas
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+            {alertas.slice(0, 3).map((al) => {
+              const cand = al.expand?.candidato
+              const vaga = al.expand?.vaga
+              return (
+                <div
+                  key={al.id}
+                  onClick={() => navigate('/alertas')}
+                  className="p-3.5 rounded-lg border border-slate-200 bg-white hover:border-blue-300 hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-xs font-bold text-slate-900 truncate">
+                        {cand?.nome || 'Talento'}
+                      </span>
+                      <span
+                        className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded shrink-0 ${
+                          (al.score || 75) >= 85
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {al.score || 75}% fit
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-500 flex items-center gap-1 line-clamp-1 mb-2">
+                      <Briefcase className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span>{vaga?.titulo || 'Vaga'}</span>
+                    </div>
+
+                    {al.resumo_ia && (
+                      <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed bg-slate-50 p-2 rounded border border-slate-100">
+                        {al.resumo_ia}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-blue-600 font-semibold">
+                    <span>Reaproveitar candidato</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Próximas Entrevistas & Atalhos Rápidos */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { RecordModel } from 'pocketbase'
-import { pb } from '@/lib/pocketbase/client'
+import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import {
   Sparkles,
@@ -320,14 +320,14 @@ export function BancoTalentos() {
             <span className="font-bold text-slate-900">{candidatos.length}</span>
           </div>
 
-          <Link to="/chat">
+          <Link to="/alertas">
             <Button
               size="sm"
               variant="outline"
               className="text-xs font-semibold border-blue-200 text-blue-700 hover:bg-blue-50"
             >
               <Sparkles className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
-              Perguntar ao Agente IA
+              Ver Alertas Automáticos
             </Button>
           </Link>
         </div>

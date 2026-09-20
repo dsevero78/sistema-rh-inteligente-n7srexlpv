@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Outlet, NavLink, useLocation, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePeriod } from '@/contexts/PeriodContext'
+import { useRealtime } from '@/hooks/use-realtime'
 import {
   LayoutDashboard,
   Briefcase,
@@ -17,7 +18,13 @@ import {
   ChevronDown,
   Sparkles,
   BarChart3,
+  Bell,
+  CheckCircle2,
+  Trash2,
+  ArrowRight,
+  ExternalLink,
 } from 'lucide-react'
+import type { RecordModel } from 'pocketbase'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -53,6 +60,7 @@ interface NavItem {
   href: string
   icon: typeof LayoutDashboard
   badge?: string
+  countKey?: 'alertas'
 }
 
 const navItems: NavItem[] = [
@@ -61,6 +69,7 @@ const navItems: NavItem[] = [
   { title: 'Candidatos', href: '/candidatos', icon: Users2 },
   { title: 'Pipeline', href: '/pipeline', icon: GitPullRequest },
   { title: 'Banco de Talentos', href: '/banco-talentos', icon: Sparkles, badge: 'Talentos' },
+  { title: 'Alertas', href: '/alertas', icon: Bell, countKey: 'alertas' },
   { title: 'Entrevistas', href: '/entrevistas', icon: Calendar },
   { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
   { title: 'Relatórios', href: '/relatorios', icon: FileText },
@@ -79,6 +88,55 @@ export default function Layout() {
   const [editName, setEditName] = useState(user?.name || '')
   const [savingProfile, setSavingProfile] = useState(false)
 
+  // Alertas automáticos
+  const [alertasRecentes, setAlertasRecentes] = useState<RecordModel[]>([])
+  const [alertasNovosCount, setAlertasNovosCount] = useState(0)
+  const [loadingAlertas, setLoadingAlertas] = useState(true)
+
+  const carregarAlertas = async () => {
+    try {
+      const records = await pb.collection('alertas').getFullList({
+        sort: '-created',
+        expand: 'candidato,vaga',
+      })
+      setAlertasRecentes(records.slice(0, 6))
+      const count = records.filter((a) => a.status === 'Novo').length
+      setAlertasNovosCount(count)
+    } catch (err) {
+      console.error('Falha ao carregar alertas no Layout', err)
+    } finally {
+      setLoadingAlertas(false)
+    }
+  }
+
+  useEffect(() => {
+    carregarAlertas()
+  }, [])
+
+  useRealtime('alertas', () => carregarAlertas())
+
+  const handleMarcarVisualizado = async (alertaId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await pb.collection('alertas').update(alertaId, { status: 'Visualizado' })
+      carregarAlertas()
+      toast({ title: 'Alerta marcado como visualizado' })
+    } catch {
+      /* intentionally ignored */
+    }
+  }
+
+  const handleDescartarAlerta = async (alertaId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await pb.collection('alertas').update(alertaId, { status: 'Descartado' })
+      carregarAlertas()
+      toast({ title: 'Alerta descartado' })
+    } catch {
+      /* intentionally ignored */
+    }
+  }
+
   const getPageTitle = () => {
     const path = location.pathname
     if (path.startsWith('/dashboard')) return 'Painel Geral de Recrutamento'
@@ -88,6 +146,7 @@ export default function Layout() {
     if (path === '/candidatos') return 'Gestão de Candidatos'
     if (path.startsWith('/pipeline')) return 'Pipeline de Seleção (Kanban)'
     if (path.startsWith('/banco-talentos')) return 'Banco de Talentos & Reaproveitamento'
+    if (path.startsWith('/alertas')) return 'Alertas Automáticos de Talentos'
     if (path.startsWith('/entrevistas')) return 'Gestão de Entrevistas & Calendário'
     if (path.startsWith('/chat')) return 'Chat com Gestor de Talentos (IA)'
     if (path.startsWith('/relatorios/')) return 'Relatório de Avaliação'
@@ -168,6 +227,11 @@ export default function Layout() {
               {item.badge && (
                 <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
                   {item.badge}
+                </span>
+              )}
+              {item.countKey === 'alertas' && alertasNovosCount > 0 && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white min-w-[20px] text-center shadow-xs">
+                  {alertasNovosCount}
                 </span>
               )}
             </NavLink>
@@ -293,6 +357,151 @@ export default function Layout() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* SINO DE NOTIFICAÇÕES (Alertas Automáticos) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="relative p-2 rounded-lg text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Notificações e Alertas"
+                >
+                  <Bell className="w-5 h-5" />
+                  {alertasNovosCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+                      {alertasNovosCount}
+                    </span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-84 sm:w-96 p-0 bg-white border border-slate-200 shadow-xl rounded-xl overflow-hidden"
+              >
+                {/* Header do Dropdown */}
+                <div className="p-3.5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-blue-400" />
+                    <span className="text-xs font-bold tracking-tight">Alertas de Talentos</span>
+                    {alertasNovosCount > 0 && (
+                      <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.2 rounded-full font-bold">
+                        {alertasNovosCount} novo(s)
+                      </span>
+                    )}
+                  </div>
+                  <Link
+                    to="/alertas"
+                    className="text-[11px] font-semibold text-blue-300 hover:text-white transition-colors"
+                  >
+                    Ver todos
+                  </Link>
+                </div>
+
+                {/* Lista de Alertas Recentes */}
+                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                  {loadingAlertas ? (
+                    <div className="p-4 text-center text-xs text-slate-500">
+                      Carregando alertas...
+                    </div>
+                  ) : alertasRecentes.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-slate-500">
+                      Nenhum alerta recente gerado.
+                    </div>
+                  ) : (
+                    alertasRecentes.map((al) => {
+                      const cand = al.expand?.candidato
+                      const vaga = al.expand?.vaga
+                      const isNovo = al.status === 'Novo'
+                      return (
+                        <div
+                          key={al.id}
+                          onClick={() => navigate('/alertas')}
+                          className={`p-3 transition-colors hover:bg-slate-50/80 cursor-pointer ${
+                            isNovo ? 'bg-blue-50/40' : ''
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {isNovo && (
+                                <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                              )}
+                              <span className="font-bold text-xs text-slate-900 truncate">
+                                {cand?.nome || 'Talento'}
+                              </span>
+                              <span className="text-[10px] text-slate-400">→</span>
+                              <span className="text-xs font-medium text-blue-700 truncate">
+                                {vaga?.titulo || 'Vaga'}
+                              </span>
+                            </div>
+
+                            {/* Score Ring / Badge */}
+                            <span
+                              className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded shrink-0 ${
+                                (al.score || 75) >= 85
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {al.score || 75}% fit
+                            </span>
+                          </div>
+
+                          {al.resumo_ia && (
+                            <p className="text-[11px] text-slate-600 mt-1 line-clamp-2 leading-relaxed">
+                              {al.resumo_ia}
+                            </p>
+                          )}
+
+                          <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-100/60">
+                            <span>
+                              {al.created
+                                ? new Date(al.created).toLocaleDateString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
+                                : 'Recente'}
+                            </span>
+
+                            <div className="flex items-center gap-1">
+                              {isNovo && (
+                                <button
+                                  onClick={(e) => handleMarcarVisualizado(al.id, e)}
+                                  className="text-slate-500 hover:text-blue-600 p-0.5 rounded font-medium"
+                                  title="Marcar como lido"
+                                >
+                                  Lido
+                                </button>
+                              )}
+                              {al.status !== 'Descartado' && (
+                                <button
+                                  onClick={(e) => handleDescartarAlerta(al.id, e)}
+                                  className="text-slate-400 hover:text-red-600 p-0.5 rounded"
+                                  title="Descartar"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+
+                {/* Footer do Dropdown */}
+                <div className="p-2.5 bg-slate-50 border-t border-slate-100 text-center">
+                  <Link
+                    to="/alertas"
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
+                  >
+                    Abrir Central de Alertas
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* Header user avatar */}
             <DropdownMenu>
