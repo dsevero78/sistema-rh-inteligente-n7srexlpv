@@ -22,7 +22,9 @@ import {
   Loader2,
   FileCheck2,
   DollarSign,
+  Video,
 } from 'lucide-react'
+import { VideoEPercepcaoSection } from '@/components/VideoEPercepcaoSection'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -360,6 +362,23 @@ export default function CandidatoDetalhes() {
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-300">
+      {/* Alerta de Reprovação na Triagem Automática */}
+      {candidato.reprovado_triagem_auto && (
+        <div className="p-4 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-950 flex items-start gap-3 shadow-xs">
+          <div className="w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center shrink-0 font-bold text-sm">
+            ✕
+          </div>
+          <div className="space-y-0.5 flex-1">
+            <h4 className="font-extrabold text-rose-900 text-sm">
+              Candidato Reprovado na Triagem Automática
+            </h4>
+            <p className="leading-relaxed font-medium">
+              {candidato.motivo_reprovacao_triagem ||
+                'O candidato não atingiu os critérios eliminatórios configurados no questionário da vaga.'}
+            </p>
+          </div>
+        </div>
+      )}
       {/* Back button */}
       <div>
         <Button
@@ -518,6 +537,13 @@ export default function CandidatoDetalhes() {
           <TabsTrigger value="visao-geral" className="text-xs font-semibold px-4 py-2">
             Visão Geral
           </TabsTrigger>
+          <TabsTrigger
+            value="video-percepcao"
+            className="text-xs font-semibold px-4 py-2 flex items-center gap-1.5"
+          >
+            <Video className="w-3.5 h-3.5 text-blue-600" />
+            Vídeo & Percepção RH (Módulo 3)
+          </TabsTrigger>
           <TabsTrigger value="curriculo" className="text-xs font-semibold px-4 py-2">
             Currículo (PDF)
           </TabsTrigger>
@@ -542,6 +568,11 @@ export default function CandidatoDetalhes() {
             Histórico & Notas
           </TabsTrigger>
         </TabsList>
+
+        {/* Tab Módulo 3: Vídeo & Percepção RH */}
+        <TabsContent value="video-percepcao">
+          <VideoEPercepcaoSection candidato={candidato} onCandidatoUpdated={fetchCandidato} />
+        </TabsContent>
 
         {/* Tab 1: Visão Geral */}
         <TabsContent value="visao-geral" className="space-y-6">

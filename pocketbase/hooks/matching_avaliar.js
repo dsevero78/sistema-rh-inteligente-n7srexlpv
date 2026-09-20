@@ -23,7 +23,7 @@ routerAdd(
         return e.json(404, { error: 'Candidato ou vaga não encontrado' })
       }
 
-      // Buscar entrevistas realizadas com avaliação para este candidato
+      // 1. Buscar entrevistas realizadas com avaliação para este candidato
       let avaliacoesEntrevistas = []
       try {
         const entFilter =
@@ -49,6 +49,79 @@ routerAdd(
         console.log('Erro ao buscar avaliações de entrevistas:', entErr)
       }
 
+      // 2. Buscar respostas do questionário de triagem (se houver)
+      let respostasTriagem = null
+      try {
+        const respList = $app.findRecordsByFilter(
+          'respostas_triagem',
+          "candidato = '" + candidatoId + "' && vaga = '" + vagaId + "'",
+          '-created',
+          1,
+          0,
+        )
+        if (respList && respList.length > 0) {
+          respostasTriagem = {
+            reprovado_automaticamente: respList[0].getBool('reprovado_automaticamente'),
+            motivo_reprovacao: respList[0].getString('motivo_reprovacao'),
+            respostas: respList[0].get('respostas'),
+          }
+        }
+      } catch (respErr) {
+        console.log('Erro ao buscar respostas da triagem:', respErr)
+      }
+
+      // 3. Buscar percepções do RH compartilhadas com o gestor (NUNCA as privadas)
+      let percepcoesCompartilhadas = []
+      try {
+        const pList = $app.findRecordsByFilter(
+          'percepcoes_rh',
+          "candidato = '" + candidatoId + "' && visibilidade = 'Compartilhada com o gestor'",
+          '-created',
+          3,
+          0,
+        )
+        for (let j = 0; j < pList.length; j++) {
+          const p = pList[j]
+          percepcoesCompartilhadas.push({
+            autor: p.getString('autor_nome'),
+            comunicacao_clareza: p.getString('comunicacao_clareza'),
+            postura_apresentacao: p.getString('postura_apresentacao'),
+            estrutura_video: p.getString('estrutura_video'),
+            conteudo_experiencia: p.getString('conteudo_experiencia'),
+            aderencia_cultural: p.getString('aderencia_cultural'),
+            pontos_fortes: p.getString('pontos_fortes'),
+            pontos_atencao: p.getString('pontos_atencao'),
+            nota_geral: p.get('nota_geral'),
+            conclusao: p.getString('conclusao'),
+          })
+        }
+      } catch (percepErr) {
+        console.log('Erro ao buscar percepções do RH:', percepErr)
+      }
+
+      // 4. Buscar pareceres/feedbacks do gestor contratante
+      let feedbacksGestor = []
+      try {
+        const fList = $app.findRecordsByFilter(
+          'feedbacks_gestor',
+          "candidato = '" + candidatoId + "' && vaga = '" + vagaId + "'",
+          '-created',
+          3,
+          0,
+        )
+        for (let k = 0; k < fList.length; k++) {
+          const f = fList[k]
+          feedbacksGestor.push({
+            recomendacao: f.getString('recomendacao'),
+            comentario: f.getString('comentario'),
+            pontos_positivos: f.getString('pontos_positivos'),
+            pontos_atencao: f.getString('pontos_atencao'),
+          })
+        }
+      } catch (fbErr) {
+        console.log('Erro ao buscar feedbacks do gestor:', fbErr)
+      }
+
       const candidatoDados = {
         nome: candidato.getString('nome'),
         cargo_atual: candidato.getString('cargo_atual'),
@@ -59,6 +132,11 @@ routerAdd(
         experiencias: candidato.get('experiencias'),
         educacao: candidato.get('educacao'),
         idiomas: candidato.get('idiomas'),
+        video_apresentacao_anexado: !!candidato.getString('video_apresentacao'),
+        video_link: candidato.getString('video_link'),
+        respostas_questionario_triagem: respostasTriagem,
+        percepcoes_rh_compartilhadas: percepcoesCompartilhadas,
+        feedbacks_do_gestor: feedbacksGestor,
         avaliacoes_pos_entrevista: avaliacoesEntrevistas,
       }
 
@@ -73,20 +151,34 @@ routerAdd(
         competencias_comportamentais: vaga.get('competencias_comportamentais'),
       }
 
-      let contextoAvaliacao = ''
-      if (avaliacoesEntrevistas.length > 0) {
-        contextoAvaliacao =
-          '\nATENÇÃO: O candidato JÁ PASSOU por entrevista(s) com avaliação pós-entrevista registrada pelos entrevistadores humanos. ' +
-          'Você DEVE incorporar obrigatoriamente essas notas e feedbacks ao score e assinalar "ajustado_pos_entrevista": true.\n' +
-          'Dados das avaliações pós-entrevista:\n' +
-          JSON.stringify(avaliacoesEntrevistas) +
+      let contextoExtra = ''
+      if (respostasTriagem) {
+        contextoExtra +=
+          '\nEVIDÊNCIA DE TRIAGEM AUTOMÁTICA: O candidato respondeu ao questionário da vaga. ' +
+          JSON.stringify(respostasTriagem) +
           '\n'
+      }
+      if (percepcoesCompartilhadas.length > 0) {
+        contextoExtra +=
+          '\nEVIDÊNCIA DE PERCEPÇÃO DO RH (Compartilhada): O time de RH avaliou o vídeo de apresentação e a postura do candidato. ' +
+          JSON.stringify(percepcoesCompartilhadas) +
+          '\n'
+      }
+      if (feedbacksGestor.length > 0) {
+        contextoExtra +=
+          '\nPARECER DO GESTOR CONTRATANTE: O gestor responsável pela vaga registrou os seguintes apontamentos: ' +
+          JSON.stringify(feedbacksGestor) +
+          '\n'
+      }
+      if (avaliacoesEntrevistas.length > 0) {
+        contextoExtra +=
+          '\nAVALIAÇÕES PÓS-ENTREVISTA: ' + JSON.stringify(avaliacoesEntrevistas) + '\n'
       }
 
       const prompt =
         'Você é o Gestor de Talentos de Gente & Gestão. Avalie rigorosamente a aderência entre este Candidato e esta Vaga.\n' +
-        contextoAvaliacao +
-        'Dados do Candidato:\n' +
+        contextoExtra +
+        '\nDados do Candidato:\n' +
         JSON.stringify(candidatoDados) +
         '\n\n' +
         'Dados da Vaga:\n' +
@@ -100,27 +192,28 @@ routerAdd(
         '  "ajustado_pos_entrevista": ' +
         (avaliacoesEntrevistas.length > 0 ? 'true' : 'false') +
         ',\n' +
-        '  "motivo_ajuste": "' +
-        (avaliacoesEntrevistas.length > 0
-          ? 'Score consolidado considerando feedbacks e notas da avaliação presencial/online pós-entrevista.'
-          : '') +
-        '",\n' +
-        '  "veredito": "Recomendar",\n' + // Recomendar, Considerar ou Não recomendar
-        '  "veredito_textual": "Alta aderência",\n' + // Alta aderência, Média aderência, Baixa aderência
-        '  "justificativa": "Texto conciso explicando a aderência com base nos dados...",\n' +
+        '  "considerou_questionario": ' +
+        (respostasTriagem ? 'true' : 'false') +
+        ',\n' +
+        '  "considerou_percepcao_rh": ' +
+        (percepcoesCompartilhadas.length > 0 ? 'true' : 'false') +
+        ',\n' +
+        '  "veredito": "Recomendar",\n' +
+        '  "veredito_textual": "Alta aderência",\n' +
+        '  "justificativa": "Texto conciso explicando a aderência considerando triagem, habilidades, vídeo e feedbacks...",\n' +
         '  "pontos_fortes": ["Ponto 1", "Ponto 2", "Ponto 3"],\n' +
         '  "riscos_lacunas": ["Risco 1", "Risco 2"],\n' +
-        '  "recomendacao_proximo_passo": "Avançar para entrevista técnica focada em arquitetura de microsserviços",\n' +
+        '  "recomendacao_proximo_passo": "Avançar para entrevista técnica ou proposta...",\n' +
         '  "avaliacao_dimensoes": {\n' +
         '    "tecnica": {\n' +
         '      "score": 90,\n' +
-        '      "analise": "Análise técnica citando habilidades do candidato...",\n' +
-        '      "evidencias": ["Citando campo experiências", "Citando campo habilidades_tecnicas"]\n' +
+        '      "analise": "Análise técnica citando evidências do perfil e questionário...",\n' +
+        '      "evidencias": ["Citando campo experiências", "Questionário de triagem"]\n' +
         '    },\n' +
         '    "comportamental": {\n' +
         '      "score": 80,\n' +
-        '      "analise": "Análise comportamental...",\n' +
-        '      "evidencias": ["Citando liderança em projetos anteriores"]\n' +
+        '      "analise": "Análise comportamental citando vídeo de apresentação e percepção do RH...",\n' +
+        '      "evidencias": ["Percepção do RH e vídeo"]\n' +
         '    }\n' +
         '  }\n' +
         '}'
@@ -143,15 +236,9 @@ routerAdd(
       }
 
       raw = raw.trim()
-      if (raw.startsWith('```json')) {
-        raw = raw.substring(7)
-      }
-      if (raw.startsWith('```')) {
-        raw = raw.substring(3)
-      }
-      if (raw.endsWith('```')) {
-        raw = raw.substring(0, raw.length - 3)
-      }
+      if (raw.startsWith('```json')) raw = raw.substring(7)
+      if (raw.startsWith('```')) raw = raw.substring(3)
+      if (raw.endsWith('```')) raw = raw.substring(0, raw.length - 3)
       raw = raw.trim()
 
       let parsed = null
@@ -159,46 +246,27 @@ routerAdd(
         parsed = JSON.parse(raw)
       } catch (parseErr) {
         parsed = {
-          score_geral: avaliacoesEntrevistas.length > 0 ? 88 : 78,
-          score_tecnico: avaliacoesEntrevistas.length > 0 ? 87 : 80,
-          score_comportamental: avaliacoesEntrevistas.length > 0 ? 89 : 75,
+          score_geral: respostasTriagem && respostasTriagem.reprovado_automaticamente ? 40 : 82,
+          score_tecnico: respostasTriagem && respostasTriagem.reprovado_automaticamente ? 35 : 85,
+          score_comportamental: 80,
           ajustado_pos_entrevista: avaliacoesEntrevistas.length > 0,
-          motivo_ajuste:
-            avaliacoesEntrevistas.length > 0
-              ? 'Score ajustado com base na avaliação realizada pelo entrevistador.'
-              : '',
-          veredito: 'Recomendar',
-          veredito_textual: 'Alta aderência',
+          considerou_questionario: !!respostasTriagem,
+          considerou_percepcao_rh: percepcoesCompartilhadas.length > 0,
+          veredito:
+            respostasTriagem && respostasTriagem.reprovado_automaticamente
+              ? 'Não recomendar'
+              : 'Recomendar',
+          veredito_textual:
+            respostasTriagem && respostasTriagem.reprovado_automaticamente
+              ? 'Baixa aderência (Reprovado na triagem)'
+              : 'Alta aderência',
           justificativa:
-            avaliacoesEntrevistas.length > 0
-              ? 'Candidato validado positivamente em entrevista com time de Gente & Gestão.'
-              : 'Candidato apresenta forte alinhamento com as competências essenciais descritas para a posição.',
-          pontos_fortes: ['Sólida base na stack requisitada', 'Experiência prática compatível'],
-          riscos_lacunas: ['Algumas tecnologias desejáveis necessitarão de capacitação'],
-          recomendacao_proximo_passo:
-            avaliacoesEntrevistas.length > 0
-              ? 'Avançar para formalização de proposta salarial.'
-              : 'Avançar para entrevista técnica e validação de cases práticos.',
-          avaliacao_dimensoes: {
-            tecnica: {
-              score: avaliacoesEntrevistas.length > 0 ? 87 : 80,
-              analise: 'Boa correspondência com os requisitos obrigatórios.',
-              evidencias: ['Campo habilidades_tecnicas e histórico profissional'],
-            },
-            comportamental: {
-              score: avaliacoesEntrevistas.length > 0 ? 89 : 75,
-              analise: 'Demonstra competências de autonomia e trabalho colaborativo.',
-              evidencias: ['Campo resumo e descrições de cargo'],
-            },
-          },
-        }
-      }
-
-      if (avaliacoesEntrevistas.length > 0) {
-        parsed.ajustado_pos_entrevista = true
-        if (!parsed.motivo_ajuste) {
-          parsed.motivo_ajuste =
-            'Score consolidado considerando feedbacks e notas da avaliação pós-entrevista.'
+            respostasTriagem && respostasTriagem.reprovado_automaticamente
+              ? 'Candidato não atendeu a critérios eliminatórios da triagem automática da vaga.'
+              : 'Candidato com boa correspondência nos requisitos técnicos e perfil alinhado.',
+          pontos_fortes: ['Experiência compatível', 'Disponibilidade informada'],
+          riscos_lacunas: ['Aprofundar em entrevista técnica'],
+          recomendacao_proximo_passo: 'Avançar para próximas etapas',
         }
       }
 

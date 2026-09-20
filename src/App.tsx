@@ -14,6 +14,7 @@ import VerifyEmail from '@/pages/auth/VerifyEmail'
 import Dashboard from '@/pages/Dashboard'
 import Vagas from '@/pages/Vagas'
 import VagaDetalhes from '@/pages/VagaDetalhes'
+import GestorPortal from '@/pages/GestorPortal'
 import Candidatos from '@/pages/Candidatos'
 import CandidatoDetalhes from '@/pages/CandidatoDetalhes'
 import Pipeline from '@/pages/Pipeline'
@@ -80,6 +81,7 @@ export default function App() {
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
+              <Route path="gestor" element={<GestorPortal />} />
               <Route path="vagas" element={<Vagas />} />
               <Route path="vagas/:id" element={<VagaDetalhes />} />
               <Route path="candidatos" element={<Candidatos />} />

@@ -164,9 +164,12 @@ export default function Candidatos() {
   const [eduCurso, setEduCurso] = useState('')
   const [eduPeriodo, setEduPeriodo] = useState('')
 
-  // File upload PDF
+  // File upload PDF & Vídeo
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
   const [curriculoFile, setCurriculoFile] = useState<File | null>(null)
+  const [videoFile, setVideoFile] = useState<File | null>(null)
+  const [videoLink, setVideoLink] = useState('')
 
   const fetchData = async () => {
     try {
@@ -216,6 +219,8 @@ export default function Candidatos() {
     setExperiencias([])
     setEducacao([])
     setCurriculoFile(null)
+    setVideoFile(null)
+    setVideoLink('')
     setFieldErrors({})
     setModalOpen(true)
   }
@@ -241,6 +246,8 @@ export default function Candidatos() {
     setExperiencias(Array.isArray(c.experiencias) ? c.experiencias : [])
     setEducacao(Array.isArray(c.educacao) ? c.educacao : [])
     setCurriculoFile(null)
+    setVideoFile(null)
+    setVideoLink(c.video_link || '')
     setFieldErrors({})
     setModalOpen(true)
   }
@@ -270,8 +277,12 @@ export default function Candidatos() {
     if (!editingCand) {
       formData.append('score_semantico', '75')
     }
+    formData.append('video_link', videoLink)
     if (curriculoFile) {
       formData.append('curriculo', curriculoFile)
+    }
+    if (videoFile) {
+      formData.append('video_apresentacao', videoFile)
     }
 
     try {
@@ -566,12 +577,29 @@ export default function Candidatos() {
                         </h3>
                         <Badge
                           variant="outline"
-                          className="text-[10px] font-semibold bg-slate-100 text-slate-700 border-slate-200"
+                          className="text-[10px] bg-slate-100 text-slate-700"
                         >
                           {cand.status}
                         </Badge>
-                      </div>
 
+                        {cand.reprovado_triagem_auto && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-rose-50 text-rose-700 border-rose-300 font-bold"
+                          >
+                            Reprovado na Triagem
+                          </Badge>
+                        )}
+
+                        {(cand.video_link || cand.video_apresentacao) && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-blue-50 text-blue-700 border-blue-200 font-medium"
+                          >
+                            Vídeo Disponível
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-600 truncate">
                         <span className="font-medium text-slate-800">
                           {cand.cargo_atual || 'Profissional'}
@@ -896,6 +924,62 @@ export default function Candidatos() {
                     {curriculoFile.name}
                   </span>
                 )}
+              </div>
+            </div>
+
+            {/* MÓDULO 3: Vídeo de Apresentação (Upload ou Link Externo) */}
+            <div className="space-y-3 border-t border-slate-200 pt-3 bg-blue-50/40 p-3 rounded-lg border">
+              <Label className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                <span>Vídeo de Apresentação do Candidato (Módulo 3)</span>
+                <span className="text-[11px] text-blue-600 font-normal">
+                  Entrevista RH & Análise Gestor
+                </span>
+              </Label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-semibold text-slate-700 block">
+                    Opção A: Upload do arquivo de vídeo
+                  </span>
+                  <input
+                    type="file"
+                    ref={videoInputRef}
+                    accept="video/mp4,video/webm,video/quicktime,video/x-matroska"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setVideoFile(e.target.files[0])
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => videoInputRef.current?.click()}
+                    className="text-xs border-slate-300 bg-white w-full justify-start"
+                  >
+                    <Upload className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
+                    {videoFile ? 'Substituir Vídeo' : 'Anexar Vídeo (mp4/webm)'}
+                  </Button>
+                  {videoFile && (
+                    <p className="text-[11px] text-emerald-700 font-medium truncate">
+                      ✓ {videoFile.name} ({Math.round(videoFile.size / 1024 / 1024)}MB)
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-semibold text-slate-700 block">
+                    Opção B: Ou link externo (YouTube/Loom/Drive)
+                  </span>
+                  <Input
+                    placeholder="https://loom.com/share/... ou YouTube"
+                    value={videoLink}
+                    onChange={(e) => setVideoLink(e.target.value)}
+                    className="text-xs bg-white"
+                  />
+                </div>
               </div>
             </div>
 

@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
+import { QuestionarioVagaEditor } from '@/components/QuestionarioVagaEditor'
 import type { RecordModel } from 'pocketbase'
 
 export default function VagaDetalhes() {
@@ -37,7 +38,7 @@ export default function VagaDetalhes() {
   const fetchVagaData = async () => {
     if (!id) return
     try {
-      const v = await pb.collection('vagas').getOne(id)
+      const v = await pb.collection('vagas').getOne(id, { expand: 'gestor_responsavel' })
       setVaga(v)
 
       const cList = await pb.collection('candidatos').getFullList({
@@ -161,6 +162,19 @@ export default function VagaDetalhes() {
             {vaga.faixa_salarial && (
               <span className="font-semibold text-slate-800">{vaga.faixa_salarial}</span>
             )}
+            {vaga.expand?.gestor_responsavel && (
+              <div className="flex items-center gap-1.5 font-semibold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                <span>
+                  Gestor:{' '}
+                  {vaga.expand.gestor_responsavel.name || vaga.expand.gestor_responsavel.email}
+                </span>
+                {vaga.status_aprovacao_gestor && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 bg-white rounded">
+                    {vaga.status_aprovacao_gestor}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="flex items-center gap-1.5 text-slate-400">
               <Clock className="w-3.5 h-3.5" />
               <span>Criada em {new Date(vaga.created).toLocaleDateString('pt-BR')}</span>
@@ -217,6 +231,9 @@ export default function VagaDetalhes() {
         <TabsList className="bg-white border border-slate-200/80 p-1 shadow-xs rounded-lg">
           <TabsTrigger value="visao-geral" className="text-xs font-semibold px-4 py-2">
             Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="triagem" className="text-xs font-semibold px-4 py-2">
+            Questionário de Triagem (Módulo 2)
           </TabsTrigger>
           <TabsTrigger value="candidatos" className="text-xs font-semibold px-4 py-2">
             Candidatos ({candidatos.length})
@@ -347,6 +364,11 @@ export default function VagaDetalhes() {
               </Card>
             </div>
           </div>
+        </TabsContent>
+
+        {/* Aba Questionário de Triagem Estruturada */}
+        <TabsContent value="triagem">
+          <QuestionarioVagaEditor vagaId={vaga.id} vagaTitulo={vaga.titulo} />
         </TabsContent>
 
         {/* Aba Candidatos */}

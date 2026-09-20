@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T01:08:30.349Z",
+  "generatedAt": "2026-09-20T01:22:21.357Z",
   "collections": [
     {
       "name": "users",
@@ -37,6 +37,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "cargo_funcao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["RH / Recrutador", "Gestor Contratante", "Diretoria / Executivo"]
         }
       ],
       "indexes": [
@@ -136,6 +143,32 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "gestor_responsavel",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "status_aprovacao_gestor",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Aprovada pelo gestor", "Aguardando aprovação", "Ajustes solicitados"]
+        },
+        {
+          "name": "parecer_gestor_vaga",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_aprovacao_gestor",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -330,6 +363,30 @@
           "required": false,
           "system": false,
           "collectionRef": "vagas"
+        },
+        {
+          "name": "video_apresentacao",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "video_link",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reprovado_triagem_auto",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_reprovacao_triagem",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -992,6 +1049,360 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_pref_alerta_vaga ON preferencias_alerta (vaga)"]
+    },
+    {
+      "name": "feedbacks_gestor",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "gestor",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "recomendacao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Avançar", "Em dúvida", "Recusar"]
+        },
+        {
+          "name": "comentario",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pontos_positivos",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pontos_atencao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_feedbacks_gestor_vaga ON feedbacks_gestor (vaga)",
+        "CREATE INDEX idx_feedbacks_gestor_cand ON feedbacks_gestor (candidato)",
+        "CREATE INDEX idx_feedbacks_gestor_user ON feedbacks_gestor (gestor)"
+      ]
+    },
+    {
+      "name": "questionarios_vaga",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "perguntas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_quest_vaga ON questionarios_vaga (vaga)"]
+    },
+    {
+      "name": "respostas_triagem",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "questionario",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "questionarios_vaga"
+        },
+        {
+          "name": "respostas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reprovado_automaticamente",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_reprovacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_perguntas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_eliminatorias_atendidas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_resp_vaga ON respostas_triagem (vaga)",
+        "CREATE INDEX idx_resp_candidato ON respostas_triagem (candidato)"
+      ]
+    },
+    {
+      "name": "percepcoes_rh",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (visibilidade = 'Compartilhada com o gestor' || autor = @request.auth.id)",
+        "view": "@request.auth.id != '' && (visibilidade = 'Compartilhada com o gestor' || autor = @request.auth.id)",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && autor = @request.auth.id",
+        "delete": "@request.auth.id != '' && autor = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "autor",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "autor_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "visibilidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Privada (só o RH autor)", "Compartilhada com o gestor"]
+        },
+        {
+          "name": "status_documento",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Rascunho", "Finalizada"]
+        },
+        {
+          "name": "comunicacao_clareza",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "postura_apresentacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estrutura_video",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conteudo_experiencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aderencia_cultural",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pontos_fortes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pontos_atencao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nota_geral",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conclusao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Avançar", "Em dúvida", "Reprovar"]
+        },
+        {
+          "name": "observacoes_confidenciais",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_percepcoes_cand ON percepcoes_rh (candidato)",
+        "CREATE INDEX idx_percepcoes_vaga ON percepcoes_rh (vaga)",
+        "CREATE INDEX idx_percepcoes_autor ON percepcoes_rh (autor)",
+        "CREATE INDEX idx_percepcoes_visib ON percepcoes_rh (visibilidade)"
+      ]
     }
   ]
 }

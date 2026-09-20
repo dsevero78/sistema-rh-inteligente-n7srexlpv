@@ -78,7 +78,9 @@ export default function Vagas() {
   const [modalidade, setModalidade] = useState<'Remoto' | 'Presencial' | 'Híbrido'>('Híbrido')
   const [faixaSalarial, setFaixaSalarial] = useState('')
   const [descricao, setDescricao] = useState('')
+  const [gestorResponsavel, setGestorResponsavel] = useState('')
   const [status, setStatus] = useState<'Ativa' | 'Pausada' | 'Preenchida' | 'Arquivada'>('Ativa')
+  const [gestoresList, setGestoresList] = useState<RecordModel[]>([])
 
   // Tags
   const [reqObrigatorios, setReqObrigatorios] = useState<string[]>([])
@@ -96,11 +98,13 @@ export default function Vagas() {
 
   const fetchVagas = async () => {
     try {
-      const [vList, cList] = await Promise.all([
-        pb.collection('vagas').getFullList({ sort: '-created' }),
+      const [vList, cList, uList] = await Promise.all([
+        pb.collection('vagas').getFullList({ sort: '-created', expand: 'gestor_responsavel' }),
         pb.collection('candidatos').getFullList({ fields: 'id,vaga' }),
+        pb.collection('users').getFullList({ sort: 'name' }),
       ])
       setVagas(vList)
+      setGestoresList(uList)
 
       const counts: Record<string, number> = {}
       cList.forEach((c) => {
@@ -131,6 +135,7 @@ export default function Vagas() {
     setModalidade('Híbrido')
     setFaixaSalarial('')
     setDescricao('')
+    setGestorResponsavel('')
     setStatus('Ativa')
     setReqObrigatorios([])
     setReqDesejaveis([])
@@ -148,6 +153,7 @@ export default function Vagas() {
     setModalidade(vaga.modalidade || 'Híbrido')
     setFaixaSalarial(vaga.faixa_salarial || '')
     setDescricao(vaga.descricao || '')
+    setGestorResponsavel(vaga.gestor_responsavel || '')
     setStatus(vaga.status || 'Ativa')
     setReqObrigatorios(
       Array.isArray(vaga.requisitos_obrigatorios) ? vaga.requisitos_obrigatorios : [],
@@ -173,6 +179,7 @@ export default function Vagas() {
       modalidade,
       faixa_salarial: faixaSalarial,
       descricao,
+      gestor_responsavel: gestorResponsavel || null,
       requisitos_obrigatorios: reqObrigatorios,
       requisitos_desejaveis: reqDesejaveis,
       habilidades_tecnicas: habTecnicas,
@@ -432,6 +439,31 @@ export default function Vagas() {
                         >
                           {vaga.titulo}
                         </CardTitle>
+
+                        {vaga.expand?.gestor_responsavel && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium pt-0.5">
+                            <span className="font-semibold text-slate-700">Gestor:</span>
+                            <span className="text-blue-700 font-semibold truncate">
+                              {vaga.expand.gestor_responsavel.name ||
+                                vaga.expand.gestor_responsavel.email}
+                            </span>
+                            {vaga.status_aprovacao_gestor && (
+                              <span
+                                className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                                  vaga.status_aprovacao_gestor === 'Aprovada pelo gestor'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : vaga.status_aprovacao_gestor === 'Ajustes solicitados'
+                                      ? 'bg-rose-100 text-rose-800'
+                                      : 'bg-amber-100 text-amber-800'
+                                }`}
+                              >
+                                {vaga.status_aprovacao_gestor === 'Aprovada pelo gestor'
+                                  ? '✓ Aprovada'
+                                  : vaga.status_aprovacao_gestor}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <DropdownMenu>
@@ -644,6 +676,41 @@ export default function Vagas() {
                   onChange={(e) => setFaixaSalarial(e.target.value)}
                   className="text-xs"
                 />
+              </div>
+
+              {/* MÓDULO 1: Gestor Responsável */}
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label
+                  htmlFor="gestorResp"
+                  className="text-xs font-semibold text-slate-700 flex items-center justify-between"
+                >
+                  <span>Gestor Contratante Responsável</span>
+                  <span className="text-[11px] text-blue-600 font-normal">
+                    Módulo de Acesso do Gestor
+                  </span>
+                </Label>
+                <Select
+                  value={gestorResponsavel || 'none'}
+                  onValueChange={(val) => setGestorResponsavel(val === 'none' ? '' : val)}
+                >
+                  <SelectTrigger className="text-xs">
+                    <SelectValue placeholder="Selecione o gestor solicitante" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" className="text-xs text-slate-400">
+                      Nenhum gestor atribuído
+                    </SelectItem>
+                    {gestoresList.map((u) => (
+                      <SelectItem key={u.id} value={u.id} className="text-xs">
+                        {u.name || u.email} {u.cargo_funcao ? `(${u.cargo_funcao})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-slate-500">
+                  O gestor vinculado terá acesso exclusivo ao portal Minhas Vagas para aprovação de
+                  escopo e feedback dos candidatos.
+                </p>
               </div>
             </div>
 

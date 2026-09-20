@@ -7,6 +7,7 @@ interface AuthContextType {
   token: string
   isAuthenticated: boolean
   isLoading: boolean
+  isGestorContratante: boolean
   login: (email: string, pass: string) => Promise<void>
   logout: () => void
   refreshUser: () => Promise<void>
@@ -71,6 +72,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  const isGestorContratante = user?.cargo_funcao === 'Gestor Contratante'
+
   return (
     <AuthContext.Provider
       value={{
@@ -78,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         isAuthenticated: !!user && !!token,
         isLoading,
+        isGestorContratante,
         login,
         logout,
         refreshUser,

@@ -24,6 +24,7 @@ import {
   Trash2,
   ArrowRight,
   ExternalLink,
+  UserCheck,
 } from 'lucide-react'
 import type { RecordModel } from 'pocketbase'
 import { Button } from '@/components/ui/button'
@@ -79,7 +80,7 @@ const navItems: NavItem[] = [
 ]
 
 export default function Layout() {
-  const { user, logout, refreshUser } = useAuth()
+  const { user, logout, refreshUser, isGestorContratante } = useAuth()
   const { period, setPeriod } = usePeriod()
   const location = useLocation()
   const navigate = useNavigate()
@@ -141,6 +142,7 @@ export default function Layout() {
 
   const getPageTitle = () => {
     const path = location.pathname
+    if (path.startsWith('/gestor')) return 'Portal do Gestor Contratante (Minhas Vagas)'
     if (path.startsWith('/dashboard')) return 'Painel Geral de Recrutamento'
     if (path.startsWith('/vagas/')) return 'Detalhes da Vaga'
     if (path === '/vagas') return 'Gestão de Vagas'
@@ -204,7 +206,36 @@ export default function Layout() {
 
       {/* Nav List */}
       <div className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto">
-        {navItems.map((item) => {
+        {(isGestorContratante
+          ? [
+              { title: 'Minhas Vagas', href: '/gestor', icon: Briefcase },
+              { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
+            ]
+          : [
+              { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+              { title: 'Minhas Vagas (Gestor)', href: '/gestor', icon: UserCheck, badge: 'Portal' },
+              { title: 'Vagas', href: '/vagas', icon: Briefcase },
+              { title: 'Candidatos', href: '/candidatos', icon: Users2 },
+              { title: 'Pipeline', href: '/pipeline', icon: GitPullRequest },
+              { title: 'Ofertas', href: '/ofertas', icon: FileCheck2 },
+              {
+                title: 'Banco de Talentos',
+                href: '/banco-talentos',
+                icon: Sparkles,
+                badge: 'Talentos',
+              },
+              { title: 'Alertas', href: '/alertas', icon: Bell, countKey: 'alertas' as const },
+              { title: 'Entrevistas', href: '/entrevistas', icon: Calendar },
+              { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
+              { title: 'Relatórios', href: '/relatorios', icon: FileText },
+              {
+                title: 'Relatório Executivo',
+                href: '/relatorio-executivo',
+                icon: BarChart3,
+                badge: 'Mensal',
+              },
+            ]
+        ).map((item) => {
           const Icon = item.icon
           const isActive =
             location.pathname === item.href ||
@@ -251,16 +282,22 @@ export default function Layout() {
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-white truncate">
-                  {user?.name || 'Douglas Severo'}
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-semibold text-white truncate">
+                    {user?.name || 'Douglas Severo'}
+                  </p>
+                </div>
+                <p className="text-[10px] text-blue-400 font-medium truncate">
+                  {user?.cargo_funcao ||
+                    (isGestorContratante ? 'Gestor Contratante' : 'RH / Recrutador')}
                 </p>
-                <p className="text-[11px] text-slate-400 truncate">
+                <p className="text-[10px] text-slate-400 truncate">
                   {user?.email || 'admin@empresa.com'}
                 </p>
               </div>
               <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
             </button>
-          </DropdownMenuTrigger>
+          </DropdownMenuTrigger>{' '}
           <DropdownMenuContent
             align="end"
             className="w-56 mb-2 bg-slate-900 border-slate-800 text-slate-200"
