@@ -151,6 +151,7 @@ export default function Layout() {
     if (path === '/candidatos') return 'Gestão de Candidatos'
     if (path.startsWith('/pipeline')) return 'Pipeline de Seleção (Kanban)'
     if (path.startsWith('/ofertas')) return 'Ofertas e Propostas Salariais'
+    if (path.startsWith('/onboarding')) return 'Onboarding do Contratado (Dia 1)'
     if (path.startsWith('/banco-talentos')) return 'Banco de Talentos & Reaproveitamento'
     if (path.startsWith('/alertas')) return 'Alertas Automáticos de Talentos'
     if (path.startsWith('/entrevistas')) return 'Gestão de Entrevistas & Calendário'
@@ -219,6 +220,7 @@ export default function Layout() {
               { title: 'Candidatos', href: '/candidatos', icon: Users2 },
               { title: 'Pipeline', href: '/pipeline', icon: GitPullRequest },
               { title: 'Ofertas', href: '/ofertas', icon: FileCheck2 },
+              { title: 'Onboarding', href: '/onboarding', icon: UserCheck, badge: 'Dia 1' },
               {
                 title: 'Banco de Talentos',
                 href: '/banco-talentos',

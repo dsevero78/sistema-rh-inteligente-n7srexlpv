@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T01:38:40.150Z",
+  "generatedAt": "2026-09-20T01:48:34.241Z",
   "collections": [
     {
       "name": "users",
@@ -1709,6 +1709,78 @@
         "CREATE INDEX idx_logs_emails_vaga ON logs_emails_status (vaga)",
         "CREATE INDEX idx_logs_emails_estagio ON logs_emails_status (estagio)",
         "CREATE INDEX idx_logs_emails_data ON logs_emails_status (data_envio)"
+      ]
+    },
+    {
+      "name": "onboardings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "data_admissao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Ativo", "Concluído", "Cancelado"]
+        },
+        {
+          "name": "percentual_conclusao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itens",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_onboardings_cand ON onboardings (candidato)",
+        "CREATE INDEX idx_onboardings_vaga ON onboardings (vaga)",
+        "CREATE INDEX idx_onboardings_status ON onboardings (status)",
+        "CREATE INDEX idx_onboardings_admissao ON onboardings (data_admissao)"
       ]
     }
   ]

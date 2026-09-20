@@ -17,6 +17,7 @@ import {
   DollarSign,
   FileCheck2,
   Clock,
+  UserCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -450,6 +451,22 @@ export default function Pipeline() {
                             Ver perfil
                           </button>
                         </div>
+
+                        {/* Ação rápida de Onboarding para candidatos Aprovados */}
+                        {item.estagio === 'Aprovado' && (
+                          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+                            <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
+                              <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                              Contratado
+                            </span>
+                            <button
+                              onClick={() => navigate(`/onboarding?id=${cand.id}`)}
+                              className="text-[10px] bg-blue-50 text-blue-700 hover:bg-blue-100 px-2 py-0.5 rounded font-bold border border-blue-200 transition-colors"
+                            >
+                              Ver Onboarding →
+                            </button>
+                          </div>
+                        )}
 
                         {/* Status da Oferta (se existir) */}
                         {(() => {

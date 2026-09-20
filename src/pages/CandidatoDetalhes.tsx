@@ -23,6 +23,7 @@ import {
   FileCheck2,
   DollarSign,
   Video,
+  UserCheck,
 } from 'lucide-react'
 import { VideoEPercepcaoSection } from '@/components/VideoEPercepcaoSection'
 import { Button } from '@/components/ui/button'
@@ -519,6 +520,17 @@ export default function CandidatoDetalhes() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Atalho para Onboarding se Aprovado */}
+          {candidato.status === 'Aprovado' && (
+            <Button
+              onClick={() => navigate(`/onboarding?id=${candidato.id}`)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold h-10 shadow-xs flex items-center gap-1.5"
+            >
+              <UserCheck className="w-4 h-4" />
+              Onboarding do Contratado →
+            </Button>
+          )}
 
           {/* Gerar relatório de IA */}
           <Button

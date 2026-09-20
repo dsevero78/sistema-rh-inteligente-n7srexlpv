@@ -29,6 +29,7 @@ import RelatorioDetalhes from '@/pages/RelatorioDetalhes'
 import BancoTalentos from '@/pages/BancoTalentos'
 import RelatorioExecutivo from '@/pages/RelatorioExecutivo'
 import Alertas from '@/pages/Alertas'
+import Onboarding from '@/pages/Onboarding'
 import NotFound from '@/pages/NotFound'
 
 import { Toaster } from '@/components/ui/toaster'
@@ -95,6 +96,7 @@ export default function App() {
               <Route path="candidatos/:id" element={<CandidatoDetalhes />} />
               <Route path="pipeline" element={<Pipeline />} />
               <Route path="ofertas" element={<Ofertas />} />
+              <Route path="onboarding" element={<Onboarding />} />
               <Route path="banco-talentos" element={<BancoTalentos />} />
               <Route path="alertas" element={<Alertas />} />
               <Route path="entrevistas" element={<Entrevistas />} />
