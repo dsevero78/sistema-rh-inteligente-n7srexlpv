@@ -458,6 +458,16 @@ export default function CandidatoDetalhes() {
                   <ExternalLink className="w-3 h-3" />
                 </a>
               )}
+              {candidato.canal_origem && (
+                <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                  Canal: {candidato.canal_origem}
+                </span>
+              )}
+              {candidato.consentimento_lgpd && (
+                <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1 font-semibold">
+                  LGPD Autorizado ✓
+                </span>
+              )}
             </div>
           </div>
         </div>

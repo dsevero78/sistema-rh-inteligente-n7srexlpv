@@ -10,6 +10,9 @@ import ForgotPassword from '@/pages/auth/ForgotPassword'
 import ResetPassword from '@/pages/auth/ResetPassword'
 import VerifyEmail from '@/pages/auth/VerifyEmail'
 
+// Public Candidate Portal (sem login)
+import CandidaturaPublica from '@/pages/CandidaturaPublica'
+
 // Authenticated App Pages
 import Dashboard from '@/pages/Dashboard'
 import Vagas from '@/pages/Vagas'
@@ -69,6 +72,10 @@ export default function App() {
                 </PublicRoute>
               }
             />
+
+            {/* Public Candidate Routes (Página de Carreira e Inscrição) */}
+            <Route path="/candidatar" element={<CandidaturaPublica />} />
+            <Route path="/candidatar/:vagaId" element={<CandidaturaPublica />} />
 
             {/* Authenticated Global Layout Routes */}
             <Route

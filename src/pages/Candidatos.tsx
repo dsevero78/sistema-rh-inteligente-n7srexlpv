@@ -132,6 +132,7 @@ export default function Candidatos() {
   const [empresaAtual, setEmpresaAtual] = useState('')
   const [localizacao, setLocalizacao] = useState('')
   const [vagaId, setVagaId] = useState<string>('')
+  const [canalOrigem, setCanalOrigem] = useState<string>('Página de Carreira')
   const [linkedin, setLinkedin] = useState('')
   const [github, setGithub] = useState('')
   const [resumo, setResumo] = useState('')
@@ -209,6 +210,7 @@ export default function Candidatos() {
     setEmpresaAtual('')
     setLocalizacao('São Paulo, SP')
     setVagaId(vagas[0]?.id || '')
+    setCanalOrigem('Indicação interna')
     setLinkedin('')
     setGithub('')
     setResumo('')
@@ -234,6 +236,7 @@ export default function Candidatos() {
     setEmpresaAtual(c.empresa_atual || '')
     setLocalizacao(c.localizacao || '')
     setVagaId(c.vaga || '')
+    setCanalOrigem(c.canal_origem || 'Outros canais')
     setLinkedin(c.linkedin || '')
     setGithub(c.github || '')
     setResumo(c.resumo || '')
@@ -264,6 +267,7 @@ export default function Candidatos() {
     formData.append('cargo_atual', cargoAtual)
     formData.append('empresa_atual', empresaAtual)
     formData.append('localizacao', localizacao)
+    formData.append('canal_origem', canalOrigem)
     if (vagaId) formData.append('vaga', vagaId)
     formData.append('linkedin', linkedin)
     formData.append('github', github)
@@ -606,6 +610,9 @@ export default function Candidatos() {
                         </span>
                         {cand.empresa_atual && <span> em {cand.empresa_atual}</span>}
                         {cand.localizacao && <span> · {cand.localizacao}</span>}
+                        {cand.canal_origem && (
+                          <span className="text-slate-400"> · Origem: {cand.canal_origem}</span>
+                        )}
                       </p>
 
                       <p className="text-[11px] text-blue-600 font-medium truncate flex items-center gap-1">
@@ -861,6 +868,35 @@ export default function Candidatos() {
                         {v.titulo}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Canal de Origem</Label>
+                <Select value={canalOrigem} onValueChange={setCanalOrigem}>
+                  <SelectTrigger className="text-xs">
+                    <SelectValue placeholder="Selecione o canal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Página de Carreira" className="text-xs">
+                      Página de Carreira
+                    </SelectItem>
+                    <SelectItem value="LinkedIn" className="text-xs">
+                      LinkedIn
+                    </SelectItem>
+                    <SelectItem value="Indicação interna" className="text-xs">
+                      Indicação interna
+                    </SelectItem>
+                    <SelectItem value="Site da empresa" className="text-xs">
+                      Site da empresa
+                    </SelectItem>
+                    <SelectItem value="Banco de talentos" className="text-xs">
+                      Banco de talentos
+                    </SelectItem>
+                    <SelectItem value="Outros canais" className="text-xs">
+                      Outros canais
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>

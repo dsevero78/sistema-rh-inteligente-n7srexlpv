@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CentralEmailsStatus } from '@/components/CentralEmailsStatus'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { Label } from '@/components/ui/label'
@@ -76,7 +77,15 @@ export function Alertas() {
   const [savingReaproveitamento, setSavingReaproveitamento] = useState(false)
 
   // MÓDULO 3: Central de Preferências de Alerta
-  const [abaAtiva, setAbaAtiva] = useState<'feed' | 'preferencias'>('feed')
+  const [abaAtiva, setAbaAtiva] = useState<'feed' | 'preferencias' | 'emails_status'>('feed')
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const paramAba = params.get('aba')
+    if (paramAba === 'emails_status' || paramAba === 'preferencias' || paramAba === 'feed') {
+      setAbaAtiva(paramAba)
+    }
+  }, [])
   const [preferencias, setPreferencias] = useState<RecordModel[]>([])
   const [prefGlobal, setPrefGlobal] = useState<RecordModel | null>(null)
   const [salvandoPrefId, setSalvandoPrefId] = useState<string | null>(null)
@@ -514,10 +523,10 @@ export function Alertas() {
         onValueChange={(val) => setAbaAtiva(val as any)}
         className="w-full space-y-6"
       >
-        <TabsList className="grid w-full sm:w-[420px] grid-cols-2 bg-slate-100 p-1">
-          <TabsTrigger value="feed" className="text-xs font-semibold flex items-center gap-2">
+        <TabsList className="grid w-full sm:w-[580px] grid-cols-3 bg-slate-100 p-1">
+          <TabsTrigger value="feed" className="text-xs font-semibold flex items-center gap-1.5">
             <Bell className="w-3.5 h-3.5" />
-            Feed de Notificações
+            Feed Notificações
             {totalNovos > 0 && (
               <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                 {totalNovos}
@@ -526,10 +535,17 @@ export function Alertas() {
           </TabsTrigger>
           <TabsTrigger
             value="preferencias"
-            className="text-xs font-semibold flex items-center gap-2"
+            className="text-xs font-semibold flex items-center gap-1.5"
           >
             <Settings className="w-3.5 h-3.5" />
             Preferências de Alerta
+          </TabsTrigger>
+          <TabsTrigger
+            value="emails_status"
+            className="text-xs font-semibold flex items-center gap-1.5"
+          >
+            <Mail className="w-3.5 h-3.5 text-[#1D4ED8]" />
+            E-mails de Status
           </TabsTrigger>
         </TabsList>
 
@@ -924,6 +940,11 @@ export function Alertas() {
               })}
             </div>
           )}
+        </TabsContent>
+
+        {/* ABA 3: E-MAILS DE STATUS AO CANDIDATO */}
+        <TabsContent value="emails_status" className="space-y-6 mt-0">
+          <CentralEmailsStatus />
         </TabsContent>
 
         {/* ABA 2: CENTRAL DE PREFERÊNCIAS DE ALERTA */}

@@ -25,6 +25,7 @@ import {
   ArrowRight,
   ExternalLink,
   UserCheck,
+  Mail,
 } from 'lucide-react'
 import type { RecordModel } from 'pocketbase'
 import { Button } from '@/components/ui/button'
@@ -227,6 +228,7 @@ export default function Layout() {
               { title: 'Alertas', href: '/alertas', icon: Bell, countKey: 'alertas' as const },
               { title: 'Entrevistas', href: '/entrevistas', icon: Calendar },
               { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
+              { title: 'E-mails de Status', href: '/alertas?aba=emails_status', icon: Mail },
               { title: 'Relatórios', href: '/relatorios', icon: FileText },
               {
                 title: 'Relatório Executivo',
@@ -375,8 +377,20 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Link Direto para Página Pública de Candidatura */}
+            <a
+              href="/candidatar"
+              target="_blank"
+              rel="noreferrer"
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-[#1D4ED8] hover:bg-blue-100 transition-colors border border-blue-200"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#1D4ED8]" />
+              Ver Página de Candidatura Pública
+            </a>
+
             {/* Period selector */}
             <div className="hidden sm:flex items-center gap-2">
+              {' '}
               <Select
                 value={period}
                 onValueChange={(val) => setPeriod(val as '7d' | '30d' | '90d')}

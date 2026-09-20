@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T01:33:24.498Z",
+  "generatedAt": "2026-09-20T01:38:40.150Z",
   "collections": [
     {
       "name": "users",
@@ -384,6 +384,38 @@
         },
         {
           "name": "motivo_reprovacao_triagem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "canal_origem",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Página de Carreira",
+            "LinkedIn",
+            "Indicação interna",
+            "Site da empresa",
+            "Banco de talentos",
+            "Outros canais"
+          ]
+        },
+        {
+          "name": "consentimento_lgpd",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consentimento_lgpd_data",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consentimento_lgpd_ip",
           "type": "text",
           "required": false,
           "system": false
@@ -1518,6 +1550,165 @@
       "indexes": [
         "CREATE INDEX idx_analises_candidato ON analises_video_ia (candidato)",
         "CREATE INDEX idx_analises_vaga ON analises_video_ia (vaga)"
+      ]
+    },
+    {
+      "name": "config_emails_status",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assunto_personalizado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "mensagem_adicional",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_config_emails_vaga ON config_emails_status (vaga)"]
+    },
+    {
+      "name": "logs_emails_status",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "estagio",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Candidatura Recebida",
+            "Triagem",
+            "Entrevista com RH",
+            "Entrevista técnica",
+            "Match técnico/comportamental (IA)",
+            "Proposta",
+            "Aprovado",
+            "Recusado"
+          ]
+        },
+        {
+          "name": "candidato_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "candidato_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vaga_titulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assunto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_envio",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Enviado", "Falhou", "Simulado"]
+        },
+        {
+          "name": "mensagem_resumo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_envio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_logs_emails_cand ON logs_emails_status (candidato)",
+        "CREATE INDEX idx_logs_emails_vaga ON logs_emails_status (vaga)",
+        "CREATE INDEX idx_logs_emails_estagio ON logs_emails_status (estagio)",
+        "CREATE INDEX idx_logs_emails_data ON logs_emails_status (data_envio)"
       ]
     }
   ]
