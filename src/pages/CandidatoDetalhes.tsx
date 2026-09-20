@@ -20,6 +20,8 @@ import {
   BookOpen,
   Globe,
   Loader2,
+  FileCheck2,
+  DollarSign,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -56,6 +58,7 @@ export default function CandidatoDetalhes() {
   const [pipelineItem, setPipelineItem] = useState<RecordModel | null>(null)
   const [matchingScore, setMatchingScore] = useState<any>(null)
   const [entrevistasCand, setEntrevistasCand] = useState<RecordModel[]>([])
+  const [ofertasCand, setOfertasCand] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingScore, setLoadingScore] = useState(false)
   const [generatingReport, setGeneratingReport] = useState(false)
@@ -89,6 +92,18 @@ export default function CandidatoDetalhes() {
       })
       if (pList.length > 0) {
         setPipelineItem(pList[0])
+      }
+
+      // Fetch ofertas do candidato
+      try {
+        const ofList = await pb.collection('ofertas').getFullList({
+          filter: `candidato = '${id}'`,
+          sort: '-created',
+          expand: 'vaga',
+        })
+        setOfertasCand(ofList)
+      } catch (ofErr) {
+        console.warn('Erro ao carregar ofertas do candidato:', ofErr)
       }
 
       // Fetch matching score from hook
@@ -147,6 +162,7 @@ export default function CandidatoDetalhes() {
   useRealtime('candidatos', () => fetchCandidato())
   useRealtime('pipeline', () => fetchCandidato())
   useRealtime('entrevistas', () => fetchCandidato())
+  useRealtime('ofertas', () => fetchCandidato())
 
   const handleGenerateReport = async () => {
     if (!candidato || !candidato.vaga) {
@@ -512,6 +528,13 @@ export default function CandidatoDetalhes() {
             <Calendar className="w-3.5 h-3.5" />
             Entrevistas ({entrevistasCand.length})
           </TabsTrigger>
+          <TabsTrigger
+            value="propostas"
+            className="text-xs font-semibold px-4 py-2 flex items-center gap-1.5"
+          >
+            <FileCheck2 className="w-3.5 h-3.5" />
+            Propostas ({ofertasCand.length})
+          </TabsTrigger>
           <TabsTrigger value="matching" className="text-xs font-semibold px-4 py-2">
             Matching Inteligente
           </TabsTrigger>
@@ -846,6 +869,106 @@ export default function CandidatoDetalhes() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* Tab Propostas e Ofertas */}
+        <TabsContent value="propostas">
+          <Card className="border-slate-200 shadow-xs bg-white p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <CardTitle className="text-base font-bold text-slate-900">
+                  Propostas e Ofertas Salariais
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Histórico de ofertas emitidas para este candidato e status de negociação
+                </CardDescription>
+              </div>
+              <Link to={`/ofertas?vaga=${candidato.vaga || ''}`}>
+                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                  <FileCheck2 className="w-3.5 h-3.5 mr-1.5" />
+                  Gerenciar na Central de Ofertas
+                </Button>
+              </Link>
+            </div>
+
+            {ofertasCand.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs space-y-2">
+                <FileCheck2 className="w-8 h-8 text-slate-300 mx-auto" />
+                <p>Nenhuma oferta formal registrada para este candidato até o momento.</p>
+                <Link to="/ofertas">
+                  <Button variant="outline" size="sm" className="text-xs mt-2">
+                    Emitir Nova Proposta
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {ofertasCand.map((of) => {
+                  const statusBg =
+                    of.status === 'Aceita'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : of.status === 'Recusada'
+                        ? 'bg-rose-50 text-rose-800 border-rose-200'
+                        : of.status === 'Em negociação'
+                          ? 'bg-amber-50 text-amber-800 border-amber-200'
+                          : 'bg-blue-50 text-blue-800 border-blue-200'
+
+                  return (
+                    <div
+                      key={of.id}
+                      className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3 text-xs"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={`font-semibold ${statusBg}`}>
+                            {of.status}
+                          </Badge>
+                          <span className="font-extrabold text-slate-900 text-sm">
+                            R$ {of.salario_ofertado?.toLocaleString('pt-BR')} / mês
+                          </span>
+                        </div>
+                        <span className="text-slate-500">
+                          Data Proposta:{' '}
+                          <strong>
+                            {of.data_proposta
+                              ? new Date(of.data_proposta).toLocaleDateString('pt-BR')
+                              : '-'}
+                          </strong>{' '}
+                          · Limite:{' '}
+                          <strong>
+                            {of.data_limite_resposta
+                              ? new Date(of.data_limite_resposta).toLocaleDateString('pt-BR')
+                              : '-'}
+                          </strong>
+                        </span>
+                      </div>
+
+                      {of.beneficios && (
+                        <div className="bg-white p-3 rounded-lg border border-slate-200 text-slate-700">
+                          <strong className="block text-slate-800 mb-0.5">Benefícios:</strong>
+                          {of.beneficios}
+                        </div>
+                      )}
+
+                      {of.motivo_recusa && (
+                        <div className="bg-rose-50 p-3 rounded-lg border border-rose-200 text-rose-900">
+                          <strong className="block mb-0.5">Motivo da Recusa:</strong>
+                          {of.motivo_recusa}
+                        </div>
+                      )}
+
+                      {of.contramedida && (
+                        <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 text-amber-900">
+                          <strong className="block mb-0.5">Contraproposta / Contramedida:</strong>
+                          {of.contramedida}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </Card>

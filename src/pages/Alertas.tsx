@@ -21,10 +21,22 @@ import {
   ExternalLink,
   ChevronRight,
   TrendingUp,
+  Sliders,
+  Settings,
+  Mail,
+  VolumeX,
+  Volume2,
+  ShieldCheck,
+  Save,
+  Plus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Switch } from '@/components/ui/switch'
+import { Slider } from '@/components/ui/slider'
+import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Dialog,
@@ -63,9 +75,30 @@ export function Alertas() {
   const [alertaAlvo, setAlertaAlvo] = useState<RecordModel | null>(null)
   const [savingReaproveitamento, setSavingReaproveitamento] = useState(false)
 
+  // MÓDULO 3: Central de Preferências de Alerta
+  const [abaAtiva, setAbaAtiva] = useState<'feed' | 'preferencias'>('feed')
+  const [preferencias, setPreferencias] = useState<RecordModel[]>([])
+  const [prefGlobal, setPrefGlobal] = useState<RecordModel | null>(null)
+  const [salvandoPrefId, setSalvandoPrefId] = useState<string | null>(null)
+
+  // Estados locais editáveis de preferências
+  const [globalAtivo, setGlobalAtivo] = useState(true)
+  const [globalLimiar, setGlobalLimiar] = useState(75)
+  const [globalEmails, setGlobalEmails] = useState<string[]>([])
+  const [novoEmailInput, setNovoEmailInput] = useState('')
+  const [globalSilenciarDias, setGlobalSilenciarDias] = useState<number>(0)
+
+  // Configurações por vaga
+  const [vagaSelecionadaPref, setVagaSelecionadaPref] = useState<string>('')
+  const [vagaAtivo, setVagaAtivo] = useState(true)
+  const [vagaLimiar, setVagaLimiar] = useState(75)
+  const [vagaEmails, setVagaEmails] = useState<string[]>([])
+  const [novoEmailVagaInput, setNovoEmailVagaInput] = useState('')
+  const [vagaSilenciarDias, setVagaSilenciarDias] = useState<number>(0)
+
   const carregarAlertas = async () => {
     try {
-      const [alertasRes, vagasRes] = await Promise.all([
+      const [alertasRes, vagasRes, prefsRes] = await Promise.all([
         pb.collection('alertas').getFullList({
           sort: '-created',
           expand: 'candidato,vaga',
@@ -73,9 +106,26 @@ export function Alertas() {
         pb.collection('vagas').getFullList({
           sort: '-created',
         }),
+        pb
+          .collection('preferencias_alerta')
+          .getFullList({
+            sort: '-created',
+            expand: 'vaga',
+          })
+          .catch(() => []),
       ])
       setAlertas(alertasRes)
       setVagas(vagasRes)
+      setPreferencias(prefsRes)
+
+      // Identificar preferência global (sem vaga ou vaga = '')
+      const global = prefsRes.find((p) => !p.vaga)
+      if (global) {
+        setPrefGlobal(global)
+        setGlobalAtivo(global.ativo !== false)
+        setGlobalLimiar(global.limiar_score || 75)
+        setGlobalEmails(Array.isArray(global.destinatarios) ? global.destinatarios : [])
+      }
     } catch (err: unknown) {
       console.error('Falha ao carregar alertas:', err)
       toast({
@@ -92,9 +142,10 @@ export function Alertas() {
     carregarAlertas()
   }, [])
 
-  // Realtime para alertas e vagas
+  // Realtime para alertas, vagas e preferencias
   useRealtime('alertas', () => carregarAlertas())
   useRealtime('vagas', () => carregarAlertas())
+  useRealtime('preferencias_alerta', () => carregarAlertas())
 
   // Ações de atualização de status
   const handleMarcarVisualizado = async (alertaId: string, e?: React.MouseEvent) => {
@@ -244,6 +295,122 @@ export function Alertas() {
     }
   }
 
+  // Helpers para salvar preferências
+  const handleSalvarPrefGlobal = async () => {
+    setSalvandoPrefId('global')
+    try {
+      const payload: Record<string, any> = {
+        ativo: globalAtivo,
+        limiar_score: Number(globalLimiar),
+        destinatarios: globalEmails,
+      }
+      if (globalSilenciarDias > 0) {
+        const silenciarData = new Date(Date.now() + globalSilenciarDias * 24 * 60 * 60 * 1000)
+        payload.silenciar_ate = silenciarData.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
+      } else {
+        payload.silenciar_ate = null
+      }
+
+      if (prefGlobal) {
+        await pb.collection('preferencias_alerta').update(prefGlobal.id, payload)
+      } else {
+        payload.vaga = null
+        const novo = await pb.collection('preferencias_alerta').create(payload)
+        setPrefGlobal(novo)
+      }
+
+      toast({
+        title: 'Preferências Globais Atualizadas!',
+        description:
+          'Os parâmetros gerais de alertas e disparos de e-mail foram salvos com sucesso.',
+      })
+      carregarAlertas()
+    } catch (err: unknown) {
+      toast({
+        title: 'Erro ao salvar preferências globais',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSalvandoPrefId(null)
+    }
+  }
+
+  const handleSalvarPrefVaga = async () => {
+    if (!vagaSelecionadaPref) {
+      toast({
+        title: 'Selecione uma vaga',
+        description: 'Escolha a vaga para configurar o limiar e destinatários específicos.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setSalvandoPrefId(vagaSelecionadaPref)
+    try {
+      const payload: Record<string, any> = {
+        vaga: vagaSelecionadaPref,
+        ativo: vagaAtivo,
+        limiar_score: Number(vagaLimiar),
+        destinatarios: vagaEmails,
+      }
+      if (vagaSilenciarDias > 0) {
+        const silenciarData = new Date(Date.now() + vagaSilenciarDias * 24 * 60 * 60 * 1000)
+        payload.silenciar_ate = silenciarData.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
+      } else {
+        payload.silenciar_ate = null
+      }
+
+      const prefExistente = preferencias.find((p) => p.vaga === vagaSelecionadaPref)
+      if (prefExistente) {
+        await pb.collection('preferencias_alerta').update(prefExistente.id, payload)
+      } else {
+        await pb.collection('preferencias_alerta').create(payload)
+      }
+
+      const vagaObj = vagas.find((v) => v.id === vagaSelecionadaPref)
+      toast({
+        title: 'Regra da Vaga Salva!',
+        description: `Configuração específica para "${vagaObj?.titulo || 'Vaga'}" atualizada com sucesso.`,
+      })
+      carregarAlertas()
+    } catch (err: unknown) {
+      toast({
+        title: 'Erro ao salvar preferência da vaga',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSalvandoPrefId(null)
+    }
+  }
+
+  // Quando o usuário escolhe uma vaga no seletor de preferências específicas
+  const handleSelecionarVagaPref = (vId: string) => {
+    setVagaSelecionadaPref(vId)
+    const pref = preferencias.find((p) => p.vaga === vId)
+    if (pref) {
+      setVagaAtivo(pref.ativo !== false)
+      setVagaLimiar(pref.limiar_score || 75)
+      setVagaEmails(Array.isArray(pref.destinatarios) ? pref.destinatarios : [])
+      if (pref.silenciar_ate) {
+        const diff = Math.max(
+          1,
+          Math.ceil((new Date(pref.silenciar_ate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+        )
+        setVagaSilenciarDias(diff > 0 ? diff : 0)
+      } else {
+        setVagaSilenciarDias(0)
+      }
+    } else {
+      // Herdar valores do global por padrão
+      setVagaAtivo(true)
+      setVagaLimiar(globalLimiar)
+      setVagaEmails([...globalEmails])
+      setVagaSilenciarDias(0)
+    }
+  }
+
   // Filtragem
   const alertasFiltrados = useMemo(() => {
     return alertas.filter((a) => {
@@ -310,14 +477,14 @@ export function Alertas() {
               </div>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                 Notificações em tempo real quando talentos do banco se enquadram com alta aderência
-                em vagas recém-abertas.
+                em vagas abertas, com regras e limiares personalizáveis.
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {totalNovos > 0 && (
+          {totalNovos > 0 && abaAtiva === 'feed' && (
             <Button
               variant="outline"
               size="sm"
@@ -341,348 +508,754 @@ export function Alertas() {
         </div>
       </div>
 
-      {/* Cards de Métricas */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <Card
-          onClick={() => setFiltroStatus('Novo')}
-          className={`p-4 border-slate-200 shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
-            filtroStatus === 'Novo' ? 'ring-2 ring-blue-600 bg-blue-50/30' : ''
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Novos Alertas
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
-              <Bell className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold text-blue-600 tabular-nums">{totalNovos}</span>
-            <span className="text-[11px] text-slate-500">não visualizados</span>
-          </div>
-        </Card>
+      {/* Tabs de Navegação: Feed de Alertas vs Central de Preferências */}
+      <Tabs
+        value={abaAtiva}
+        onValueChange={(val) => setAbaAtiva(val as any)}
+        className="w-full space-y-6"
+      >
+        <TabsList className="grid w-full sm:w-[420px] grid-cols-2 bg-slate-100 p-1">
+          <TabsTrigger value="feed" className="text-xs font-semibold flex items-center gap-2">
+            <Bell className="w-3.5 h-3.5" />
+            Feed de Notificações
+            {totalNovos > 0 && (
+              <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                {totalNovos}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="preferencias"
+            className="text-xs font-semibold flex items-center gap-2"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Preferências de Alerta
+          </TabsTrigger>
+        </TabsList>
 
-        <Card
-          onClick={() => setFiltroStatus('Visualizado')}
-          className={`p-4 border-slate-200 shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
-            filtroStatus === 'Visualizado' ? 'ring-2 ring-blue-600 bg-blue-50/30' : ''
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Visualizados
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
-              <Eye className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold text-slate-800 tabular-nums">
-              {totalVisualizados}
-            </span>
-            <span className="text-[11px] text-slate-500">em acompanhamento</span>
-          </div>
-        </Card>
-
-        <Card
-          onClick={() => setFiltroStatus('Descartado')}
-          className={`p-4 border-slate-200 shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
-            filtroStatus === 'Descartado' ? 'ring-2 ring-blue-600 bg-blue-50/30' : ''
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Descartados
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center">
-              <Trash2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold text-slate-600 tabular-nums">
-              {totalDescartados}
-            </span>
-            <span className="text-[11px] text-slate-500">arquivados</span>
-          </div>
-        </Card>
-
-        <Card
-          onClick={() => setFiltroStatus('todos')}
-          className={`p-4 border-slate-200 shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
-            filtroStatus === 'todos' ? 'ring-2 ring-blue-600 bg-blue-50/30' : ''
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Total de Alertas
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold text-slate-900 tabular-nums">
-              {alertas.length}
-            </span>
-            <span className="text-[11px] text-slate-500">histórico completo</span>
-          </div>
-        </Card>
-      </div>
-
-      {/* Barra de Filtros */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          {/* Busca */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-            <Input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por candidato, vaga..."
-              className="pl-9 h-9 text-xs"
-            />
-          </div>
-
-          {/* Filtro por Vaga */}
-          <div>
-            <Select value={filtroVaga} onValueChange={setFiltroVaga}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Todas as vagas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas as vagas</SelectItem>
-                {vagas.map((v) => (
-                  <SelectItem key={v.id} value={v.id}>
-                    {v.titulo}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Filtro por Status */}
-          <div>
-            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os status</SelectItem>
-                <SelectItem value="Novo">Novo</SelectItem>
-                <SelectItem value="Visualizado">Visualizado</SelectItem>
-                <SelectItem value="Descartado">Descartado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Filtro Score Mínimo */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Score:</span>
-            {[0, 75, 85, 90].map((sc) => (
-              <button
-                key={sc}
-                onClick={() => setScoreMinimo(sc)}
-                className={`flex-1 py-1 px-1.5 rounded text-[11px] font-semibold transition-colors ${
-                  scoreMinimo === sc
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {sc === 0 ? 'Todos' : `≥${sc}%`}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Lista de Alertas */}
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="p-5">
-              <div className="flex items-start gap-4">
-                <Skeleton className="w-12 h-12 rounded-xl" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="h-3 w-72" />
-                  <Skeleton className="h-10 w-full" />
+        {/* ABA 1: FEED DE ALERTAS (Conteúdo original enriquecido) */}
+        <TabsContent value="feed" className="space-y-6 mt-0">
+          {/* Cards de Métricas */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card
+              onClick={() => setFiltroStatus('Novo')}
+              className={`p-4 border-slate-200 shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
+                filtroStatus === 'Novo' ? 'ring-2 ring-blue-600 bg-blue-50/30' : ''
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Novos Alertas
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
+                  <Bell className="w-4 h-4" />
                 </div>
               </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-extrabold text-blue-600 tabular-nums">
+                  {totalNovos}
+                </span>
+                <span className="text-[11px] text-slate-500">não visualizados</span>
+              </div>
             </Card>
-          ))}
-        </div>
-      ) : alertasFiltrados.length === 0 ? (
-        <Card className="p-12 text-center border-dashed border-slate-300">
-          <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
-            <Bell className="w-6 h-6" />
-          </div>
-          <h3 className="text-sm font-bold text-slate-800">Nenhum alerta encontrado</h3>
-          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            Não há notificações correspondentes aos filtros selecionados.
-          </p>
-          {(filtroStatus !== 'todos' || filtroVaga !== 'todas' || busca || scoreMinimo > 0) && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4 text-xs"
-              onClick={() => {
-                setFiltroStatus('todos')
-                setFiltroVaga('todas')
-                setBusca('')
-                setScoreMinimo(0)
-              }}
-            >
-              Limpar filtros
-            </Button>
-          )}
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {alertasFiltrados.map((alerta) => {
-            const cand = alerta.expand?.candidato
-            const vaga = alerta.expand?.vaga
-            const score = alerta.score || 75
-            const isNovo = alerta.status === 'Novo'
 
-            return (
-              <Card
-                key={alerta.id}
-                className={`p-5 transition-all duration-200 border ${
-                  isNovo
-                    ? 'border-blue-200 bg-linear-to-r from-blue-50/30 via-white to-white shadow-xs'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                }`}
-              >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  {/* Left: Info Candidato e Vaga */}
-                  <div className="flex items-start gap-4 flex-1 min-w-0">
-                    {/* Ring de Score */}
-                    <div
-                      className={`relative w-13 h-13 rounded-xl flex flex-col items-center justify-center shrink-0 border font-extrabold ${
-                        score >= 85
-                          ? 'bg-blue-600 text-white border-blue-700 shadow-sm shadow-blue-500/20'
-                          : score >= 75
-                            ? 'bg-blue-50 text-blue-700 border-blue-200'
-                            : 'bg-slate-100 text-slate-700 border-slate-200'
-                      }`}
+            <Card
+              onClick={() => setFiltroStatus('Visualizado')}
+              className={`p-4 border-slate-200 shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
+                filtroStatus === 'Visualizado' ? 'ring-2 ring-blue-600 bg-blue-50/30' : ''
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Visualizados
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                  <Eye className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-extrabold text-slate-800 tabular-nums">
+                  {totalVisualizados}
+                </span>
+                <span className="text-[11px] text-slate-500">em acompanhamento</span>
+              </div>
+            </Card>
+
+            <Card
+              onClick={() => setFiltroStatus('Descartado')}
+              className={`p-4 border-slate-200 shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
+                filtroStatus === 'Descartado' ? 'ring-2 ring-blue-600 bg-blue-50/30' : ''
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Descartados
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-extrabold text-slate-600 tabular-nums">
+                  {totalDescartados}
+                </span>
+                <span className="text-[11px] text-slate-500">arquivados</span>
+              </div>
+            </Card>
+
+            <Card
+              onClick={() => setFiltroStatus('todos')}
+              className={`p-4 border-slate-200 shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
+                filtroStatus === 'todos' ? 'ring-2 ring-blue-600 bg-blue-50/30' : ''
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Total de Alertas
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-extrabold text-slate-900 tabular-nums">
+                  {alertas.length}
+                </span>
+                <span className="text-[11px] text-slate-500">histórico completo</span>
+              </div>
+            </Card>
+          </div>
+
+          {/* Barra de Filtros */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              {/* Busca */}
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <Input
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar por candidato, vaga..."
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+
+              {/* Filtro por Vaga */}
+              <div>
+                <Select value={filtroVaga} onValueChange={setFiltroVaga}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Todas as vagas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Todas as vagas</SelectItem>
+                    {vagas.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.titulo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Filtro por Status */}
+              <div>
+                <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os status</SelectItem>
+                    <SelectItem value="Novo">Novo</SelectItem>
+                    <SelectItem value="Visualizado">Visualizado</SelectItem>
+                    <SelectItem value="Descartado">Descartado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Filtro Score Mínimo */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Score:</span>
+                {[0, 75, 85, 90].map((sc) => (
+                  <button
+                    key={sc}
+                    onClick={() => setScoreMinimo(sc)}
+                    className={`flex-1 py-1 px-1.5 rounded text-[11px] font-semibold transition-colors ${
+                      scoreMinimo === sc
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {sc === 0 ? 'Todos' : `≥${sc}%`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Lista de Alertas */}
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="p-5">
+                  <div className="flex items-start gap-4">
+                    <Skeleton className="w-12 h-12 rounded-xl" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-3 w-72" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : alertasFiltrados.length === 0 ? (
+            <Card className="p-12 text-center border-dashed border-slate-300">
+              <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                <Bell className="w-6 h-6" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">Nenhum alerta encontrado</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                Não há notificações correspondentes aos filtros selecionados.
+              </p>
+              {(filtroStatus !== 'todos' || filtroVaga !== 'todas' || busca || scoreMinimo > 0) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-4 text-xs"
+                  onClick={() => {
+                    setFiltroStatus('todos')
+                    setFiltroVaga('todas')
+                    setBusca('')
+                    setScoreMinimo(0)
+                  }}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {alertasFiltrados.map((alerta) => {
+                const cand = alerta.expand?.candidato
+                const vaga = alerta.expand?.vaga
+                const score = alerta.score || 75
+                const isNovo = alerta.status === 'Novo'
+
+                return (
+                  <Card
+                    key={alerta.id}
+                    className={`p-5 transition-all duration-200 border ${
+                      isNovo
+                        ? 'border-blue-200 bg-linear-to-r from-blue-50/30 via-white to-white shadow-xs'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      {/* Left: Info Candidato e Vaga */}
+                      <div className="flex items-start gap-4 flex-1 min-w-0">
+                        {/* Ring de Score */}
+                        <div
+                          className={`relative w-13 h-13 rounded-xl flex flex-col items-center justify-center shrink-0 border font-extrabold ${
+                            score >= 85
+                              ? 'bg-blue-600 text-white border-blue-700 shadow-sm shadow-blue-500/20'
+                              : score >= 75
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : 'bg-slate-100 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          <span className="text-base leading-none">{score}%</span>
+                          <span className="text-[9px] uppercase tracking-wider font-semibold opacity-90">
+                            fit
+                          </span>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {isNovo && (
+                              <Badge className="bg-blue-600 hover:bg-blue-600 text-white text-[10px] px-1.5 py-0">
+                                Novo
+                              </Badge>
+                            )}
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                              Talento do Banco enquadrado
+                            </span>
+                            <span className="text-slate-300">·</span>
+                            <span className="text-xs text-slate-400">
+                              {alerta.created
+                                ? new Date(alerta.created).toLocaleDateString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
+                                : 'Recente'}
+                            </span>
+                          </div>
+
+                          <div className="mt-1 flex items-baseline gap-2 flex-wrap">
+                            <Link
+                              to={cand ? `/candidatos/${cand.id}` : '#'}
+                              className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors flex items-center gap-1"
+                            >
+                              {cand?.nome || 'Candidato'}
+                            </Link>
+                            <span className="text-xs text-slate-500 font-medium">
+                              ({cand?.cargo_atual || 'Profissional'})
+                            </span>
+                            <span className="text-slate-300">→</span>
+                            <Link
+                              to={vaga ? `/vagas/${vaga.id}` : '#'}
+                              className="text-sm font-semibold text-blue-700 hover:underline flex items-center gap-1"
+                            >
+                              <Briefcase className="w-3.5 h-3.5 text-blue-600" />
+                              {vaga?.titulo || 'Vaga Aberta'}
+                            </Link>
+                          </div>
+
+                          {/* Resumo da IA */}
+                          {alerta.resumo_ia && (
+                            <div className="mt-2 text-xs text-slate-700 bg-slate-50/80 border border-slate-200/70 rounded-lg p-2.5 flex items-start gap-2">
+                              <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+                              <p className="leading-relaxed">{alerta.resumo_ia}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right: Ações Rápidas */}
+                      <div className="flex items-center gap-2 self-end lg:self-center shrink-0 flex-wrap">
+                        {cand && (
+                          <Link to={`/candidatos/${cand.id}`}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs font-medium border-slate-200 text-slate-700 hover:bg-slate-50"
+                            >
+                              <User className="w-3.5 h-3.5 mr-1" />
+                              Ver Perfil
+                            </Button>
+                          </Link>
+                        )}
+
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setAlertaAlvo(alerta)
+                            setModalReaproveitarOpen(true)
+                          }}
+                          className="h-8 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                        >
+                          <ArrowRight className="w-3.5 h-3.5 mr-1" />
+                          Reaproveitar na Vaga
+                        </Button>
+
+                        {isNovo && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => handleMarcarVisualizado(alerta.id, e)}
+                            className="h-8 text-xs text-slate-600 hover:text-blue-600"
+                            title="Marcar como visualizado"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+
+                        {alerta.status !== 'Descartado' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => handleDescartar(alerta.id, e)}
+                            className="h-8 text-xs text-slate-400 hover:text-red-600 hover:bg-red-50"
+                            title="Descartar alerta"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ABA 2: CENTRAL DE PREFERÊNCIAS DE ALERTA */}
+        <TabsContent value="preferencias" className="space-y-6 mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Bloco 1: Configuração Global Padrão */}
+            <Card className="p-6 border-slate-200 shadow-xs space-y-6 bg-white">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="p-2 rounded-lg bg-blue-50 text-blue-700">
+                    <Sliders className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900">Regra Padrão (Global)</h2>
+                    <p className="text-xs text-slate-500">
+                      Aplica-se a todas as vagas que não possuem regra específica customizada.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-700">
+                    {globalAtivo ? 'Ativo' : 'Desativado'}
+                  </span>
+                  <Switch checked={globalAtivo} onCheckedChange={setGlobalAtivo} />
+                </div>
+              </div>
+
+              {/* Limiar de Score Global */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-xs">
+                  <Label className="font-semibold text-slate-800">
+                    Limiar Mínimo de Score de Aderência
+                  </Label>
+                  <span className="font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-sm border border-blue-200">
+                    {globalLimiar}%
+                  </span>
+                </div>
+                <Slider
+                  value={[globalLimiar]}
+                  onValueChange={(vals) => setGlobalLimiar(vals[0])}
+                  min={50}
+                  max={95}
+                  step={5}
+                  disabled={!globalAtivo}
+                  className="py-2"
+                />
+                <p className="text-[11px] text-slate-500">
+                  Apenas talentos do Banco com aderência igual ou superior a {globalLimiar}% gerarão
+                  alertas e e-mails.
+                </p>
+              </div>
+
+              {/* Destinatários de E-mail */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-blue-600" />
+                  Destinatários de Notificação por E-mail
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="Adicionar e-mail (ex: lider@empresa.com)..."
+                    value={novoEmailInput}
+                    onChange={(e) => setNovoEmailInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        if (
+                          novoEmailInput.trim() &&
+                          !globalEmails.includes(novoEmailInput.trim())
+                        ) {
+                          setGlobalEmails([...globalEmails, novoEmailInput.trim()])
+                          setNovoEmailInput('')
+                        }
+                      }
+                    }}
+                    className="text-xs h-9"
+                    disabled={!globalAtivo}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!globalAtivo || !novoEmailInput.trim()}
+                    onClick={() => {
+                      if (novoEmailInput.trim() && !globalEmails.includes(novoEmailInput.trim())) {
+                        setGlobalEmails([...globalEmails, novoEmailInput.trim()])
+                        setNovoEmailInput('')
+                      }
+                    }}
+                    className="text-xs h-9"
+                  >
+                    Adicionar
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {globalEmails.map((email, i) => (
+                    <Badge
+                      key={i}
+                      variant="secondary"
+                      className="text-[11px] bg-slate-100 text-slate-700 pl-2 pr-1 py-1 flex items-center gap-1 border border-slate-200"
                     >
-                      <span className="text-base leading-none">{score}%</span>
-                      <span className="text-[9px] uppercase tracking-wider font-semibold opacity-90">
-                        fit
+                      <span>{email}</span>
+                      <button
+                        type="button"
+                        onClick={() => setGlobalEmails(globalEmails.filter((_, idx) => idx !== i))}
+                        className="text-slate-400 hover:text-rose-600 p-0.5 rounded-full"
+                        disabled={!globalAtivo}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  {globalEmails.length === 0 && (
+                    <span className="text-[11px] text-slate-400 italic">
+                      Nenhum e-mail adicional configurado (usará o usuário logado).
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Silenciar temporariamente */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <Label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                  <VolumeX className="w-3.5 h-3.5 text-amber-600" />
+                  Silenciar Alertas Temporariamente
+                </Label>
+                <div className="grid grid-cols-4 gap-2 text-xs">
+                  {[
+                    { rotulo: 'Não silenciar', dias: 0 },
+                    { rotulo: '1 dia', dias: 1 },
+                    { rotulo: '3 dias', dias: 3 },
+                    { rotulo: '7 dias', dias: 7 },
+                  ].map((item) => (
+                    <button
+                      key={item.dias}
+                      type="button"
+                      onClick={() => setGlobalSilenciarDias(item.dias)}
+                      className={`py-1.5 px-2 rounded-md font-semibold border transition-colors ${
+                        globalSilenciarDias === item.dias
+                          ? 'bg-amber-50 text-amber-900 border-amber-300'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                      disabled={!globalAtivo}
+                    >
+                      {item.rotulo}
+                    </button>
+                  ))}
+                </div>
+                {prefGlobal?.silenciar_ate && (
+                  <p className="text-[11px] text-amber-800 font-medium bg-amber-50 p-2 rounded border border-amber-200">
+                    Silenciado atualmente até{' '}
+                    {new Date(prefGlobal.silenciar_ate).toLocaleDateString('pt-BR')} às{' '}
+                    {new Date(prefGlobal.silenciar_ate).toLocaleTimeString('pt-BR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <Button
+                  onClick={handleSalvarPrefGlobal}
+                  disabled={salvandoPrefId === 'global'}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-9"
+                >
+                  <Save className="w-3.5 h-3.5 mr-1.5" />
+                  {salvandoPrefId === 'global' ? 'Salvando...' : 'Salvar Regra Global'}
+                </Button>
+              </div>
+            </Card>
+
+            {/* Bloco 2: Configuração Específica por Vaga */}
+            <Card className="p-6 border-slate-200 shadow-xs space-y-6 bg-white">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="p-2 rounded-lg bg-purple-50 text-purple-700">
+                    <Briefcase className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900">
+                      Regra Específica por Vaga
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Defina exigências de score e destinatários exclusivos por oportunidade.
+                    </p>
+                  </div>
+                </div>
+
+                {vagaSelecionadaPref && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-700">
+                      {vagaAtivo ? 'Ativo' : 'Desativado'}
+                    </span>
+                    <Switch checked={vagaAtivo} onCheckedChange={setVagaAtivo} />
+                  </div>
+                )}
+              </div>
+
+              {/* Seletor da Vaga Alvo */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-800">
+                  Selecione a Vaga para Configurar:
+                </Label>
+                <select
+                  value={vagaSelecionadaPref}
+                  onChange={(e) => handleSelecionarVagaPref(e.target.value)}
+                  className="w-full text-xs h-9 px-3 border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  <option value="">Escolha uma vaga...</option>
+                  {vagas.map((v) => {
+                    const temCustom = preferencias.some((p) => p.vaga === v.id)
+                    return (
+                      <option key={v.id} value={v.id}>
+                        {v.titulo} ({v.departamento}) {temCustom ? '★ Regra Própria' : ''}
+                      </option>
+                    )
+                  })}
+                </select>
+              </div>
+
+              {!vagaSelecionadaPref ? (
+                <div className="py-12 text-center text-slate-400 text-xs space-y-2 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <Briefcase className="w-8 h-8 text-slate-300 mx-auto" />
+                  <p>Selecione uma vaga no menu acima para customizar seus alertas.</p>
+                </div>
+              ) : (
+                <div className="space-y-5 animate-in fade-in duration-200">
+                  {/* Limiar de Score da Vaga */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-xs">
+                      <Label className="font-semibold text-slate-800">
+                        Limiar de Score para Esta Vaga
+                      </Label>
+                      <span className="font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded text-sm border border-purple-200">
+                        {vagaLimiar}%
                       </span>
                     </div>
+                    <Slider
+                      value={[vagaLimiar]}
+                      onValueChange={(vals) => setVagaLimiar(vals[0])}
+                      min={50}
+                      max={95}
+                      step={5}
+                      disabled={!vagaAtivo}
+                      className="py-2"
+                    />
+                    <p className="text-[11px] text-slate-500">
+                      Sobrescreve o limiar global de {globalLimiar}% exclusivamente para esta
+                      oportunidade.
+                    </p>
+                  </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {isNovo && (
-                          <Badge className="bg-blue-600 hover:bg-blue-600 text-white text-[10px] px-1.5 py-0">
-                            Novo
-                          </Badge>
-                        )}
-                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                          Talento do Banco enquadrado
-                        </span>
-                        <span className="text-slate-300">·</span>
-                        <span className="text-xs text-slate-400">
-                          {alerta.created
-                            ? new Date(alerta.created).toLocaleDateString('pt-BR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })
-                            : 'Recente'}
-                        </span>
-                      </div>
+                  {/* Destinatários exclusivos da vaga */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-purple-600" />
+                      Destinatários de E-mail para Esta Vaga (ex: Tech Lead / Gestor de Área)
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="email"
+                        placeholder="Adicionar e-mail do gestor da vaga..."
+                        value={novoEmailVagaInput}
+                        onChange={(e) => setNovoEmailVagaInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            if (
+                              novoEmailVagaInput.trim() &&
+                              !vagaEmails.includes(novoEmailVagaInput.trim())
+                            ) {
+                              setVagaEmails([...vagaEmails, novoEmailVagaInput.trim()])
+                              setNovoEmailVagaInput('')
+                            }
+                          }
+                        }}
+                        className="text-xs h-9"
+                        disabled={!vagaAtivo}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!vagaAtivo || !novoEmailVagaInput.trim()}
+                        onClick={() => {
+                          if (
+                            novoEmailVagaInput.trim() &&
+                            !vagaEmails.includes(novoEmailVagaInput.trim())
+                          ) {
+                            setVagaEmails([...vagaEmails, novoEmailVagaInput.trim()])
+                            setNovoEmailVagaInput('')
+                          }
+                        }}
+                        className="text-xs h-9"
+                      >
+                        Adicionar
+                      </Button>
+                    </div>
 
-                      <div className="mt-1 flex items-baseline gap-2 flex-wrap">
-                        <Link
-                          to={cand ? `/candidatos/${cand.id}` : '#'}
-                          className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors flex items-center gap-1"
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {vagaEmails.map((email, i) => (
+                        <Badge
+                          key={i}
+                          variant="secondary"
+                          className="text-[11px] bg-purple-50 text-purple-800 pl-2 pr-1 py-1 flex items-center gap-1 border border-purple-200"
                         >
-                          {cand?.nome || 'Candidato'}
-                        </Link>
-                        <span className="text-xs text-slate-500 font-medium">
-                          ({cand?.cargo_atual || 'Profissional'})
+                          <span>{email}</span>
+                          <button
+                            type="button"
+                            onClick={() => setVagaEmails(vagaEmails.filter((_, idx) => idx !== i))}
+                            className="text-purple-400 hover:text-rose-600 p-0.5 rounded-full"
+                            disabled={!vagaAtivo}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                      {vagaEmails.length === 0 && (
+                        <span className="text-[11px] text-slate-400 italic">
+                          Nenhum e-mail específico (herdará os destinatários globais).
                         </span>
-                        <span className="text-slate-300">→</span>
-                        <Link
-                          to={vaga ? `/vagas/${vaga.id}` : '#'}
-                          className="text-sm font-semibold text-blue-700 hover:underline flex items-center gap-1"
-                        >
-                          <Briefcase className="w-3.5 h-3.5 text-blue-600" />
-                          {vaga?.titulo || 'Vaga Aberta'}
-                        </Link>
-                      </div>
-
-                      {/* Resumo da IA */}
-                      {alerta.resumo_ia && (
-                        <div className="mt-2 text-xs text-slate-700 bg-slate-50/80 border border-slate-200/70 rounded-lg p-2.5 flex items-start gap-2">
-                          <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
-                          <p className="leading-relaxed">{alerta.resumo_ia}</p>
-                        </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Right: Ações Rápidas */}
-                  <div className="flex items-center gap-2 self-end lg:self-center shrink-0 flex-wrap">
-                    {cand && (
-                      <Link to={`/candidatos/${cand.id}`}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs font-medium border-slate-200 text-slate-700 hover:bg-slate-50"
+                  {/* Silenciar vaga */}
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <Label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                      <VolumeX className="w-3.5 h-3.5 text-amber-600" />
+                      Silenciar Alertas Desta Vaga
+                    </Label>
+                    <div className="grid grid-cols-4 gap-2 text-xs">
+                      {[
+                        { rotulo: 'Não silenciar', dias: 0 },
+                        { rotulo: '1 dia', dias: 1 },
+                        { rotulo: '3 dias', dias: 3 },
+                        { rotulo: '7 dias', dias: 7 },
+                      ].map((item) => (
+                        <button
+                          key={item.dias}
+                          type="button"
+                          onClick={() => setVagaSilenciarDias(item.dias)}
+                          className={`py-1.5 px-2 rounded-md font-semibold border transition-colors ${
+                            vagaSilenciarDias === item.dias
+                              ? 'bg-amber-50 text-amber-900 border-amber-300'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
+                          disabled={!vagaAtivo}
                         >
-                          <User className="w-3.5 h-3.5 mr-1" />
-                          Ver Perfil
-                        </Button>
-                      </Link>
-                    )}
+                          {item.rotulo}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
+                  <div className="pt-2 flex justify-end">
                     <Button
-                      size="sm"
-                      onClick={() => {
-                        setAlertaAlvo(alerta)
-                        setModalReaproveitarOpen(true)
-                      }}
-                      className="h-8 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                      onClick={handleSalvarPrefVaga}
+                      disabled={salvandoPrefId === vagaSelecionadaPref}
+                      className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs h-9"
                     >
-                      <ArrowRight className="w-3.5 h-3.5 mr-1" />
-                      Reaproveitar na Vaga
+                      <Save className="w-3.5 h-3.5 mr-1.5" />
+                      {salvandoPrefId === vagaSelecionadaPref
+                        ? 'Salvando...'
+                        : 'Salvar Regra da Vaga'}
                     </Button>
-
-                    {isNovo && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => handleMarcarVisualizado(alerta.id, e)}
-                        className="h-8 text-xs text-slate-600 hover:text-blue-600"
-                        title="Marcar como visualizado"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                      </Button>
-                    )}
-
-                    {alerta.status !== 'Descartado' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => handleDescartar(alerta.id, e)}
-                        className="h-8 text-xs text-slate-400 hover:text-red-600 hover:bg-red-50"
-                        title="Descartar alerta"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    )}
                   </div>
                 </div>
-              </Card>
-            )
-          })}
-        </div>
-      )}
+              )}
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Modal de Confirmação de Reaproveitamento */}
       <Dialog open={modalReaproveitarOpen} onOpenChange={setModalReaproveitarOpen}>

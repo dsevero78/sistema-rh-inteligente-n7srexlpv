@@ -14,6 +14,9 @@ import {
   AlertCircle,
   FileText,
   SlidersHorizontal,
+  DollarSign,
+  FileCheck2,
+  Clock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -68,6 +71,7 @@ export default function Pipeline() {
 
   const [pipelineItems, setPipelineItems] = useState<RecordModel[]>([])
   const [vagas, setVagas] = useState<RecordModel[]>([])
+  const [ofertas, setOfertas] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
 
   // Filters
@@ -88,15 +92,20 @@ export default function Pipeline() {
 
   const fetchPipeline = async () => {
     try {
-      const [pList, vList] = await Promise.all([
+      const [pList, vList, ofList] = await Promise.all([
         pb.collection('pipeline').getFullList({
           sort: '-updated',
           expand: 'candidato,vaga',
         }),
         pb.collection('vagas').getFullList({ sort: '-created' }),
+        pb
+          .collection('ofertas')
+          .getFullList({ sort: '-created' })
+          .catch(() => []),
       ])
       setPipelineItems(pList)
       setVagas(vList)
+      setOfertas(ofList)
     } catch (err) {
       console.error(err)
     } finally {
@@ -117,6 +126,7 @@ export default function Pipeline() {
 
   useRealtime('pipeline', () => fetchPipeline())
   useRealtime('candidatos', () => fetchPipeline())
+  useRealtime('ofertas', () => fetchPipeline())
 
   const handleVagaFilterChange = (v: string) => {
     setSelectedVaga(v)
@@ -151,6 +161,19 @@ export default function Pipeline() {
 
     const item = pipelineItems.find((p) => p.id === itemId)
     if (!item || item.estagio === targetCol) return
+
+    // Se mover para Proposta e ainda não houver oferta formal, alertar / permitir criar
+    if (targetCol === 'Proposta') {
+      const temOferta = ofertas.some(
+        (o) => o.pipeline === item.id || (o.candidato === item.candidato && o.vaga === item.vaga),
+      )
+      if (!temOferta) {
+        toast({
+          title: 'Candidato em Proposta',
+          description: 'Você pode formalizar os valores e benefícios na aba "Ofertas & Propostas".',
+        })
+      }
+    }
 
     // If moving to Recusado, trigger prompt modal
     if (targetCol === 'Recusado') {
@@ -427,6 +450,63 @@ export default function Pipeline() {
                             Ver perfil
                           </button>
                         </div>
+
+                        {/* Status da Oferta (se existir) */}
+                        {(() => {
+                          const ofItem = ofertas.find(
+                            (o) =>
+                              o.pipeline === item.id ||
+                              (o.candidato === cand.id && o.vaga === item.vaga),
+                          )
+                          if (!ofItem) {
+                            if (item.estagio === 'Proposta') {
+                              return (
+                                <div className="mt-2 pt-1 border-t border-dashed border-slate-200 flex items-center justify-between">
+                                  <span className="text-[10px] text-amber-700 font-semibold flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    Sem proposta formal
+                                  </span>
+                                  <button
+                                    onClick={() => navigate(`/ofertas?vaga=${item.vaga || ''}`)}
+                                    className="text-[10px] text-blue-600 font-bold hover:underline"
+                                  >
+                                    Criar oferta
+                                  </button>
+                                </div>
+                              )
+                            }
+                            return null
+                          }
+
+                          const isAceita = ofItem.status === 'Aceita'
+                          const isRecusada = ofItem.status === 'Recusada'
+                          const isNegoc = ofItem.status === 'Em negociação'
+
+                          return (
+                            <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                                  isAceita
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : isRecusada
+                                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                      : isNegoc
+                                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                        : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                }`}
+                              >
+                                <DollarSign className="w-3 h-3" />
+                                Proposta: {ofItem.status}
+                              </span>
+                              <button
+                                onClick={() => navigate('/ofertas')}
+                                className="text-[10px] text-slate-500 hover:text-blue-600 font-medium"
+                              >
+                                Gerenciar
+                              </button>
+                            </div>
+                          )
+                        })()}
                       </div>
                     )
                   })}

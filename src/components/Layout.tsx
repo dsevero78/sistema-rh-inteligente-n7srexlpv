@@ -8,6 +8,7 @@ import {
   Briefcase,
   Users2,
   GitPullRequest,
+  FileCheck2,
   Calendar,
   MessageSquare,
   FileText,
@@ -68,6 +69,7 @@ const navItems: NavItem[] = [
   { title: 'Vagas', href: '/vagas', icon: Briefcase },
   { title: 'Candidatos', href: '/candidatos', icon: Users2 },
   { title: 'Pipeline', href: '/pipeline', icon: GitPullRequest },
+  { title: 'Ofertas', href: '/ofertas', icon: FileCheck2 },
   { title: 'Banco de Talentos', href: '/banco-talentos', icon: Sparkles, badge: 'Talentos' },
   { title: 'Alertas', href: '/alertas', icon: Bell, countKey: 'alertas' },
   { title: 'Entrevistas', href: '/entrevistas', icon: Calendar },
@@ -145,6 +147,7 @@ export default function Layout() {
     if (path.startsWith('/candidatos/')) return 'Perfil do Candidato'
     if (path === '/candidatos') return 'Gestão de Candidatos'
     if (path.startsWith('/pipeline')) return 'Pipeline de Seleção (Kanban)'
+    if (path.startsWith('/ofertas')) return 'Ofertas e Propostas Salariais'
     if (path.startsWith('/banco-talentos')) return 'Banco de Talentos & Reaproveitamento'
     if (path.startsWith('/alertas')) return 'Alertas Automáticos de Talentos'
     if (path.startsWith('/entrevistas')) return 'Gestão de Entrevistas & Calendário'

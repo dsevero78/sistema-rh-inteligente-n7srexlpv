@@ -17,6 +17,7 @@ import VagaDetalhes from '@/pages/VagaDetalhes'
 import Candidatos from '@/pages/Candidatos'
 import CandidatoDetalhes from '@/pages/CandidatoDetalhes'
 import Pipeline from '@/pages/Pipeline'
+import Ofertas from '@/pages/Ofertas'
 import Chat from '@/pages/Chat'
 import Entrevistas from '@/pages/Entrevistas'
 import Relatorios from '@/pages/Relatorios'
@@ -84,6 +85,7 @@ export default function App() {
               <Route path="candidatos" element={<Candidatos />} />
               <Route path="candidatos/:id" element={<CandidatoDetalhes />} />
               <Route path="pipeline" element={<Pipeline />} />
+              <Route path="ofertas" element={<Ofertas />} />
               <Route path="banco-talentos" element={<BancoTalentos />} />
               <Route path="alertas" element={<Alertas />} />
               <Route path="entrevistas" element={<Entrevistas />} />
