@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T02:49:10.575Z",
+  "generatedAt": "2026-09-20T02:57:45.412Z",
   "collections": [
     {
       "name": "users",
@@ -2918,6 +2918,96 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "eventos_timeline_pj",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "prestador",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "prestadores_pj"
+        },
+        {
+          "name": "categoria",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["REGISTRO", "DOCUMENTOS", "GESTÃO", "AUSÊNCIAS", "AVALIAÇÃO"]
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "complemento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["sistema", "usuario"]
+        },
+        {
+          "name": "data_evento",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "referencia_tipo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "referencia_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_timeline_prestador ON eventos_timeline_pj (prestador)",
+        "CREATE INDEX idx_timeline_data ON eventos_timeline_pj (data_evento DESC)",
+        "CREATE INDEX idx_timeline_categoria ON eventos_timeline_pj (categoria)",
+        "CREATE INDEX idx_timeline_prestador_data ON eventos_timeline_pj (prestador, data_evento DESC)"
+      ]
     }
   ]
 }

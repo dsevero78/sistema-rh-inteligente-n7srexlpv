@@ -42,9 +42,11 @@ import {
   Sparkles,
   FileSignature,
   TrendingUp,
+  Activity,
 } from 'lucide-react'
 import { DocumentViewerModal } from './DocumentViewerModal'
 import { LifecycleJornadaPJ } from './LifecycleJornadaPJ'
+import { LinhaDoTempoPJ } from './LinhaDoTempoPJ'
 import { AbaAditivos } from './AbaAditivos'
 import { BlocoPrazosEFinanceiroContrato } from './BlocoPrazosEFinanceiroContrato'
 import { ModalNovoAditivo } from './ModalNovoAditivo'
@@ -82,10 +84,10 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
 }) => {
   const { toast } = useToast()
 
-  // Controle de Abas: 'jornada' é a seção PRINCIPAL e DOMINANTE
+  // Controle de Abas: 'timeline', 'jornada', 'perfil', 'aditivos', 'documentos', 'notas', 'avaliacoes'
   const [activeTab, setActiveTab] = useState<
-    'jornada' | 'perfil' | 'aditivos' | 'documentos' | 'notas' | 'avaliacoes'
-  >('jornada')
+    'timeline' | 'jornada' | 'perfil' | 'aditivos' | 'documentos' | 'notas' | 'avaliacoes'
+  >('timeline')
 
   // Aditivos locais
   const [aditivosLocais, setAditivosLocais] = useState<AditivoPJ[]>(propsAditivos || [])
@@ -440,15 +442,22 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         </Card>
       </div>
 
-      {/* Abas Principais com a JORNADA como seção PRINCIPAL / DOMINANTE */}
+      {/* Abas Principais com a Linha do Tempo e a Jornada */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
         <TabsList className="bg-slate-100 p-1 border border-slate-200/80 rounded-xl flex flex-wrap">
           <TabsTrigger
-            value="jornada"
+            value="timeline"
             className="gap-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-800 shadow-2xs"
           >
-            <GitCommit className="w-3.5 h-3.5 text-emerald-600" />
-            Jornada do Prestador ({prestador.etapa_lifecycle || 'Lifecycle'})
+            <Activity className="w-3.5 h-3.5 text-emerald-600" />
+            Linha do Tempo
+          </TabsTrigger>
+          <TabsTrigger
+            value="jornada"
+            className="gap-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900 shadow-2xs"
+          >
+            <GitCommit className="w-3.5 h-3.5 text-blue-600" />
+            Lifecycle ({prestador.etapa_lifecycle || 'Jornada'})
           </TabsTrigger>
           <TabsTrigger value="perfil" className="gap-2 text-xs">
             <Building2 className="w-3.5 h-3.5" />
@@ -476,7 +485,14 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         </TabsList>
 
         {/* ------------------------------------------------------------------ */}
-        {/* ABA DOMINANTE: JORNADA DE LIFECYCLE COMPLETA (Entrada até Saída)   */}
+        {/* ABA: LINHA DO TEMPO (NOVA - FIEL AOS PRINTS)                       */}
+        {/* ------------------------------------------------------------------ */}
+        <TabsContent value="timeline" className="space-y-4">
+          <LinhaDoTempoPJ prestador={prestador} onAtualizar={handleRecarregarTudo} />
+        </TabsContent>
+
+        {/* ------------------------------------------------------------------ */}
+        {/* ABA: JORNADA DE LIFECYCLE COMPLETA (Entrada até Saída)             */}
         {/* ------------------------------------------------------------------ */}
         <TabsContent value="jornada" className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1">

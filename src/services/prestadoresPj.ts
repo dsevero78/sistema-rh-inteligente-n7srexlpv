@@ -15,6 +15,23 @@ export interface AuditoriaMarcoItem {
   obs?: string
 }
 
+export type CategoriaTimelinePJ = 'REGISTRO' | 'DOCUMENTOS' | 'GESTÃO' | 'AUSÊNCIAS' | 'AVALIAÇÃO'
+
+export interface EventoTimelinePJ extends RecordModel {
+  prestador: string
+  categoria: CategoriaTimelinePJ
+  titulo: string
+  complemento?: string
+  autor: string
+  origem: 'sistema' | 'usuario'
+  data_evento: string
+  referencia_tipo?: string
+  referencia_id?: string
+  expand?: {
+    prestador?: PrestadorPJ
+  }
+}
+
 export interface MarcoLifecyclePJ extends RecordModel {
   prestador: string
   etapa: EtapaLifecyclePJ
@@ -435,6 +452,7 @@ export const prestadoresService = {
 
   // Criar prestador (com suporte a upload)
   async criarPrestador(dados: Partial<PrestadorPJ>, anexoFile?: File): Promise<PrestadorPJ> {
+    let novoPrestador: PrestadorPJ
     if (anexoFile) {
       const formData = new FormData()
       Object.entries(dados).forEach(([k, v]) => {
@@ -443,9 +461,36 @@ export const prestadoresService = {
         }
       })
       formData.append('contrato_social_anexo', anexoFile)
-      return await pb.collection('prestadores_pj').create<PrestadorPJ>(formData)
+      novoPrestador = await pb.collection('prestadores_pj').create<PrestadorPJ>(formData)
+    } else {
+      novoPrestador = await pb.collection('prestadores_pj').create<PrestadorPJ>(dados)
     }
-    return await pb.collection('prestadores_pj').create<PrestadorPJ>(dados)
+
+    // Inicializar template de marcos
+    try {
+      await this.inicializarMarcosParaPrestador(novoPrestador.id, novoPrestador)
+    } catch (errMarco) {
+      console.warn('Aviso ao inicializar marcos do novo prestador:', errMarco)
+    }
+
+    // Registrar evento inicial na linha do tempo
+    try {
+      await this.criarEventoTimeline({
+        prestador: novoPrestador.id,
+        categoria: 'REGISTRO',
+        titulo: 'Prestador PJ cadastrado:',
+        complemento: `${novoPrestador.razao_social} (CNPJ: ${novoPrestador.cnpj})`,
+        autor: 'Gestor RH',
+        origem: 'usuario',
+        data_evento: new Date().toISOString(),
+        referencia_tipo: 'prestador',
+        referencia_id: novoPrestador.id,
+      })
+    } catch (errTime) {
+      console.warn('Aviso ao registrar evento de cadastro do prestador:', errTime)
+    }
+
+    return novoPrestador
   },
 
   // Atualizar prestador
@@ -513,6 +558,7 @@ export const prestadoresService = {
   },
 
   async criarContrato(dados: Partial<ContratoPJ>, anexoFile?: File): Promise<ContratoPJ> {
+    let novoContrato: ContratoPJ
     if (anexoFile) {
       const formData = new FormData()
       Object.entries(dados).forEach(([k, v]) => {
@@ -521,9 +567,38 @@ export const prestadoresService = {
         }
       })
       formData.append('contrato_assinado_anexo', anexoFile)
-      return await pb.collection('contratos_pj').create<ContratoPJ>(formData)
+      novoContrato = await pb.collection('contratos_pj').create<ContratoPJ>(formData)
+    } else {
+      novoContrato = await pb.collection('contratos_pj').create<ContratoPJ>(dados)
     }
-    return await pb.collection('contratos_pj').create<ContratoPJ>(dados)
+
+    // Registrar evento na linha do tempo do prestador
+    try {
+      if (novoContrato.prestador) {
+        const valFormat = novoContrato.valor
+          ? `R$ ${novoContrato.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          : ''
+        const inicioFormat = novoContrato.data_inicio
+          ? new Date(novoContrato.data_inicio).toLocaleDateString('pt-BR')
+          : ''
+
+        await this.criarEventoTimeline({
+          prestador: novoContrato.prestador,
+          categoria: 'REGISTRO',
+          titulo: 'Novo contrato firmado:',
+          complemento: `${novoContrato.titulo}${inicioFormat ? `, início em ${inicioFormat}` : ''}${valFormat ? `, ${valFormat}` : ''}`,
+          autor: novoContrato.gestor_nome || 'Gestor RH',
+          origem: 'usuario',
+          data_evento: new Date().toISOString(),
+          referencia_tipo: 'contrato',
+          referencia_id: novoContrato.id,
+        })
+      }
+    } catch (errTime) {
+      console.warn('Aviso ao registrar evento de contrato na linha do tempo:', errTime)
+    }
+
+    return novoContrato
   },
 
   async atualizarContrato(
@@ -610,6 +685,43 @@ export const prestadoresService = {
 
     // Se o aditivo foi criado como Vigente ou precisa atualizar o contrato
     await this.sincronizarEfeitosAditivo(criado)
+
+    // Registrar evento na linha do tempo PJ com o delta exato
+    try {
+      if (criado.prestador) {
+        let tituloAdit = `Aditivo ${criado.numero_aditivo || ''} formalizado:`
+        let complementoAdit = criado.descricao || criado.tipo
+
+        if (
+          (criado.tipo === 'Reajuste de valor' || criado.tipo === 'Reajuste e Prolongamento') &&
+          criado.novo_valor_mensal &&
+          criado.valor_anterior
+        ) {
+          const deStr = `R$ ${Math.round(criado.valor_anterior).toLocaleString('pt-BR')}`
+          const paraStr = `R$ ${Math.round(criado.novo_valor_mensal).toLocaleString('pt-BR')}`
+          tituloAdit = criado.status === 'Vigente' ? 'Reajuste aprovado:' : 'Reajuste proposto:'
+          complementoAdit = `de ${deStr} para ${paraStr} (${criado.numero_aditivo})`
+        } else if (criado.tipo === 'Prolongamento de vigência' && criado.nova_vigencia_fim) {
+          const dataFimStr = new Date(criado.nova_vigencia_fim).toLocaleDateString('pt-BR')
+          tituloAdit = 'Vigência prorrogada:'
+          complementoAdit = `até ${dataFimStr} formalizada pelo ${criado.numero_aditivo}`
+        }
+
+        await this.criarEventoTimeline({
+          prestador: criado.prestador,
+          categoria: 'REGISTRO',
+          titulo: tituloAdit,
+          complemento: complementoAdit,
+          autor: 'Gestor RH',
+          origem: 'usuario',
+          data_evento: new Date().toISOString(),
+          referencia_tipo: 'aditivo',
+          referencia_id: criado.id,
+        })
+      }
+    } catch (errTime) {
+      console.warn('Aviso ao registrar evento de aditivo na linha do tempo:', errTime)
+    }
 
     return criado
   },
@@ -761,6 +873,7 @@ export const prestadoresService = {
   async criarDocumento(dados: Partial<DocumentoPJ>, anexoFile?: File): Promise<DocumentoPJ> {
     const statusCalc = calcularStatusDocumento(dados.data_validade)
     const dadosAtualizados = { ...dados, status_calculado: statusCalc }
+    let docCriado: DocumentoPJ
 
     if (anexoFile) {
       const formData = new FormData()
@@ -770,9 +883,31 @@ export const prestadoresService = {
         }
       })
       formData.append('anexo', anexoFile)
-      return await pb.collection('documentos_pj').create<DocumentoPJ>(formData)
+      docCriado = await pb.collection('documentos_pj').create<DocumentoPJ>(formData)
+    } else {
+      docCriado = await pb.collection('documentos_pj').create<DocumentoPJ>(dadosAtualizados)
     }
-    return await pb.collection('documentos_pj').create<DocumentoPJ>(dadosAtualizados)
+
+    // Registrar evento na linha do tempo PJ
+    try {
+      if (docCriado.prestador) {
+        await this.criarEventoTimeline({
+          prestador: docCriado.prestador,
+          categoria: 'DOCUMENTOS',
+          titulo: 'Documento arquivado:',
+          complemento: `${docCriado.titulo_personalizado || docCriado.tipo_documento} inserido no dossiê`,
+          autor: 'Compliance RH',
+          origem: 'usuario',
+          data_evento: new Date().toISOString(),
+          referencia_tipo: 'documento',
+          referencia_id: docCriado.id,
+        })
+      }
+    } catch (errTime) {
+      console.warn('Aviso ao registrar evento de documento na linha do tempo:', errTime)
+    }
+
+    return docCriado
   },
 
   async atualizarDocumento(
@@ -816,6 +951,7 @@ export const prestadoresService = {
   },
 
   async criarNotaFiscal(dados: Partial<NotaFiscalPJ>, anexoFile?: File): Promise<NotaFiscalPJ> {
+    let nfCriada: NotaFiscalPJ
     if (anexoFile) {
       const formData = new FormData()
       Object.entries(dados).forEach(([k, v]) => {
@@ -824,9 +960,34 @@ export const prestadoresService = {
         }
       })
       formData.append('anexo', anexoFile)
-      return await pb.collection('notas_fiscais_pj').create<NotaFiscalPJ>(formData)
+      nfCriada = await pb.collection('notas_fiscais_pj').create<NotaFiscalPJ>(formData)
+    } else {
+      nfCriada = await pb.collection('notas_fiscais_pj').create<NotaFiscalPJ>(dados)
     }
-    return await pb.collection('notas_fiscais_pj').create<NotaFiscalPJ>(dados)
+
+    // Registrar evento na linha do tempo
+    try {
+      if (nfCriada.prestador) {
+        const valStr = nfCriada.valor
+          ? `R$ ${nfCriada.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          : ''
+        await this.criarEventoTimeline({
+          prestador: nfCriada.prestador,
+          categoria: 'GESTÃO',
+          titulo: `Nota fiscal ${nfCriada.numero_nf} lançada:`,
+          complemento: `Competência ${nfCriada.competencia}${valStr ? ` no valor de ${valStr}` : ''} (status: ${nfCriada.status})`,
+          autor: 'Financeiro / Prestador',
+          origem: 'usuario',
+          data_evento: new Date().toISOString(),
+          referencia_tipo: 'nota_fiscal',
+          referencia_id: nfCriada.id,
+        })
+      }
+    } catch (errTime) {
+      console.warn('Aviso ao registrar evento de NF na linha do tempo:', errTime)
+    }
+
+    return nfCriada
   },
 
   async atualizarNotaFiscal(
@@ -911,6 +1072,23 @@ export const prestadoresService = {
       console.warn('Aviso ao recalcular média do prestador:', errRecalc)
     }
 
+    // Registrar evento de avaliação na linha do tempo
+    try {
+      await this.criarEventoTimeline({
+        prestador: dados.prestador,
+        categoria: 'AVALIAÇÃO',
+        titulo: 'Avaliação registrada:',
+        complemento: `Período ${dados.periodo_avaliado} (Nota ${media.toFixed(1)}/10, recomendação "${dados.recomendacao}")`,
+        autor: dados.avaliador_nome || 'Gestor RH',
+        origem: 'usuario',
+        data_evento: new Date().toISOString(),
+        referencia_tipo: 'avaliacao',
+        referencia_id: novaAvaliacao.id,
+      })
+    } catch (errTime) {
+      console.warn('Aviso ao registrar evento de avaliação na linha do tempo:', errTime)
+    }
+
     return novaAvaliacao
   },
 
@@ -980,6 +1158,38 @@ export const prestadoresService = {
       } catch (errAlerta) {
         console.warn('Aviso ao gerar alerta de pendência PJ:', errAlerta)
       }
+    }
+
+    // Registrar evento na linha do tempo quando marco é concluído ou atualizado
+    try {
+      const prest = await pb.collection('prestadores_pj').getOne<PrestadorPJ>(atual.prestador)
+      let cat: CategoriaTimelinePJ = 'GESTÃO'
+      if (atual.etapa === 'Entrada' && atual.chave_marco === 'contrato_assinado') {
+        cat = 'DOCUMENTOS'
+      } else if (atual.chave_marco === 'ausencias_periodo') {
+        cat = 'AUSÊNCIAS'
+      } else if (atual.chave_marco === 'reajuste_alcada') {
+        cat = 'REGISTRO'
+      }
+
+      const tituloEvt =
+        novoStatus === 'REGISTRADO'
+          ? `${atual.nome_marco}: concluído`
+          : `${atual.nome_marco}: status alterado para ${novoStatus}`
+
+      await this.criarEventoTimeline({
+        prestador: prest.id,
+        categoria: cat,
+        titulo: tituloEvt,
+        complemento: dados?.observacao || `Marco da etapa ${atual.etapa}`,
+        autor: dados?.autor || 'RH / Gestor',
+        origem: 'usuario',
+        data_evento: new Date().toISOString(),
+        referencia_tipo: 'marco_lifecycle',
+        referencia_id: marcoId,
+      })
+    } catch (errTimeline) {
+      console.warn('Aviso ao registrar evento de marco na linha do tempo:', errTimeline)
     }
 
     return atualizado
@@ -1219,5 +1429,56 @@ export const prestadoresService = {
     return await pb.send('/backend/v1/prestadores-pj/varredura', {
       method: 'POST',
     })
+  },
+
+  // --------------------------------------------------------------------------
+  // Linha do Tempo (Eventos de Acompanhamento PJ)
+  // --------------------------------------------------------------------------
+  async listarEventosTimeline(
+    prestadorId: string,
+    categoriaFiltro?: CategoriaTimelinePJ | 'TODAS',
+  ): Promise<EventoTimelinePJ[]> {
+    let filter = `prestador = '${prestadorId}'`
+    if (categoriaFiltro && categoriaFiltro !== 'TODAS') {
+      filter += ` && categoria = '${categoriaFiltro}'`
+    }
+    return await pb.collection('eventos_timeline_pj').getFullList<EventoTimelinePJ>({
+      filter,
+      sort: '-data_evento',
+      expand: 'prestador',
+    })
+  },
+
+  async criarEventoTimeline(dados: {
+    prestador: string
+    categoria: CategoriaTimelinePJ
+    titulo: string
+    complemento?: string
+    autor?: string
+    origem?: 'sistema' | 'usuario'
+    data_evento?: string
+    referencia_tipo?: string
+    referencia_id?: string
+  }): Promise<EventoTimelinePJ> {
+    const autorFinal = dados.autor || 'sistema'
+    const origemFinal =
+      dados.origem || (autorFinal.toLowerCase() === 'sistema' ? 'sistema' : 'usuario')
+    const dataEventoFinal = dados.data_evento || new Date().toISOString()
+
+    return await pb.collection('eventos_timeline_pj').create<EventoTimelinePJ>({
+      prestador: dados.prestador,
+      categoria: dados.categoria,
+      titulo: dados.titulo,
+      complemento: dados.complemento || '',
+      autor: autorFinal,
+      origem: origemFinal,
+      data_evento: dataEventoFinal,
+      referencia_tipo: dados.referencia_tipo || '',
+      referencia_id: dados.referencia_id || '',
+    })
+  },
+
+  async excluirEventoTimeline(id: string): Promise<boolean> {
+    return await pb.collection('eventos_timeline_pj').delete(id)
   },
 }

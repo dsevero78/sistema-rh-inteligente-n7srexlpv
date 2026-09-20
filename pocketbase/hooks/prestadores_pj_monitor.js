@@ -120,6 +120,32 @@ cronAdd('monitorar_prestadores_pj_cron', '0 3 * * *', () => {
             al.set('criado_em', agoraIso)
             $app.save(al)
 
+            // Registrar evento na linha do tempo PJ
+            try {
+              const timelineCol = $app.findCollectionByNameOrId('eventos_timeline_pj')
+              if (timelineCol) {
+                const ev = new Record(timelineCol)
+                ev.set('prestador', prestId)
+                ev.set('categoria', 'DOCUMENTOS')
+                ev.set('titulo', 'Cobrança de documentos')
+                ev.set(
+                  'complemento',
+                  'enviada por e-mail ao PJ (' +
+                    tipoDoc +
+                    (isVencido ? ' expirado' : ' próximo do vencimento') +
+                    ')',
+                )
+                ev.set('autor', 'sistema')
+                ev.set('origem', 'sistema')
+                ev.set('data_evento', agoraIso)
+                ev.set('referencia_tipo', 'documento_cobranca')
+                ev.set('referencia_id', doc.id)
+                $app.save(ev)
+              }
+            } catch (errTime) {
+              console.log('Falha ao registrar evento na linha do tempo:', errTime)
+            }
+
             // Disparar e-mail de notificação
             try {
               const htmlDoc =
@@ -620,6 +646,27 @@ routerAdd(
             al.set('criado_em', agoraIso)
             $app.save(al)
             alertasGerados++
+
+            // Registrar na linha do tempo
+            try {
+              const timelineCol = $app.findCollectionByNameOrId('eventos_timeline_pj')
+              if (timelineCol) {
+                const ev = new Record(timelineCol)
+                ev.set('prestador', prestId)
+                ev.set('categoria', 'DOCUMENTOS')
+                ev.set('titulo', 'Cobrança de documentos')
+                ev.set(
+                  'complemento',
+                  'enviada por e-mail ao PJ (' + doc.getString('tipo_documento') + ')',
+                )
+                ev.set('autor', 'sistema')
+                ev.set('origem', 'sistema')
+                ev.set('data_evento', agoraIso)
+                ev.set('referencia_tipo', 'documento_cobranca')
+                ev.set('referencia_id', doc.id)
+                $app.save(ev)
+              }
+            } catch (_) {}
           }
         }
       }
