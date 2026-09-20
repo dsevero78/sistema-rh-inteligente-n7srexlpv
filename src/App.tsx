@@ -30,6 +30,9 @@ import BancoTalentos from '@/pages/BancoTalentos'
 import RelatorioExecutivo from '@/pages/RelatorioExecutivo'
 import Alertas from '@/pages/Alertas'
 import Onboarding from '@/pages/Onboarding'
+import ExperienciaCandidato from '@/pages/ExperienciaCandidato'
+import AdmissaoPublica from '@/pages/AdmissaoPublica'
+import ExperienciaPublica from '@/pages/ExperienciaPublica'
 import NotFound from '@/pages/NotFound'
 
 import { Toaster } from '@/components/ui/toaster'
@@ -74,9 +77,11 @@ export default function App() {
               }
             />
 
-            {/* Public Candidate Routes (Página de Carreira e Inscrição) */}
+            {/* Public Candidate Routes (Página de Carreira, Admissão e Pesquisa de Experiência) */}
             <Route path="/candidatar" element={<CandidaturaPublica />} />
             <Route path="/candidatar/:vagaId" element={<CandidaturaPublica />} />
+            <Route path="/admissao/:token" element={<AdmissaoPublica />} />
+            <Route path="/experiencia/:token" element={<ExperienciaPublica />} />
 
             {/* Authenticated Global Layout Routes */}
             <Route
@@ -97,7 +102,8 @@ export default function App() {
               <Route path="pipeline" element={<Pipeline />} />
               <Route path="ofertas" element={<Ofertas />} />
               <Route path="onboarding" element={<Onboarding />} />
-              <Route path="banco-talentos" element={<BancoTalentos />} />
+              <Route path="experiencia" element={<ExperienciaCandidato />} />
+              <Route path="banco-talentos" element={<BancoTalentos />} />{' '}
               <Route path="alertas" element={<Alertas />} />
               <Route path="entrevistas" element={<Entrevistas />} />
               <Route path="chat" element={<Chat />} />

@@ -15,11 +15,47 @@ routerAdd(
       const modoComparativo = !!body.modo_comparativo
       const mesRef = body.mes_ref || (mes === 1 ? 12 : mes - 1)
       const anoRef = body.ano_ref || (mes === 1 ? ano - 1 : ano)
-      const metricasRef = body.metricas_ref || null
+      const metricasRef = body.metricas_ref || {}
       const serieHistorica = body.serie_historica || []
 
-      let prompt = ''
+      // Injetar métricas de Candidate Experience consolidadas do backend
+      let metricasExperiencia = null
+      try {
+        const recordsExp = $app.findRecordsByFilter(
+          'avaliacoes_experiencia',
+          'respondido = true',
+          '-created',
+          100,
+          0,
+        )
+        let somaNota = 0
+        let somaNps = 0
+        let prom = 0
+        let det = 0
+        for (let k = 0; k < recordsExp.length; k++) {
+          const rx = recordsExp[k]
+          const n = rx.getInt('nota_geral') || 0
+          const nps = rx.getInt('nps_score') || n
+          somaNota += n
+          somaNps += nps
+          if (nps >= 9) prom++
+          else if (nps <= 6) det++
+        }
+        const totalResp = recordsExp.length
+        if (totalResp > 0) {
+          metricasExperiencia = {
+            total_avaliacoes_respondidas: totalResp,
+            nota_media_satisfacao: parseFloat((somaNota / totalResp).toFixed(1)),
+            nps_geral: Math.round(((prom - det) / totalResp) * 100),
+            promotores: prom,
+            detratores: det,
+          }
+        }
+      } catch (errExpHook) {
+        console.log('Aviso ao coletar experiência para síntese executiva:', errExpHook)
+      }
 
+      let prompt = ''
       if (modoComparativo && metricasRef) {
         prompt =
           'Você é o Gestor de Talentos e Head de People Analytics da organização. ' +
@@ -47,6 +83,13 @@ routerAdd(
           '):\n' +
           JSON.stringify(metricasRef, null, 2) +
           '\n\n' +
+          'Métricas de Candidate Experience (Satisfação & NPS dos Candidatos):\n' +
+          JSON.stringify(
+            metricasExperiencia || { info: 'Sem avaliações suficientes no período' },
+            null,
+            2,
+          ) +
+          '\n\n' +
           'Série histórica dos últimos 6 meses (Time-to-Hire e Candidatos no Funil):\n' +
           JSON.stringify(serieHistorica, null, 2) +
           '\n\n' +
@@ -71,6 +114,13 @@ routerAdd(
           '.\n\n' +
           'Dados e métricas consolidadas do mês:\n' +
           JSON.stringify(metricas, null, 2) +
+          '\n\n' +
+          'Métricas de Candidate Experience (Satisfação & NPS dos Candidatos):\n' +
+          JSON.stringify(
+            metricasExperiencia || { info: 'Sem avaliações suficientes no período' },
+            null,
+            2,
+          ) +
           '\n\n' +
           'Série histórica dos últimos 6 meses (se disponível):\n' +
           JSON.stringify(serieHistorica, null, 2) +

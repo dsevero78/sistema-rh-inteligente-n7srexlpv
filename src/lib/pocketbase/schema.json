@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T01:48:34.241Z",
+  "generatedAt": "2026-09-20T01:54:53.990Z",
   "collections": [
     {
       "name": "users",
@@ -1774,13 +1774,221 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "token_admissao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_admissao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Pendente de envio",
+            "Enviado ao contratado",
+            "Em preenchimento",
+            "Assinado pelo contratado"
+          ]
+        },
+        {
+          "name": "token_expira_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link_ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assinatura_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assinatura_declaracao_lgpd",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assinatura_data",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assinatura_ip",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_itens_empresa",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "concluidos_empresa",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_itens_contratado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "concluidos_contratado",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_onboardings_cand ON onboardings (candidato)",
         "CREATE INDEX idx_onboardings_vaga ON onboardings (vaga)",
         "CREATE INDEX idx_onboardings_status ON onboardings (status)",
-        "CREATE INDEX idx_onboardings_admissao ON onboardings (data_admissao)"
+        "CREATE INDEX idx_onboardings_admissao ON onboardings (data_admissao)",
+        "CREATE INDEX `idx_onboardings_token_adm` ON `onboardings` (token_admissao)"
+      ]
+    },
+    {
+      "name": "avaliacoes_experiencia",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "token_pesquisa",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status_processo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Contratado", "Recusado"]
+        },
+        {
+          "name": "respondido",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_resposta",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nota_geral",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "clareza_processo",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tempo_resposta",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tratamento_rh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "clareza_vaga",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "recomendaria_empresa",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Sim, com certeza", "Talvez", "Não recomendaria"]
+        },
+        {
+          "name": "nps_score",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "comentario",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "alerta_oportunidade",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_cand_exp_token ON avaliacoes_experiencia (token_pesquisa)",
+        "CREATE INDEX idx_cand_exp_cand ON avaliacoes_experiencia (candidato)",
+        "CREATE INDEX idx_cand_exp_vaga ON avaliacoes_experiencia (vaga)",
+        "CREATE INDEX idx_cand_exp_resp ON avaliacoes_experiencia (respondido)",
+        "CREATE INDEX idx_cand_exp_status ON avaliacoes_experiencia (status_processo)",
+        "CREATE INDEX idx_cand_exp_alerta ON avaliacoes_experiencia (alerta_oportunidade)"
       ]
     }
   ]

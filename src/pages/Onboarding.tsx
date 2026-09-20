@@ -26,6 +26,12 @@ import {
   Send,
   Loader2,
   FileText,
+  Copy,
+  ExternalLink,
+  ShieldCheck,
+  RotateCcw,
+  Mail,
+  Lock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -61,6 +67,10 @@ export interface ItemOnboarding {
   prazo?: string
   concluido: boolean
   observacao?: string
+  aCargoDoContratado?: boolean
+  confirmadoPorMim?: boolean
+  confirmadoEm?: string | null
+  observacaoContratado?: string
 }
 
 const CATEGORIAS_CONFIG = [
@@ -124,6 +134,12 @@ export default function Onboarding() {
   const [itemResponsavel, setItemResponsavel] = useState('')
   const [itemPrazo, setItemPrazo] = useState('')
   const [itemObservacao, setItemObservacao] = useState('')
+  const [itemACargoContratado, setItemACargoContratado] = useState(false)
+
+  // Ações de Link e Admissão
+  const [gerandoLink, setGerandoLink] = useState(false)
+  const [enviandoEmailLink, setEnviandoEmailLink] = useState(false)
+  const [invalidandoLink, setInvalidandoLink] = useState(false)
 
   // Onboarding ativo selecionado para visualização/edição detalhada (pelo id do onboarding ou candidato)
   const onboardingAtivo = useMemo(() => {
@@ -327,6 +343,117 @@ export default function Onboarding() {
     }
   }
 
+  // Ações de Admissão Digital do Contratado
+  const handleCopiarLink = async () => {
+    if (!onboardingAtivo) return
+    let token = onboardingAtivo.token_admissao
+    if (!token) {
+      setGerandoLink(true)
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/onboarding/${onboardingAtivo.id}/gerar-link`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: pb.authStore.token,
+            },
+          },
+        )
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Falha ao gerar link')
+        token = data.token
+        await carregarDados()
+      } catch (err: unknown) {
+        toast({
+          title: 'Erro ao gerar link',
+          description: err instanceof Error ? err.message : 'Tente novamente.',
+          variant: 'destructive',
+        })
+        setGerandoLink(false)
+        return
+      } finally {
+        setGerandoLink(false)
+      }
+    }
+
+    const urlCompleta = `${window.location.origin}/admissao/${token}`
+    navigator.clipboard.writeText(urlCompleta)
+    toast({
+      title: 'Link copiado com sucesso!',
+      description: 'O link nominal de acesso do contratado está na sua área de transferência.',
+    })
+  }
+
+  const handleEnviarEmailLink = async () => {
+    if (!onboardingAtivo) return
+    setEnviandoEmailLink(true)
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/onboarding/${onboardingAtivo.id}/enviar-email`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: pb.authStore.token,
+          },
+        },
+      )
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao enviar e-mail')
+
+      toast({
+        title: 'E-mail enviado ao contratado!',
+        description: `Link de admissão enviado para ${data.email || 'o candidato'}. Registrado no log de auditoria.`,
+      })
+      await carregarDados()
+    } catch (err: unknown) {
+      toast({
+        title: 'Erro ao enviar e-mail',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setEnviandoEmailLink(false)
+    }
+  }
+
+  const handleInvalidarOuReabrirLink = async (reabrir: boolean) => {
+    if (!onboardingAtivo) return
+    setInvalidandoLink(true)
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/onboarding/${onboardingAtivo.id}/invalidar-link`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: pb.authStore.token,
+          },
+          body: JSON.stringify({ reabrir }),
+        },
+      )
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao atualizar link')
+
+      toast({
+        title: reabrir ? 'Checklist reaberto para edição' : 'Link de admissão revogado',
+        description: reabrir
+          ? 'O contratado poderá revisar e assinar novamente.'
+          : 'O acesso público anterior foi bloqueado com sucesso.',
+      })
+      await carregarDados()
+    } catch (err: unknown) {
+      toast({
+        title: 'Erro ao processar',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setInvalidandoLink(false)
+    }
+  }
+
   // Salvar Item (Adicionar ou Editar)
   const handleSalvarItem = async () => {
     if (!onboardingAtivo || !itemTitulo.trim()) {
@@ -347,6 +474,7 @@ export default function Onboarding() {
           responsavel: itemResponsavel.trim() || 'Equipe RH / Gestor',
           prazo: itemPrazo || '',
           observacao: itemObservacao.trim(),
+          aCargoDoContratado: itemACargoContratado,
         }
       }
     } else {
@@ -359,6 +487,7 @@ export default function Onboarding() {
         prazo: itemPrazo || '',
         concluido: false,
         observacao: itemObservacao.trim(),
+        aCargoDoContratado: itemACargoContratado,
       }
       itensAtuais.push(novoItem)
     }
@@ -613,6 +742,8 @@ export default function Onboarding() {
                   const isSelected = onboardingAtivo?.id === onb.id
                   const perc = onb.percentual_conclusao || 0
 
+                  const statusAdmissao = onb.status_admissao || 'Pendente de envio'
+
                   return (
                     <div
                       key={onb.id}
@@ -632,18 +763,34 @@ export default function Onboarding() {
                             {vaga?.titulo || 'Posição'}
                           </p>
                         </div>
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] font-bold shrink-0 ${
-                            onb.status === 'Concluído'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : onb.status === 'Cancelado'
-                                ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                : 'bg-blue-50 text-blue-700 border-blue-200'
-                          }`}
-                        >
-                          {onb.status}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] font-bold shrink-0 ${
+                              onb.status === 'Concluído'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : onb.status === 'Cancelado'
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                  : 'bg-blue-50 text-blue-700 border-blue-200'
+                            }`}
+                          >
+                            {onb.status}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={`text-[9px] font-semibold py-0 ${
+                              statusAdmissao === 'Assinado pelo contratado'
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                : statusAdmissao === 'Em preenchimento'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                  : statusAdmissao === 'Enviado ao contratado'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            {statusAdmissao}
+                          </Badge>
+                        </div>
                       </div>
 
                       {/* Barra de Progresso */}
@@ -757,6 +904,139 @@ export default function Onboarding() {
                 </div>
               </div>
 
+              {/* CARD DE ADMISSÃO ASSINÁVEL (MÓDULO 1) */}
+              <div className="p-4 bg-slate-50/80 border-b border-slate-200 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-bold text-slate-900">
+                          Checklist Admissional do Contratado
+                        </h4>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] font-bold ${
+                            onboardingAtivo.status_admissao === 'Assinado pelo contratado'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                              : onboardingAtivo.status_admissao === 'Em preenchimento'
+                                ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                : onboardingAtivo.status_admissao === 'Enviado ao contratado'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : 'bg-slate-100 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          {onboardingAtivo.status_admissao || 'Pendente de envio'}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Permite ao colaborador conferir seus itens sem login e assinar com
+                        consentimento LGPD.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCopiarLink}
+                      disabled={gerandoLink}
+                      className="text-xs h-8 bg-white border-slate-200 text-slate-700 hover:text-blue-600"
+                    >
+                      <Copy className="w-3.5 h-3.5 mr-1" />
+                      {gerandoLink ? 'Gerando...' : 'Copiar Link'}
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      onClick={handleEnviarEmailLink}
+                      disabled={enviandoEmailLink}
+                      className="text-xs h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                    >
+                      <Mail className="w-3.5 h-3.5 mr-1" />
+                      {enviandoEmailLink ? 'Enviando...' : '(Re)enviar E-mail'}
+                    </Button>
+
+                    {onboardingAtivo.token_admissao && (
+                      <a
+                        href={`/admissao/${onboardingAtivo.token_admissao}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center text-xs h-8 px-2.5 rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium"
+                        title="Abrir página pública do contratado"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                        Ver Página
+                      </a>
+                    )}
+
+                    {onboardingAtivo.status_admissao === 'Assinado pelo contratado' && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleInvalidarOuReabrirLink(true)}
+                        disabled={invalidandoLink}
+                        className="text-xs h-8 text-amber-700 hover:bg-amber-50"
+                        title="Reabrir link para o contratado assinar novamente"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                        Reabrir
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Detalhes da Assinatura Digital e Métricas Comparativas */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/80">
+                  <div className="p-2.5 bg-white rounded-md border border-slate-200 text-[11px] space-y-1">
+                    <span className="font-bold text-slate-700 block">Balanço de Confirmações</span>
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span>A cargo do Contratado:</span>
+                      <strong className="text-blue-700 font-bold">
+                        {onboardingAtivo.concluidos_contratado || 0} /{' '}
+                        {onboardingAtivo.total_itens_contratado || 0} confirmados
+                      </strong>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span>A cargo da Empresa (RH/TI):</span>
+                      <strong className="text-slate-800 font-bold">
+                        {onboardingAtivo.concluidos_empresa || 0} /{' '}
+                        {onboardingAtivo.total_itens_empresa || 0} concluídos
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="p-2.5 bg-white rounded-md border border-slate-200 text-[11px] space-y-1">
+                    <span className="font-bold text-slate-700 block">
+                      Evidência de Assinatura LGPD
+                    </span>
+                    {onboardingAtivo.status_admissao === 'Assinado pelo contratado' ? (
+                      <div className="text-emerald-800 space-y-0.5">
+                        <p>
+                          <strong>Nome:</strong> {onboardingAtivo.assinatura_nome || '—'}
+                        </p>
+                        <p>
+                          <strong>Data/Hora:</strong>{' '}
+                          {onboardingAtivo.assinatura_data
+                            ? new Date(onboardingAtivo.assinatura_data).toLocaleString('pt-BR')
+                            : '—'}
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          <strong>IP:</strong> {onboardingAtivo.assinatura_ip || 'Auditado'}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-slate-400 italic">
+                        Aguardando confirmação e assinatura digital pelo contratado.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Botão de Adicionar Item ao Checklist */}
               <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                 <div>
@@ -776,6 +1056,7 @@ export default function Onboarding() {
                     setItemResponsavel('')
                     setItemPrazo('')
                     setItemObservacao('')
+                    setItemACargoContratado(false)
                     setItemModalOpen(true)
                   }}
                   className="text-xs h-8 bg-white border-slate-200 text-slate-700 hover:text-blue-600"
@@ -864,12 +1145,34 @@ export default function Onboarding() {
                                     )}
                                   </div>
 
-                                  {it.observacao && (
-                                    <p className="text-[11px] text-slate-500 bg-slate-50 p-1.5 rounded border border-slate-100 mt-1">
-                                      {it.observacao}
-                                    </p>
+                                  {it.aCargoDoContratado ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[9px] font-bold bg-blue-50 text-blue-700 border-blue-200 py-0"
+                                    >
+                                      Contratado confirma
+                                    </Badge>
+                                  ) : (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[9px] font-medium bg-slate-50 text-slate-600 border-slate-200 py-0"
+                                    >
+                                      Empresa resolve
+                                    </Badge>
                                   )}
                                 </div>
+
+                                {it.observacao && (
+                                  <p className="text-[11px] text-slate-500 bg-slate-50 p-1.5 rounded border border-slate-100 mt-1">
+                                    {it.observacao}
+                                  </p>
+                                )}
+
+                                {it.observacaoContratado && (
+                                  <p className="text-[11px] text-blue-700 bg-blue-50/70 p-1.5 rounded border border-blue-200 mt-1">
+                                    <strong>Obs do Contratado:</strong> {it.observacaoContratado}
+                                  </p>
+                                )}
                               </div>
 
                               <div className="flex items-center gap-1 shrink-0 pt-0.5">
@@ -884,6 +1187,7 @@ export default function Onboarding() {
                                     setItemResponsavel(it.responsavel)
                                     setItemPrazo(it.prazo || '')
                                     setItemObservacao(it.observacao || '')
+                                    setItemACargoContratado(!!it.aCargoDoContratado)
                                     setItemModalOpen(true)
                                   }}
                                   title="Editar item"
@@ -1081,6 +1385,22 @@ export default function Onboarding() {
                 onChange={(e) => setItemObservacao(e.target.value)}
                 className="text-xs resize-none"
               />
+            </div>
+
+            <div className="flex items-center gap-2 p-2 bg-slate-50 rounded border border-slate-200">
+              <input
+                type="checkbox"
+                id="item-a-cargo"
+                checked={itemACargoContratado}
+                onChange={(e) => setItemACargoContratado(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              />
+              <Label
+                htmlFor="item-a-cargo"
+                className="text-xs font-medium text-slate-700 cursor-pointer"
+              >
+                Item confirmável diretamente pelo contratado na página pública de admissão
+              </Label>
             </div>
           </div>
 

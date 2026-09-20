@@ -268,6 +268,108 @@ onRecordAfterUpdateSuccess((e) => {
     } catch (logErr) {
       console.log('Aviso ao persistir log de auditoria de e-mail de status:', logErr)
     }
+
+    // 8. Gatilho Automático: Pesquisa de Experiência do Candidato ao encerrar processo (Contratado/Aprovado ou Recusado)
+    if (estagioNovo === 'Aprovado' || estagioNovo === 'Recusado') {
+      try {
+        const avalCol = $app.findCollectionByNameOrId('avaliacoes_experiencia')
+        // Anti-duplicidade: verificar se já existe pesquisa registrada para este candidato e vaga
+        const pesquisasExistentes = $app.findRecordsByFilter(
+          'avaliacoes_experiencia',
+          "candidato = '" + candidatoId + "' && vaga = '" + vagaId + "'",
+          '-created',
+          1,
+          0,
+        )
+
+        if (!pesquisasExistentes || pesquisasExistentes.length === 0) {
+          const statusProcesso = estagioNovo === 'Aprovado' ? 'Contratado' : 'Recusado'
+          const tokenPesquisa = 'exp-' + $security.randomString(20).toLowerCase()
+          const novaAval = new Record(avalCol)
+          novaAval.set('candidato', candidatoId)
+          novaAval.set('vaga', vagaId)
+          novaAval.set('token_pesquisa', tokenPesquisa)
+          novaAval.set('status_processo', statusProcesso)
+          novaAval.set('respondido', false)
+          novaAval.set('alerta_oportunidade', false)
+          $app.save(novaAval)
+
+          // Disparar e-mail de pesquisa com link público se houver e-mail
+          if (candEmail) {
+            let emailPesquisaOk = true
+            try {
+              const mailClient = $app.newMailClient()
+              const senderAddress = $app.settings().meta.senderAddress || 'rh@sistema-rh.local'
+              const senderName = $app.settings().meta.senderName || 'Gente & Gestão - Sistema RH'
+              const assuntoPesquisa =
+                'Sua opinião é fundamental: Pesquisa de Experiência (' + vagaTitulo + ')'
+              const linkPesquisa = '/experiencia/' + tokenPesquisa
+
+              const htmlPesquisa =
+                '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;">' +
+                '<div style="background-color: #0f172a; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 24px;">' +
+                '<h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700;">Gente & Gestão</h1>' +
+                '<p style="color: #94a3b8; margin: 4px 0 0 0; font-size: 13px;">Pesquisa de Experiência do Candidato</p>' +
+                '</div>' +
+                '<p style="color: #334155; font-size: 15px; line-height: 1.6;">Olá, <strong>' +
+                candNome +
+                '</strong>!</p>' +
+                '<p style="color: #334155; font-size: 14px; line-height: 1.6;">Com o encerramento do processo seletivo para <strong>' +
+                vagaTitulo +
+                '</strong>, gostaríamos muito de ouvir como foi sua experiência com nosso time de RH.</p>' +
+                '<p style="color: #334155; font-size: 14px; line-height: 1.6;">Leva apenas <strong>1 minuto</strong> e suas respostas são totalmente confidenciais para os avaliadores.</p>' +
+                '<div style="background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">' +
+                '<a href="' +
+                linkPesquisa +
+                '" style="display: inline-block; background-color: #1d4ed8; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 14px; padding: 12px 24px; border-radius: 6px;">Avaliar Minha Experiência</a>' +
+                '</div>' +
+                '<p style="color: #64748b; font-size: 12px; line-height: 1.5;">Obrigado por contribuir com a evolução dos nossos processos de Gente & Gestão!</p>' +
+                '<p style="color: #334155; font-size: 14px; margin-top: 24px;">Atenciosamente,<br><strong>Equipe de Gente & Gestão</strong></p>' +
+                '</div>'
+
+              const msgPesquisa = new MailerMessage({
+                from: { address: senderAddress, name: senderName },
+                to: [{ address: candEmail }],
+                subject: assuntoPesquisa,
+                html: htmlPesquisa,
+              })
+
+              mailClient.send(msgPesquisa)
+            } catch (errSendPesquisa) {
+              emailPesquisaOk = false
+              console.log('Aviso ao enviar e-mail de pesquisa de experiência:', errSendPesquisa)
+            }
+
+            // Registrar no log de auditoria
+            try {
+              const logsCol = $app.findCollectionByNameOrId('logs_emails_status')
+              const agoraIsoPesquisa =
+                new Date().toISOString().replace('T', ' ').substring(0, 19) + 'Z'
+              const logPesqRec = new Record(logsCol)
+              logPesqRec.set('candidato', candidatoId)
+              logPesqRec.set('vaga', vagaId)
+              logPesqRec.set('estagio', estagioNovo)
+              logPesqRec.set('candidato_nome', candNome)
+              logPesqRec.set('candidato_email', candEmail)
+              logPesqRec.set('vaga_titulo', vagaTitulo)
+              logPesqRec.set(
+                'assunto',
+                'Sua opinião é fundamental: Pesquisa de Experiência (' + vagaTitulo + ')',
+              )
+              logPesqRec.set('status_envio', emailPesquisaOk ? 'Enviado' : 'Falhou')
+              logPesqRec.set(
+                'mensagem_resumo',
+                'Convite automático para pesquisa de Candidate Experience pós-encerramento.',
+              )
+              logPesqRec.set('data_envio', agoraIsoPesquisa)
+              $app.save(logPesqRec)
+            } catch (_) {}
+          }
+        }
+      } catch (errGatilhoExp) {
+        console.log('Aviso no gatilho automático de pesquisa de experiência:', errGatilhoExp)
+      }
+    }
   } catch (errGlobal) {
     console.log('Erro geral no hook de e-mails de status do pipeline:', errGlobal)
   }
