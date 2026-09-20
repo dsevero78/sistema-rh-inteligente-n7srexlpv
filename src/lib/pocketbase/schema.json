@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T00:38:20.947Z",
+  "generatedAt": "2026-09-20T00:45:33.049Z",
   "collections": [
     {
       "name": "users",
@@ -293,12 +293,50 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "banco_talentos",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_banco_talentos",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tags_talento",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estagio_saida",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_adicao_banco",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vaga_origem",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "vagas"
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX idx_candidatos_email ON candidatos (email)",
         "CREATE INDEX idx_candidatos_status ON candidatos (status)",
-        "CREATE INDEX idx_candidatos_vaga ON candidatos (vaga)"
+        "CREATE INDEX idx_candidatos_vaga ON candidatos (vaga)",
+        "CREATE INDEX `idx_candidatos_banco_talentos` ON `candidatos` (banco_talentos)"
       ]
     },
     {
@@ -372,6 +410,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "adicionado_ao_banco",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

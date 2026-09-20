@@ -21,6 +21,8 @@ import Chat from '@/pages/Chat'
 import Entrevistas from '@/pages/Entrevistas'
 import Relatorios from '@/pages/Relatorios'
 import RelatorioDetalhes from '@/pages/RelatorioDetalhes'
+import BancoTalentos from '@/pages/BancoTalentos'
+import RelatorioExecutivo from '@/pages/RelatorioExecutivo'
 import NotFound from '@/pages/NotFound'
 
 import { Toaster } from '@/components/ui/toaster'
@@ -81,9 +83,11 @@ export default function App() {
               <Route path="candidatos" element={<Candidatos />} />
               <Route path="candidatos/:id" element={<CandidatoDetalhes />} />
               <Route path="pipeline" element={<Pipeline />} />
+              <Route path="banco-talentos" element={<BancoTalentos />} />
               <Route path="entrevistas" element={<Entrevistas />} />
               <Route path="chat" element={<Chat />} />
               <Route path="relatorios" element={<Relatorios />} />
+              <Route path="relatorio-executivo" element={<RelatorioExecutivo />} />
               <Route path="relatorios/:id" element={<RelatorioDetalhes />} />
             </Route>
 

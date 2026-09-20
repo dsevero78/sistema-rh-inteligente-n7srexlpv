@@ -626,6 +626,49 @@ export default function Candidatos() {
                       <Button
                         variant="outline"
                         size="sm"
+                        className={`text-xs font-semibold h-8 border transition-all ${
+                          cand.banco_talentos
+                            ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                            : 'border-slate-200 text-slate-600 hover:text-amber-600'
+                        }`}
+                        title={
+                          cand.banco_talentos
+                            ? 'No Banco de Talentos'
+                            : 'Adicionar ao Banco de Talentos'
+                        }
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          const novoStatus = !cand.banco_talentos
+                          try {
+                            await pb.collection('candidatos').update(cand.id, {
+                              banco_talentos: novoStatus,
+                              data_adicao_banco: novoStatus ? new Date().toISOString() : null,
+                              motivo_banco_talentos: novoStatus
+                                ? cand.motivo_banco_talentos || 'Destacado para futuras vagas'
+                                : cand.motivo_banco_talentos,
+                            })
+                            toast({
+                              title: novoStatus
+                                ? 'Adicionado ao Banco de Talentos!'
+                                : 'Removido do Banco de Talentos',
+                            })
+                            fetchData()
+                          } catch (err) {
+                            toast({ title: 'Erro ao atualizar', variant: 'destructive' })
+                          }
+                        }}
+                      >
+                        <Sparkles
+                          className={`w-3.5 h-3.5 mr-1 ${
+                            cand.banco_talentos ? 'fill-amber-400 text-amber-500' : 'text-slate-400'
+                          }`}
+                        />
+                        {cand.banco_talentos ? 'Talento ★' : 'Guardar'}
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => navigate(`/candidatos/${cand.id}`)}
                         className="text-xs font-semibold h-8 border-slate-200 text-slate-700 hover:text-blue-600"
                       >

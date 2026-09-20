@@ -83,6 +83,8 @@ export default function Pipeline() {
   const [recusaTargetItem, setRecusaTargetItem] = useState<RecordModel | null>(null)
   const [motivoRecusa, setMotivoRecusa] = useState('')
   const [anotacaoRecusa, setAnotacaoRecusa] = useState('')
+  const [adicionarAoBanco, setAdicionarAoBanco] = useState(true)
+  const [motivoBanco, setMotivoBanco] = useState('')
 
   const fetchPipeline = async () => {
     try {
@@ -155,6 +157,8 @@ export default function Pipeline() {
       setRecusaTargetItem(item)
       setMotivoRecusa('Não atende requisitos técnicos')
       setAnotacaoRecusa('')
+      setAdicionarAoBanco(true)
+      setMotivoBanco('Perfil relevante para reaproveitamento em futuras posições')
       setRecusaModalOpen(true)
       return
     }
@@ -163,7 +167,14 @@ export default function Pipeline() {
     await applyStageChange(item, targetCol)
   }
 
-  const applyStageChange = async (item: RecordModel, newStage: string, motivo = '', nota = '') => {
+  const applyStageChange = async (
+    item: RecordModel,
+    newStage: string,
+    motivo = '',
+    nota = '',
+    guardarBanco = false,
+    motivoBancoTalentos = '',
+  ) => {
     try {
       const historicoAtual = Array.isArray(item.historico) ? item.historico : []
       const novoHistorico = [
@@ -181,13 +192,25 @@ export default function Pipeline() {
         motivo_recusa: motivo,
         anotacoes: nota,
         historico: novoHistorico,
+        adicionado_ao_banco: guardarBanco,
       })
 
       // Update candidato status as well
       if (item.candidato) {
-        await pb.collection('candidatos').update(item.candidato, {
+        const updateData: Record<string, any> = {
           status: newStage,
-        })
+        }
+        if (newStage === 'Recusado' && guardarBanco) {
+          updateData.banco_talentos = true
+          updateData.motivo_banco_talentos =
+            motivoBancoTalentos || 'Guardado no banco para reaproveitamento em vagas futuras'
+          updateData.estagio_saida = item.estagio || 'Recusado'
+          updateData.data_adicao_banco = new Date().toISOString()
+          if (item.vaga && !item.expand?.candidato?.vaga_origem) {
+            updateData.vaga_origem = item.vaga
+          }
+        }
+        await pb.collection('candidatos').update(item.candidato, updateData)
       }
 
       toast({
@@ -206,7 +229,14 @@ export default function Pipeline() {
 
   const handleConfirmRecusa = async () => {
     if (!recusaTargetItem) return
-    await applyStageChange(recusaTargetItem, 'Recusado', motivoRecusa, anotacaoRecusa)
+    await applyStageChange(
+      recusaTargetItem,
+      'Recusado',
+      motivoRecusa,
+      anotacaoRecusa,
+      adicionarAoBanco,
+      motivoBanco,
+    )
     setRecusaModalOpen(false)
   }
 
@@ -453,12 +483,36 @@ export default function Pipeline() {
                 Anotação detalhada (opcional)
               </Label>
               <Textarea
-                rows={3}
+                rows={2}
                 placeholder="Detalhes ou feedback fornecido ao candidato..."
                 value={anotacaoRecusa}
                 onChange={(e) => setAnotacaoRecusa(e.target.value)}
                 className="text-xs resize-none"
               />
+            </div>
+
+            {/* Opção Banco de Talentos */}
+            <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-3 space-y-2">
+              <label className="flex items-center gap-2 text-xs font-semibold text-blue-900 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={adicionarAoBanco}
+                  onChange={(e) => setAdicionarAoBanco(e.target.checked)}
+                  className="rounded border-blue-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                />
+                <span>Destacar e adicionar ao Banco de Talentos para vagas futuras</span>
+              </label>
+
+              {adicionarAoBanco && (
+                <div className="pt-1">
+                  <Input
+                    placeholder="Justificativa para o banco (ex: Bom potencial técnico para Go/Sênior)..."
+                    value={motivoBanco}
+                    onChange={(e) => setMotivoBanco(e.target.value)}
+                    className="text-xs bg-white border-blue-200"
+                  />
+                </div>
+              )}
             </div>
           </div>
 

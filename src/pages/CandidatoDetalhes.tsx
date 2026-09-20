@@ -40,6 +40,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
@@ -64,6 +65,15 @@ export default function CandidatoDetalhes() {
   const [targetStage, setTargetStage] = useState('')
   const [moveNotes, setMoveNotes] = useState('')
   const [recusaMotivo, setRecusaMotivo] = useState('')
+  const [guardarBancoNaRecusa, setGuardarBancoNaRecusa] = useState(true)
+  const [motivoBancoInput, setMotivoBancoInput] = useState('')
+
+  // Banco de Talentos manual modal
+  const [bancoModalOpen, setBancoModalOpen] = useState(false)
+  const [motivoBancoManual, setMotivoBancoManual] = useState('')
+  const [tagBancoInput, setTagBancoInput] = useState('')
+  const [tagsBanco, setTagsBanco] = useState<string[]>([])
+  const [savingBanco, setSavingBanco] = useState(false)
 
   const fetchCandidato = async () => {
     if (!id) return
@@ -207,12 +217,24 @@ export default function CandidatoDetalhes() {
         motivo_recusa: targetStage === 'Recusado' ? recusaMotivo : '',
         anotacoes: moveNotes,
         historico: novoHistorico,
+        adicionado_ao_banco: targetStage === 'Recusado' ? guardarBancoNaRecusa : false,
       })
 
       if (candidato) {
-        await pb.collection('candidatos').update(candidato.id, {
+        const updateData: Record<string, any> = {
           status: targetStage,
-        })
+        }
+        if (targetStage === 'Recusado' && guardarBancoNaRecusa) {
+          updateData.banco_talentos = true
+          updateData.motivo_banco_talentos =
+            motivoBancoInput || 'Guardado no Banco de Talentos para vagas futuras'
+          updateData.estagio_saida = candidato.status || 'Recusado'
+          updateData.data_adicao_banco = new Date().toISOString()
+          if (candidato.vaga && !candidato.vaga_origem) {
+            updateData.vaga_origem = candidato.vaga
+          }
+        }
+        await pb.collection('candidatos').update(candidato.id, updateData)
       }
 
       toast({
@@ -256,6 +278,64 @@ export default function CandidatoDetalhes() {
     'Aprovado',
     'Recusado',
   ]
+
+  const handleToggleBancoTalentos = async () => {
+    if (!candidato) return
+    const isBanco = !!candidato.banco_talentos
+
+    if (!isBanco) {
+      // Abrir modal para preencher motivo e tags
+      setMotivoBancoManual(candidato.motivo_banco_talentos || '')
+      setTagsBanco(
+        Array.isArray(candidato.tags_talento) ? candidato.tags_talento : ['Alto Potencial'],
+      )
+      setBancoModalOpen(true)
+    } else {
+      // Confirmar desmarcação
+      if (!confirm('Deseja remover este candidato do Banco de Talentos?')) return
+      setSavingBanco(true)
+      try {
+        await pb.collection('candidatos').update(candidato.id, {
+          banco_talentos: false,
+        })
+        toast({ title: 'Candidato removido do Banco de Talentos' })
+        fetchCandidato()
+      } catch (err) {
+        toast({ title: 'Erro ao atualizar status', variant: 'destructive' })
+      } finally {
+        setSavingBanco(false)
+      }
+    }
+  }
+
+  const handleSalvarBancoManual = async () => {
+    if (!candidato) return
+    setSavingBanco(true)
+    try {
+      await pb.collection('candidatos').update(candidato.id, {
+        banco_talentos: true,
+        motivo_banco_talentos: motivoBancoManual || 'Destacado pelo time de Gente & Gestão',
+        tags_talento: tagsBanco,
+        estagio_saida: candidato.status || 'Triagem',
+        data_adicao_banco: new Date().toISOString(),
+        vaga_origem: candidato.vaga || candidato.vaga_origem || null,
+      })
+      toast({
+        title: 'Adicionado ao Banco de Talentos!',
+        description: 'Candidato destacado para reaproveitamento em vagas futuras.',
+      })
+      setBancoModalOpen(false)
+      fetchCandidato()
+    } catch (err: unknown) {
+      toast({
+        title: 'Erro ao salvar no banco',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingBanco(false)
+    }
+  }
 
   const scoreVal = matchingScore?.score_geral || candidato.score_semantico || 75
   const curriculoUrl = candidato.curriculo
@@ -348,7 +428,25 @@ export default function CandidatoDetalhes() {
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
+          {/* Botão Banco de Talentos */}
+          <Button
+            variant="outline"
+            onClick={handleToggleBancoTalentos}
+            className={`text-xs font-semibold h-10 border transition-all ${
+              candidato.banco_talentos
+                ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <Sparkles
+              className={`w-3.5 h-3.5 mr-1.5 ${
+                candidato.banco_talentos ? 'text-amber-600 fill-amber-500' : 'text-slate-500'
+              }`}
+            />
+            {candidato.banco_talentos ? 'No Banco de Talentos ★' : 'Adicionar ao Banco de Talentos'}
+          </Button>
+
           {/* Mover no pipeline dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -993,7 +1091,103 @@ export default function CandidatoDetalhes() {
         </TabsContent>
       </Tabs>
 
-      {/* Modal Mover Estágio com Motivo de Recusa */}
+      {/* Modal Adicionar / Editar Banco de Talentos Manualmente */}
+      <Dialog open={bancoModalOpen} onOpenChange={setBancoModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500 fill-amber-400" />
+              Destacar no Banco de Talentos
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Guarde este perfil com anotações e tags para facilitar o reaproveitamento em vagas
+              futuras pelo time e pelo Agente de IA.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700">
+                Motivo / Justificativa do Destaque
+              </Label>
+              <Textarea
+                rows={3}
+                placeholder="Ex: Finalista com excelente domínio técnico em Go/Kafka. Recomendado para novas vagas de Backend ou Tech Lead..."
+                value={motivoBancoManual}
+                onChange={(e) => setMotivoBancoManual(e.target.value)}
+                className="text-xs resize-none"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700">Tags de Talento</Label>
+              <div className="flex gap-2">
+                <input
+                  placeholder="Ex: Go Sênior, Finalista, Liderança..."
+                  value={tagBancoInput}
+                  onChange={(e) => setTagBancoInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      if (tagBancoInput.trim()) {
+                        setTagsBanco([...tagsBanco, tagBancoInput.trim()])
+                        setTagBancoInput('')
+                      }
+                    }
+                  }}
+                  className="flex-1 h-9 rounded-md border border-slate-200 bg-white px-3 text-xs"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="text-xs"
+                  onClick={() => {
+                    if (tagBancoInput.trim()) {
+                      setTagsBanco([...tagsBanco, tagBancoInput.trim()])
+                      setTagBancoInput('')
+                    }
+                  }}
+                >
+                  Adicionar
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {tagsBanco.map((tag, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200 text-xs font-medium"
+                  >
+                    <span>{tag}</span>
+                    <button
+                      type="button"
+                      onClick={() => setTagsBanco(tagsBanco.filter((_, idx) => idx !== i))}
+                      className="text-amber-600 hover:text-amber-900"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-3 border-t border-slate-100">
+            <Button variant="outline" size="sm" onClick={() => setBancoModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              disabled={savingBanco}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+              onClick={handleSalvarBancoManual}
+            >
+              {savingBanco ? 'Salvando...' : 'Salvar no Banco de Talentos'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1007,27 +1201,52 @@ export default function CandidatoDetalhes() {
 
           <div className="space-y-3.5 py-2">
             {targetStage === 'Recusado' && (
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">Motivo da Recusa *</Label>
-                <select
-                  value={recusaMotivo}
-                  onChange={(e) => setRecusaMotivo(e.target.value)}
-                  className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-xs"
-                >
-                  <option value="">Selecione o motivo...</option>
-                  <option value="Não atende requisitos técnicos">
-                    Não atende requisitos técnicos
-                  </option>
-                  <option value="Salário / pretensão incompatível">
-                    Salário / pretensão incompatível
-                  </option>
-                  <option value="Candidato desistiu">Candidato desistiu do processo</option>
-                  <option value="Perfil comportamental não alinhado">
-                    Perfil comportamental não alinhado
-                  </option>
-                  <option value="Outro motivo">Outro motivo</option>
-                </select>
-              </div>
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-700">Motivo da Recusa *</Label>
+                  <select
+                    value={recusaMotivo}
+                    onChange={(e) => setRecusaMotivo(e.target.value)}
+                    className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-xs"
+                  >
+                    <option value="">Selecione o motivo...</option>
+                    <option value="Não atende requisitos técnicos">
+                      Não atende requisitos técnicos
+                    </option>
+                    <option value="Salário / pretensão incompatível">
+                      Salário / pretensão incompatível
+                    </option>
+                    <option value="Candidato desistiu">Candidato desistiu do processo</option>
+                    <option value="Perfil comportamental não alinhado">
+                      Perfil comportamental não alinhado
+                    </option>
+                    <option value="Outro motivo">Outro motivo</option>
+                  </select>
+                </div>
+
+                <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-3 space-y-2">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-blue-900 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={guardarBancoNaRecusa}
+                      onChange={(e) => setGuardarBancoNaRecusa(e.target.checked)}
+                      className="rounded border-blue-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                    />
+                    <span>Destacar e guardar no Banco de Talentos para vagas futuras</span>
+                  </label>
+
+                  {guardarBancoNaRecusa && (
+                    <div className="pt-1">
+                      <Input
+                        placeholder="Justificativa (ex: Candidato com ótimo fit técnico)..."
+                        value={motivoBancoInput}
+                        onChange={(e) => setMotivoBancoInput(e.target.value)}
+                        className="text-xs bg-white border-blue-200"
+                      />
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
             <div className="space-y-1.5">

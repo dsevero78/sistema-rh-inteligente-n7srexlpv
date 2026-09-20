@@ -13,6 +13,7 @@ import {
   Plus,
   ArrowRight,
   Sparkles,
+  BarChart3,
   Clock,
   ChevronRight,
 } from 'lucide-react'
@@ -195,7 +196,27 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+          <Link to="/banco-talentos">
+            <Button
+              variant="outline"
+              className="h-9 text-xs border-amber-300 bg-amber-50/70 text-amber-900 hover:bg-amber-100 font-semibold"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-600 fill-amber-500" />
+              Banco de Talentos
+            </Button>
+          </Link>
+
+          <Link to="/relatorio-executivo">
+            <Button
+              variant="outline"
+              className="h-9 text-xs border-slate-200 text-slate-700 hover:text-blue-600 font-semibold"
+            >
+              <BarChart3 className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
+              Relatório Executivo
+            </Button>
+          </Link>
+
           <Link to="/vagas" className="flex-1 sm:flex-initial">
             <Button
               variant="outline"

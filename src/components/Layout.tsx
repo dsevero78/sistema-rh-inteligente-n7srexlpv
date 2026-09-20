@@ -16,6 +16,7 @@ import {
   X,
   ChevronDown,
   Sparkles,
+  BarChart3,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -59,9 +60,11 @@ const navItems: NavItem[] = [
   { title: 'Vagas', href: '/vagas', icon: Briefcase },
   { title: 'Candidatos', href: '/candidatos', icon: Users2 },
   { title: 'Pipeline', href: '/pipeline', icon: GitPullRequest },
+  { title: 'Banco de Talentos', href: '/banco-talentos', icon: Sparkles, badge: 'Talentos' },
   { title: 'Entrevistas', href: '/entrevistas', icon: Calendar },
   { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
   { title: 'Relatórios', href: '/relatorios', icon: FileText },
+  { title: 'Relatório Executivo', href: '/relatorio-executivo', icon: BarChart3, badge: 'Mensal' },
 ]
 
 export default function Layout() {
@@ -82,12 +85,14 @@ export default function Layout() {
     if (path.startsWith('/vagas/')) return 'Detalhes da Vaga'
     if (path === '/vagas') return 'Gestão de Vagas'
     if (path.startsWith('/candidatos/')) return 'Perfil do Candidato'
-    if (path === '/candidatos') return 'Banco de Talentos'
+    if (path === '/candidatos') return 'Gestão de Candidatos'
     if (path.startsWith('/pipeline')) return 'Pipeline de Seleção (Kanban)'
+    if (path.startsWith('/banco-talentos')) return 'Banco de Talentos & Reaproveitamento'
     if (path.startsWith('/entrevistas')) return 'Gestão de Entrevistas & Calendário'
     if (path.startsWith('/chat')) return 'Chat com Gestor de Talentos (IA)'
     if (path.startsWith('/relatorios/')) return 'Relatório de Avaliação'
     if (path === '/relatorios') return 'Relatórios de Aderência e IA'
+    if (path.startsWith('/relatorio-executivo')) return 'Relatório Executivo Mensal'
     return 'Gente & Gestão'
   }
 
