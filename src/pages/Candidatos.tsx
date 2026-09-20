@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
+import { candidatosTimelineService } from '@/services/candidatosTimeline'
 import {
   Plus,
   Search,
@@ -297,7 +298,7 @@ export default function Candidatos() {
         const novo = await pb.collection('candidatos').create(formData)
         // Also register in pipeline
         if (vagaId) {
-          await pb.collection('pipeline').create({
+          const pipeCriado = await pb.collection('pipeline').create({
             candidato: novo.id,
             vaga: vagaId,
             estagio: candStatus || 'Triagem',
@@ -310,6 +311,18 @@ export default function Candidatos() {
                 nota: 'Candidatura adicionada.',
               },
             ],
+          })
+
+          // Registrar na timeline do candidato
+          await candidatosTimelineService.registrarEventoSeguro({
+            candidato: novo.id,
+            categoria: 'CANDIDATURA',
+            titulo: 'Candidatura registrada pelo RH:',
+            complemento: `Cadastrado manualmente para a vaga no estágio "${candStatus || 'Triagem'}".`,
+            autor: pb.authStore.record?.name || 'Gente & Gestão',
+            origem: 'usuario',
+            referencia_tipo: 'pipeline',
+            referencia_id: pipeCriado.id,
           })
         }
         toast({ title: 'Candidato cadastrado com sucesso!' })

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useToast } from '@/hooks/use-toast'
+import { candidatosTimelineService } from '@/services/candidatosTimeline'
 import {
   Sparkles,
   Award,
@@ -153,6 +154,31 @@ export default function ModalAvaliacao({
             console.warn('Aviso ao alimentar agente de matching:', mErr)
           }
         }
+      }
+
+      // 5. Registrar eventos na Linha do Tempo do Candidato (Avaliação da Entrevista + Score Ajustado)
+      if (entrevista.candidato) {
+        await candidatosTimelineService.registrarEventoSeguro({
+          candidato: entrevista.candidato,
+          categoria: 'ENTREVISTA',
+          titulo: 'Avaliação pós-entrevista registrada:',
+          complemento: `Nota técnica: ${notaTecnica}/10, comportamental: ${notaComportamental}/10. Recomendação: "${recomendacaoFinal}". Avaliador: ${avaliadorNome}.`,
+          autor: avaliadorNome,
+          origem: 'usuario',
+          referencia_tipo: 'entrevistas',
+          referencia_id: entrevista.id,
+        })
+
+        await candidatosTimelineService.registrarEventoSeguro({
+          candidato: entrevista.candidato,
+          categoria: 'AVALIAÇÃO',
+          titulo: 'Score calibrado pós-entrevista:',
+          complemento: `Score de matching atualizado para ${scoreLimitado}% incorporando notas técnicas e soft skills da entrevista.`,
+          autor: 'sistema',
+          origem: 'sistema',
+          referencia_tipo: 'matching',
+          referencia_id: entrevista.id,
+        })
       }
 
       toast({

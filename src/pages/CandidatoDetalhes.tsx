@@ -26,6 +26,8 @@ import {
   UserCheck,
 } from 'lucide-react'
 import { VideoEPercepcaoSection } from '@/components/VideoEPercepcaoSection'
+import { LinhaDoTempoCandidato } from '@/components/LinhaDoTempoCandidato'
+import { Activity } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -50,6 +52,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { ScoreProgressRing } from './Candidatos'
+import { candidatosTimelineService } from '@/services/candidatosTimeline'
 import type { RecordModel } from 'pocketbase'
 
 export default function CandidatoDetalhes() {
@@ -256,6 +259,45 @@ export default function CandidatoDetalhes() {
         await pb.collection('candidatos').update(candidato.id, updateData)
       }
 
+      // Registrar evento na linha do tempo com dados contextuais
+      const autorLogado = pb.authStore.record?.name || 'Gente & Gestão'
+      if (targetStage === 'Recusado') {
+        await candidatosTimelineService.registrarEventoSeguro({
+          candidato: candidato.id,
+          categoria: 'STATUS',
+          titulo: 'Candidato recusado no processo seletivo:',
+          complemento: recusaMotivo
+            ? `Motivo registrado: ${recusaMotivo}. Perfil arquivado.${guardarBancoNaRecusa ? ' Encaminhado para o Banco de Talentos.' : ''}`
+            : 'Processo seletivo encerrado nesta posição.',
+          autor: autorLogado,
+          origem: 'usuario',
+          referencia_tipo: 'pipeline',
+          referencia_id: pipelineItem.id,
+        })
+      } else if (targetStage === 'Aprovado') {
+        await candidatosTimelineService.registrarEventoSeguro({
+          candidato: candidato.id,
+          categoria: 'STATUS',
+          titulo: 'Candidato aprovado e contratado:',
+          complemento: `Aprovação final confirmada no processo seletivo para ${candidato.expand?.vaga?.titulo || 'a vaga'}. Trilha de admissão iniciada.`,
+          autor: autorLogado,
+          origem: 'usuario',
+          referencia_tipo: 'pipeline',
+          referencia_id: pipelineItem.id,
+        })
+      } else {
+        await candidatosTimelineService.registrarEventoSeguro({
+          candidato: candidato.id,
+          categoria: 'STATUS',
+          titulo: 'Movimentação no pipeline:',
+          complemento: `Estágio alterado de "${pipelineItem.estagio || 'Início'}" para "${targetStage}"${moveNotes ? ` — Nota: ${moveNotes}` : ''}`,
+          autor: autorLogado,
+          origem: 'usuario',
+          referencia_tipo: 'pipeline',
+          referencia_id: pipelineItem.id,
+        })
+      }
+
       toast({
         title: 'Estágio atualizado',
         description: `Candidato movido para ${targetStage}.`,
@@ -339,6 +381,17 @@ export default function CandidatoDetalhes() {
         data_adicao_banco: new Date().toISOString(),
         vaga_origem: candidato.vaga || candidato.vaga_origem || null,
       })
+      await candidatosTimelineService.registrarEventoSeguro({
+        candidato: candidato.id,
+        categoria: 'STATUS',
+        titulo: 'Entrada no Banco de Talentos:',
+        complemento: `Candidato destacado pelo time. Motivo: ${motivoBancoManual || 'Alto Potencial'}${tagsBanco.length > 0 ? ` (Tags: ${tagsBanco.join(', ')})` : ''}`,
+        autor: pb.authStore.record?.name || 'Gente & Gestão',
+        origem: 'usuario',
+        referencia_tipo: 'banco_talentos',
+        referencia_id: candidato.id,
+      })
+
       toast({
         title: 'Adicionado ao Banco de Talentos!',
         description: 'Candidato destacado para reaproveitamento em vagas futuras.',
@@ -555,9 +608,16 @@ export default function CandidatoDetalhes() {
 
       {/* Tabs Layout */}
       <Tabs defaultValue="visao-geral" className="space-y-6">
-        <TabsList className="bg-white border border-slate-200/80 p-1 shadow-xs rounded-lg">
+        <TabsList className="bg-white border border-slate-200/80 p-1 shadow-xs rounded-lg flex-wrap">
           <TabsTrigger value="visao-geral" className="text-xs font-semibold px-4 py-2">
             Visão Geral
+          </TabsTrigger>
+          <TabsTrigger
+            value="timeline"
+            className="text-xs font-semibold px-4 py-2 flex items-center gap-1.5 text-emerald-700 data-[state=active]:text-emerald-800"
+          >
+            <Activity className="w-3.5 h-3.5 text-emerald-600" />
+            Linha do tempo
           </TabsTrigger>
           <TabsTrigger
             value="video-percepcao"
@@ -590,6 +650,16 @@ export default function CandidatoDetalhes() {
             Histórico & Notas
           </TabsTrigger>
         </TabsList>
+
+        {/* Tab: Linha do Tempo do Candidato */}
+        <TabsContent value="timeline" className="space-y-4">
+          <LinhaDoTempoCandidato
+            candidatoId={candidato.id}
+            vagaTitulo={candidato.expand?.vaga?.titulo}
+            dataCandidatura={candidato.created}
+            onAtualizar={fetchCandidato}
+          />
+        </TabsContent>
 
         {/* Tab Módulo 3: Vídeo & Percepção RH */}
         <TabsContent value="video-percepcao">

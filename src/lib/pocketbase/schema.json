@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T02:57:45.412Z",
+  "generatedAt": "2026-09-20T03:03:55.471Z",
   "collections": [
     {
       "name": "users",
@@ -3007,6 +3007,96 @@
         "CREATE INDEX idx_timeline_data ON eventos_timeline_pj (data_evento DESC)",
         "CREATE INDEX idx_timeline_categoria ON eventos_timeline_pj (categoria)",
         "CREATE INDEX idx_timeline_prestador_data ON eventos_timeline_pj (prestador, data_evento DESC)"
+      ]
+    },
+    {
+      "name": "eventos_timeline_candidato",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "categoria",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["CANDIDATURA", "AVALIAÇÃO", "ENTREVISTA", "GESTÃO", "STATUS"]
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "complemento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["sistema", "usuario"]
+        },
+        {
+          "name": "data_evento",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "referencia_tipo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "referencia_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_timeline_cand_candidato ON eventos_timeline_candidato (candidato)",
+        "CREATE INDEX idx_timeline_cand_data ON eventos_timeline_candidato (data_evento DESC)",
+        "CREATE INDEX idx_timeline_cand_categoria ON eventos_timeline_candidato (categoria)",
+        "CREATE INDEX idx_timeline_cand_candidato_data ON eventos_timeline_candidato (candidato, data_evento DESC)"
       ]
     }
   ]

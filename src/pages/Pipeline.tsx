@@ -42,6 +42,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
+import { candidatosTimelineService } from '@/services/candidatosTimeline'
 import type { RecordModel } from 'pocketbase'
 
 const COLUNAS = [
@@ -219,6 +220,48 @@ export default function Pipeline() {
         historico: novoHistorico,
         adicionado_ao_banco: guardarBanco,
       })
+
+      // Registrar evento na timeline do candidato
+      if (item.candidato) {
+        const autorLogado = pb.authStore.record?.name || 'Gente & Gestão'
+        const vagaNome = item.expand?.vaga?.titulo || ''
+        if (newStage === 'Recusado') {
+          await candidatosTimelineService.registrarEventoSeguro({
+            candidato: item.candidato,
+            categoria: 'STATUS',
+            titulo: 'Candidato recusado no processo seletivo:',
+            complemento: motivo
+              ? `Motivo: ${motivo}.${guardarBanco ? ' Perfil adicionado ao Banco de Talentos.' : ''}`
+              : 'Processo encerrado nesta vaga.',
+            autor: autorLogado,
+            origem: 'usuario',
+            referencia_tipo: 'pipeline',
+            referencia_id: item.id,
+          })
+        } else if (newStage === 'Aprovado') {
+          await candidatosTimelineService.registrarEventoSeguro({
+            candidato: item.candidato,
+            categoria: 'STATUS',
+            titulo: 'Candidato contratado / aprovado:',
+            complemento: `Aprovação confirmada para a vaga ${vagaNome || 'em seleção'}. Iniciando integração.`,
+            autor: autorLogado,
+            origem: 'usuario',
+            referencia_tipo: 'pipeline',
+            referencia_id: item.id,
+          })
+        } else {
+          await candidatosTimelineService.registrarEventoSeguro({
+            candidato: item.candidato,
+            categoria: 'STATUS',
+            titulo: 'Movimentação no pipeline:',
+            complemento: `Estágio alterado de "${item.estagio || 'Triagem'}" para "${newStage}"${vagaNome ? ` (${vagaNome})` : ''}`,
+            autor: autorLogado,
+            origem: 'usuario',
+            referencia_tipo: 'pipeline',
+            referencia_id: item.id,
+          })
+        }
+      }
 
       // Update candidato status as well
       if (item.candidato) {

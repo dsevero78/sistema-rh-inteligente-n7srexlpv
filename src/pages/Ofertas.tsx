@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { RecordModel } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
+import { candidatosTimelineService } from '@/services/candidatosTimeline'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
   FileCheck2,
@@ -198,6 +199,20 @@ export function Ofertas() {
           `[Aceite confirmado em ${new Date().toLocaleDateString('pt-BR')}]`,
       })
 
+      // Registrar evento na linha do tempo
+      if (oferta.candidato) {
+        await candidatosTimelineService.registrarEventoSeguro({
+          candidato: oferta.candidato,
+          categoria: 'GESTÃO',
+          titulo: 'Proposta salarial aceita:',
+          complemento: `Proposta de R$ ${Number(oferta.salario_ofertado || 0).toLocaleString('pt-BR')} aceita pelo candidato. Processo encaminhado para formalização e contratação.`,
+          autor: pb.authStore.record?.name || 'Gente & Gestão',
+          origem: 'usuario',
+          referencia_tipo: 'ofertas',
+          referencia_id: oferta.id,
+        })
+      }
+
       // Se houver pipeline associado ou candidato, mover pipeline para 'Contratado'
       if (oferta.pipeline) {
         try {
@@ -261,6 +276,19 @@ export function Ofertas() {
           `[Recusada em ${new Date().toLocaleDateString('pt-BR')}: ${motivoRecusaTexto.trim()}]`,
       })
 
+      if (of.candidato) {
+        await candidatosTimelineService.registrarEventoSeguro({
+          candidato: of.candidato,
+          categoria: 'GESTÃO',
+          titulo: 'Proposta salarial recusada:',
+          complemento: `Motivo da recusa: "${motivoRecusaTexto.trim()}".${contramedidaTexto ? ` Contramedida: ${contramedidaTexto.trim()}.` : ''}${enviarBancoTalentos ? ' Mantido no Banco de Talentos.' : ''}`,
+          autor: pb.authStore.record?.name || 'Gente & Gestão',
+          origem: 'usuario',
+          referencia_tipo: 'ofertas',
+          referencia_id: of.id,
+        })
+      }
+
       // Atualizar pipeline para 'Recusado' se existir
       if (of.pipeline) {
         try {
@@ -323,6 +351,19 @@ export function Ofertas() {
           `[Em negociação em ${new Date().toLocaleDateString('pt-BR')}: ${contrapropostaTexto.trim()}]`,
       })
 
+      if (of.candidato) {
+        await candidatosTimelineService.registrarEventoSeguro({
+          candidato: of.candidato,
+          categoria: 'GESTÃO',
+          titulo: 'Proposta em negociação:',
+          complemento: `Candidato apresentou contraproposta/alinhamento: "${contrapropostaTexto.trim()}".`,
+          autor: pb.authStore.record?.name || 'Gente & Gestão',
+          origem: 'usuario',
+          referencia_tipo: 'ofertas',
+          referencia_id: of.id,
+        })
+      }
+
       toast({
         title: 'Negociação Registrada',
         description: 'Status atualizado para "Em negociação" com contraproposta anotada.',
@@ -379,7 +420,7 @@ export function Ofertas() {
         /* intentionally ignored */
       }
 
-      await pb.collection('ofertas').create({
+      const ofertaCriada = await pb.collection('ofertas').create({
         vaga: formVaga,
         candidato: formCandidato,
         pipeline: pipelineId,
@@ -390,6 +431,17 @@ export function Ofertas() {
         status: 'Enviada',
         observacoes: formObservacoes,
         criado_em: hojeIso,
+      })
+
+      await candidatosTimelineService.registrarEventoSeguro({
+        candidato: formCandidato,
+        categoria: 'GESTÃO',
+        titulo: 'Proposta salarial emitida:',
+        complemento: `Oferta de R$ ${Number(formSalario).toLocaleString('pt-BR')} formalizada com limite de resposta até ${new Date(formDataLimite).toLocaleDateString('pt-BR')}.`,
+        autor: pb.authStore.record?.name || 'Gente & Gestão',
+        origem: 'usuario',
+        referencia_tipo: 'ofertas',
+        referencia_id: ofertaCriada.id,
       })
 
       toast({

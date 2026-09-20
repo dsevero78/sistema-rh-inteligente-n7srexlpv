@@ -4,6 +4,7 @@ import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useToast } from '@/hooks/use-toast'
 import ModalAvaliacao from '@/components/ModalAvaliacao'
+import { candidatosTimelineService } from '@/services/candidatosTimeline'
 import {
   Calendar as CalendarIcon,
   Plus,
@@ -226,10 +227,23 @@ export default function Entrevistas() {
         lembrete_enviado: false,
       }
 
-      await pb.collection('entrevistas').create(payload)
+      const entCriada = await pb.collection('entrevistas').create(payload)
+
+      // Registrar evento na linha do tempo do candidato
+      const candObj = candidatos.find((c) => c.id === formCandidato)
+      const dataFormatada = new Date(formDataHora).toLocaleString('pt-BR')
+      await candidatosTimelineService.registrarEventoSeguro({
+        candidato: formCandidato,
+        categoria: 'ENTREVISTA',
+        titulo: 'Entrevista agendada:',
+        complemento: `Formato ${formFormato} com ${formResponsavel} para ${dataFormatada} (${formDuracao} min).`,
+        autor: pb.authStore.record?.name || formResponsavel || 'Gente & Gestão',
+        origem: 'usuario',
+        referencia_tipo: 'entrevistas',
+        referencia_id: entCriada.id,
+      })
 
       // Se o candidato estiver em Triagem, move para Entrevista com RH
-      const candObj = candidatos.find((c) => c.id === formCandidato)
       if (candObj && candObj.status === 'Triagem') {
         await pb.collection('candidatos').update(candObj.id, {
           status: 'Entrevista com RH',
@@ -273,6 +287,20 @@ export default function Entrevistas() {
         lembrete_enviado: false, // reinicia lembrete para a nova data
       })
 
+      // Registrar na timeline do candidato
+      if (reagendarTarget.candidato) {
+        await candidatosTimelineService.registrarEventoSeguro({
+          candidato: reagendarTarget.candidato,
+          categoria: 'ENTREVISTA',
+          titulo: 'Entrevista reagendada:',
+          complemento: `Nova data e horário definidos para ${dateObj.toLocaleString('pt-BR')} com ${reagendarTarget.responsavel || 'entrevistador'}.`,
+          autor: pb.authStore.record?.name || 'Gente & Gestão',
+          origem: 'usuario',
+          referencia_tipo: 'entrevistas',
+          referencia_id: reagendarTarget.id,
+        })
+      }
+
       toast({
         title: 'Entrevista reagendada!',
         description: 'A nova data foi salva e o ciclo de lembretes foi atualizado.',
@@ -299,6 +327,19 @@ export default function Entrevistas() {
         motivo_cancelamento: motivoCancelamento,
       })
 
+      if (cancelarTarget.candidato) {
+        await candidatosTimelineService.registrarEventoSeguro({
+          candidato: cancelarTarget.candidato,
+          categoria: 'ENTREVISTA',
+          titulo: 'Entrevista cancelada:',
+          complemento: `Motivo registrado: ${motivoCancelamento || 'Cancelada pelo entrevistador/candidato.'}`,
+          autor: pb.authStore.record?.name || 'Gente & Gestão',
+          origem: 'usuario',
+          referencia_tipo: 'entrevistas',
+          referencia_id: cancelarTarget.id,
+        })
+      }
+
       toast({
         title: 'Entrevista cancelada',
         description: 'O status e motivo foram salvos com sucesso.',
@@ -316,6 +357,20 @@ export default function Entrevistas() {
       await pb.collection('entrevistas').update(ent.id, {
         status: 'Não compareceu',
       })
+
+      if (ent.candidato) {
+        await candidatosTimelineService.registrarEventoSeguro({
+          candidato: ent.candidato,
+          categoria: 'ENTREVISTA',
+          titulo: 'Não comparecimento à entrevista:',
+          complemento: `Candidato não compareceu no horário agendado (${new Date(ent.data_hora).toLocaleString('pt-BR')}).`,
+          autor: pb.authStore.record?.name || 'Gente & Gestão',
+          origem: 'usuario',
+          referencia_tipo: 'entrevistas',
+          referencia_id: ent.id,
+        })
+      }
+
       toast({
         title: 'Status atualizado',
         description: 'Entrevista marcada como "Não compareceu".',
