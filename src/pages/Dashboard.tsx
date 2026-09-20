@@ -29,18 +29,21 @@ export default function Dashboard() {
   const [vagas, setVagas] = useState<RecordModel[]>([])
   const [candidatos, setCandidatos] = useState<RecordModel[]>([])
   const [pipelineRecords, setPipelineRecords] = useState<RecordModel[]>([])
+  const [entrevistasList, setEntrevistasList] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchData = async () => {
     try {
-      const [vList, cList, pList] = await Promise.all([
+      const [vList, cList, pList, eList] = await Promise.all([
         pb.collection('vagas').getFullList({ sort: '-created' }),
         pb.collection('candidatos').getFullList({ sort: '-created', expand: 'vaga' }),
         pb.collection('pipeline').getFullList({ sort: '-updated', expand: 'candidato,vaga' }),
+        pb.collection('entrevistas').getFullList({ sort: 'data_hora', expand: 'candidato,vaga' }),
       ])
       setVagas(vList)
       setCandidatos(cList)
       setPipelineRecords(pList)
+      setEntrevistasList(eList)
     } catch (err) {
       console.error('Falha ao carregar dados do dashboard', err)
     } finally {
@@ -56,6 +59,7 @@ export default function Dashboard() {
   useRealtime('vagas', () => fetchData())
   useRealtime('candidatos', () => fetchData())
   useRealtime('pipeline', () => fetchData())
+  useRealtime('entrevistas', () => fetchData())
 
   // Computations
   const vagasAtivas = useMemo(() => vagas.filter((v) => v.status === 'Ativa').length, [vagas])
@@ -67,13 +71,14 @@ export default function Dashboard() {
     [candidatos],
   )
 
-  const entrevistasMarcadas = useMemo(
-    () =>
-      candidatos.filter(
-        (c) => c.status === 'Entrevista com RH' || c.status === 'Entrevista técnica',
-      ).length,
-    [candidatos],
-  )
+  const entrevistasMarcadas = useMemo(() => {
+    if (entrevistasList.length > 0) {
+      return entrevistasList.filter((e) => e.status === 'Agendada').length
+    }
+    return candidatos.filter(
+      (c) => c.status === 'Entrevista com RH' || c.status === 'Entrevista técnica',
+    ).length
+  }, [entrevistasList, candidatos])
 
   const taxaPreenchimento = useMemo(() => {
     if (vagas.length === 0) return 0
@@ -261,9 +266,9 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        {/* Card 3: Entrevistas Marcadas */}
+        {/* Card 3: Entrevistas Marcadas (linka para a nova tela de Entrevistas) */}
         <Card
-          onClick={() => navigate('/pipeline')}
+          onClick={() => navigate('/entrevistas')}
           className="p-5 border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
@@ -280,9 +285,9 @@ export default function Dashboard() {
             </span>
             <span className="text-xs font-medium text-slate-500">agendadas</span>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-            <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
-            <span>RH & Técnica</span>
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-blue-600 font-medium">
+            <ArrowRight className="w-3.5 h-3.5" />
+            <span>Ver calendário e lembretes</span>
           </div>
         </Card>
 
@@ -421,19 +426,19 @@ export default function Dashboard() {
           <CardHeader className="p-5 border-b border-slate-100 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base font-bold text-slate-900">
-                Próximas Entrevistas e Avaliações
+                Próximas Entrevistas Agendadas
               </CardTitle>
               <CardDescription className="text-xs text-slate-500">
-                Candidatos agendados para alinhamento com RH ou entrevista técnica
+                Entrevistas da semana com lembretes automáticos e avaliação pós-entrevista
               </CardDescription>
             </div>
-            <Link to="/candidatos">
+            <Link to="/entrevistas">
               <Button
                 variant="ghost"
                 size="sm"
                 className="text-xs font-semibold text-blue-600 hover:text-blue-800"
               >
-                Ver todos
+                Ver calendário
                 <ChevronRight className="w-3.5 h-3.5 ml-1" />
               </Button>
             </Link>

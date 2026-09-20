@@ -18,6 +18,7 @@ import Candidatos from '@/pages/Candidatos'
 import CandidatoDetalhes from '@/pages/CandidatoDetalhes'
 import Pipeline from '@/pages/Pipeline'
 import Chat from '@/pages/Chat'
+import Entrevistas from '@/pages/Entrevistas'
 import Relatorios from '@/pages/Relatorios'
 import RelatorioDetalhes from '@/pages/RelatorioDetalhes'
 import NotFound from '@/pages/NotFound'
@@ -80,6 +81,7 @@ export default function App() {
               <Route path="candidatos" element={<Candidatos />} />
               <Route path="candidatos/:id" element={<CandidatoDetalhes />} />
               <Route path="pipeline" element={<Pipeline />} />
+              <Route path="entrevistas" element={<Entrevistas />} />
               <Route path="chat" element={<Chat />} />
               <Route path="relatorios" element={<Relatorios />} />
               <Route path="relatorios/:id" element={<RelatorioDetalhes />} />

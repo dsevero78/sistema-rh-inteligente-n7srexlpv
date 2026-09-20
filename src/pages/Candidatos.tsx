@@ -106,6 +106,9 @@ export default function Candidatos() {
 
   const [candidatos, setCandidatos] = useState<RecordModel[]>([])
   const [vagas, setVagas] = useState<RecordModel[]>([])
+  const [entrevistasRealizadasCandIds, setEntrevistasRealizadasCandIds] = useState<Set<string>>(
+    new Set(),
+  )
   const [loading, setLoading] = useState(true)
 
   // Filters
@@ -167,10 +170,16 @@ export default function Candidatos() {
 
   const fetchData = async () => {
     try {
-      const [cList, vList] = await Promise.all([
+      const [cList, vList, eList] = await Promise.all([
         pb.collection('candidatos').getFullList({ sort: '-created', expand: 'vaga' }),
         pb.collection('vagas').getFullList({ sort: '-created' }),
+        pb.collection('entrevistas').getFullList({
+          filter: 'avaliacao_realizada = true',
+          fields: 'candidato',
+        }),
       ])
+      const avaliadosSet = new Set(eList.map((e) => e.candidato as string))
+      setEntrevistasRealizadasCandIds(avaliadosSet)
       setCandidatos(cList)
       setVagas(vList)
     } catch (err) {
@@ -186,6 +195,7 @@ export default function Candidatos() {
 
   useRealtime('candidatos', () => fetchData())
   useRealtime('vagas', () => fetchData())
+  useRealtime('entrevistas', () => fetchData())
 
   const openCreateModal = () => {
     setEditingCand(null)
@@ -583,9 +593,16 @@ export default function Candidatos() {
                     <div className="flex items-center gap-2.5">
                       <ScoreProgressRing score={score} size={44} />
                       <div className="flex flex-col text-left">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                          Match IA
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                            Match IA
+                          </span>
+                          {entrevistasRealizadasCandIds.has(cand.id) && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-700">
+                              Ajustado
+                            </span>
+                          )}
+                        </div>
                         <span
                           className={`text-xs font-semibold ${
                             score >= 75

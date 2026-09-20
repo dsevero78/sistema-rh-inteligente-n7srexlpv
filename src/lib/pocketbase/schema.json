@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-19T22:24:04.548Z",
+  "generatedAt": "2026-09-20T00:38:20.947Z",
   "collections": [
     {
       "name": "users",
@@ -524,6 +524,183 @@
       "indexes": [
         "CREATE INDEX idx_chat_usuario ON chat_mensagens (usuario)",
         "CREATE INDEX idx_chat_sessao ON chat_mensagens (sessao)"
+      ]
+    },
+    {
+      "name": "entrevistas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "data_hora",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "duracao_minutos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "formato",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Presencial", "Online", "Telefonema"]
+        },
+        {
+          "name": "responsavel",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "responsavel_usuario",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Agendada", "Realizada", "Cancelada", "Não compareceu"]
+        },
+        {
+          "name": "motivo_cancelamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lembrete_enviado",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lembrete_enviado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avaliacao_realizada",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avaliacao_data",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avaliacao_avaliador",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nota_tecnica",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "comentario_tecnico",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nota_comportamental",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "comentario_comportamental",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "recomendacao_final",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Avançar", "Recusar", "Em dúvida"]
+        },
+        {
+          "name": "comentario_geral",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criterios_detalhados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score_ajustado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_entrevistas_candidato ON entrevistas (candidato)",
+        "CREATE INDEX idx_entrevistas_vaga ON entrevistas (vaga)",
+        "CREATE INDEX idx_entrevistas_status ON entrevistas (status)",
+        "CREATE INDEX idx_entrevistas_data_hora ON entrevistas (data_hora)"
       ]
     }
   ]

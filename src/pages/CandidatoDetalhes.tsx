@@ -8,6 +8,7 @@ import {
   Phone,
   MapPin,
   Briefcase,
+  Calendar,
   ExternalLink,
   Sparkles,
   GitPullRequest,
@@ -53,6 +54,7 @@ export default function CandidatoDetalhes() {
   const [candidato, setCandidato] = useState<RecordModel | null>(null)
   const [pipelineItem, setPipelineItem] = useState<RecordModel | null>(null)
   const [matchingScore, setMatchingScore] = useState<any>(null)
+  const [entrevistasCand, setEntrevistasCand] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingScore, setLoadingScore] = useState(false)
   const [generatingReport, setGeneratingReport] = useState(false)
@@ -82,6 +84,18 @@ export default function CandidatoDetalhes() {
       // Fetch matching score from hook
       if (c.vaga) {
         fetchMatchingScore(c.id, c.vaga)
+      }
+
+      // Fetch entrevistas do candidato
+      try {
+        const eList = await pb.collection('entrevistas').getFullList({
+          filter: `candidato = '${id}'`,
+          sort: '-data_hora',
+          expand: 'vaga',
+        })
+        setEntrevistasCand(eList)
+      } catch (eErr) {
+        console.warn('Erro ao carregar entrevistas do candidato:', eErr)
       }
     } catch (err) {
       console.error(err)
@@ -122,6 +136,7 @@ export default function CandidatoDetalhes() {
 
   useRealtime('candidatos', () => fetchCandidato())
   useRealtime('pipeline', () => fetchCandidato())
+  useRealtime('entrevistas', () => fetchCandidato())
 
   const handleGenerateReport = async () => {
     if (!candidato || !candidato.vaga) {
@@ -392,6 +407,13 @@ export default function CandidatoDetalhes() {
           <TabsTrigger value="curriculo" className="text-xs font-semibold px-4 py-2">
             Currículo (PDF)
           </TabsTrigger>
+          <TabsTrigger
+            value="entrevistas"
+            className="text-xs font-semibold px-4 py-2 flex items-center gap-1.5"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            Entrevistas ({entrevistasCand.length})
+          </TabsTrigger>
           <TabsTrigger value="matching" className="text-xs font-semibold px-4 py-2">
             Matching Inteligente
           </TabsTrigger>
@@ -608,6 +630,129 @@ export default function CandidatoDetalhes() {
           </Card>
         </TabsContent>
 
+        {/* Tab Entrevistas */}
+        <TabsContent value="entrevistas">
+          <Card className="border-slate-200 shadow-xs bg-white p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <CardTitle className="text-base font-bold text-slate-900">
+                  Entrevistas & Avaliações Registradas
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Histórico de entrevistas agendadas, realizadas e avaliações pós-entrevista
+                </CardDescription>
+              </div>
+              <Link to="/entrevistas">
+                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                  <Calendar className="w-3.5 h-3.5 mr-1.5" />
+                  Abrir Calendário Geral
+                </Button>
+              </Link>
+            </div>
+
+            {entrevistasCand.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs">
+                Nenhuma entrevista agendada para este candidato.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {entrevistasCand.map((ent) => (
+                  <div
+                    key={ent.id}
+                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={
+                            ent.status === 'Realizada'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : ent.status === 'Agendada'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : 'bg-rose-50 text-rose-700 border-rose-200'
+                          }
+                        >
+                          {ent.status}
+                        </Badge>
+                        <span className="text-xs font-bold text-slate-800">
+                          {new Date(ent.data_hora).toLocaleString('pt-BR')} ({ent.formato})
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-500">
+                        Responsável: <strong>{ent.responsavel}</strong>
+                      </span>
+                    </div>
+
+                    {ent.observacoes && (
+                      <p className="text-xs text-slate-600 bg-white p-2.5 rounded border border-slate-200/80">
+                        <strong>Pauta:</strong> {ent.observacoes}
+                      </p>
+                    )}
+
+                    {/* Exibir Avaliação pós-entrevista caso exista */}
+                    {ent.avaliacao_realizada && (
+                      <div className="bg-purple-50/70 border border-purple-200 rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                            Avaliação Pós-Entrevista ({ent.avaliacao_avaliador || 'Entrevistador'})
+                          </span>
+                          <Badge className="bg-purple-600 text-white text-[10px] font-bold">
+                            Score Ajustado: {ent.score_ajustado || 85}%
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                          <div className="bg-white/90 p-2 rounded border border-purple-100">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase">
+                              Nota Técnica
+                            </p>
+                            <p className="text-sm font-extrabold text-slate-800">
+                              {ent.nota_tecnica || 8}/10
+                            </p>
+                            {ent.comentario_tecnico && (
+                              <p className="text-[11px] text-slate-600 mt-0.5">
+                                {ent.comentario_tecnico}
+                              </p>
+                            )}
+                          </div>
+                          <div className="bg-white/90 p-2 rounded border border-purple-100">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase">
+                              Nota Comportamental
+                            </p>
+                            <p className="text-sm font-extrabold text-slate-800">
+                              {ent.nota_comportamental || 8}/10
+                            </p>
+                            {ent.comentario_comportamental && (
+                              <p className="text-[11px] text-slate-600 mt-0.5">
+                                {ent.comentario_comportamental}
+                              </p>
+                            )}
+                          </div>
+                          <div className="bg-white/90 p-2 rounded border border-purple-100">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase">
+                              Recomendação Final
+                            </p>
+                            <p className="text-sm font-extrabold text-purple-700">
+                              {ent.recomendacao_final || 'Avançar'}
+                            </p>
+                            {ent.comentario_geral && (
+                              <p className="text-[11px] text-slate-600 mt-0.5">
+                                {ent.comentario_geral}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+
         {/* Tab 3: Matching Inteligente */}
         <TabsContent value="matching">
           <Card className="border-slate-200 shadow-xs bg-white p-6 space-y-6">
@@ -643,59 +788,111 @@ export default function CandidatoDetalhes() {
               </Button>
             </div>
 
-            {/* Score Ring & Pillars */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50/70 p-6 rounded-xl border border-slate-200/80">
-              <div className="flex items-center gap-4">
-                <ScoreProgressRing score={scoreVal} size={72} />
-                <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    Score Geral
-                  </span>
-                  <h3
-                    className={`text-lg font-bold ${
-                      scoreVal >= 75
-                        ? 'text-emerald-600'
+            {/* Score Ring & Pillars com indicação de Ajustado Pós-Entrevista */}
+            <div className="space-y-3">
+              {(matchingScore?.ajustado_pos_entrevista ||
+                entrevistasCand.some((e) => e.avaliacao_realizada)) && (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-purple-950">
+                          Score Ajustado Pós-Entrevista
+                        </span>
+                        <Badge className="bg-purple-600 text-white text-[10px] font-bold py-0 px-1.5">
+                          Calibrado
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-purple-700 mt-0.5">
+                        A pontuação foi recalculada incorporando os feedbacks qualitativos e
+                        quantitativos da avaliação do entrevistador.
+                      </p>
+                    </div>
+                  </div>
+                  {entrevistasCand.find((e) => e.avaliacao_realizada)?.nota_tecnica !==
+                    undefined && (
+                    <div className="hidden sm:flex items-center gap-3 text-xs bg-white/80 px-3 py-1.5 rounded-lg border border-purple-200">
+                      <span>
+                        Técnico:{' '}
+                        <strong>
+                          {entrevistasCand.find((e) => e.avaliacao_realizada)?.nota_tecnica}/10
+                        </strong>
+                      </span>
+                      <span>
+                        Comportamental:{' '}
+                        <strong>
+                          {entrevistasCand.find((e) => e.avaliacao_realizada)?.nota_comportamental}
+                          /10
+                        </strong>
+                      </span>
+                      <span>
+                        Rec:{' '}
+                        <strong className="text-purple-700">
+                          {entrevistasCand.find((e) => e.avaliacao_realizada)?.recomendacao_final}
+                        </strong>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50/70 p-6 rounded-xl border border-slate-200/80">
+                <div className="flex items-center gap-4">
+                  <ScoreProgressRing score={scoreVal} size={72} />
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Score Geral
+                    </span>
+                    <h3
+                      className={`text-lg font-bold ${
+                        scoreVal >= 75
+                          ? 'text-emerald-600'
+                          : scoreVal >= 50
+                            ? 'text-amber-600'
+                            : 'text-rose-600'
+                      }`}
+                    >
+                      {scoreVal >= 75
+                        ? 'Alta Aderência'
                         : scoreVal >= 50
-                          ? 'text-amber-600'
-                          : 'text-rose-600'
-                    }`}
-                  >
-                    {scoreVal >= 75
-                      ? 'Alta Aderência'
-                      : scoreVal >= 50
-                        ? 'Média Aderência'
-                        : 'Baixa Aderência'}
-                  </h3>
+                          ? 'Média Aderência'
+                          : 'Baixa Aderência'}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {matchingScore?.veredito ||
+                        (scoreVal >= 75 ? 'Recomendar avanço' : 'Considerar')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 border-l-0 md:border-l border-slate-200 md:pl-6">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Aderência Técnica
+                  </span>
+                  <p className="text-2xl font-bold text-slate-900 tabular-nums">
+                    {matchingScore?.score_tecnico || scoreVal}%
+                  </p>
                   <p className="text-xs text-slate-500">
-                    {matchingScore?.veredito ||
-                      (scoreVal >= 75 ? 'Recomendar avanço' : 'Considerar')}
+                    Correspondência com stacks e requisitos obrigatórios
                   </p>
                 </div>
-              </div>
 
-              <div className="space-y-1.5 border-l-0 md:border-l border-slate-200 md:pl-6">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Aderência Técnica
-                </span>
-                <p className="text-2xl font-bold text-slate-900 tabular-nums">
-                  {matchingScore?.score_tecnico || scoreVal}%
-                </p>
-                <p className="text-xs text-slate-500">
-                  Correspondência com stacks e requisitos obrigatórios
-                </p>
-              </div>
-
-              <div className="space-y-1.5 border-l-0 md:border-l border-slate-200 md:pl-6">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Aderência Comportamental
-                </span>
-                <p className="text-2xl font-bold text-slate-900 tabular-nums">
-                  {matchingScore?.score_comportamental || Math.min(100, Math.max(50, scoreVal - 5))}
-                  %
-                </p>
-                <p className="text-xs text-slate-500">
-                  Soft skills e sinergia com a cultura da organização
-                </p>
+                <div className="space-y-1.5 border-l-0 md:border-l border-slate-200 md:pl-6">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Aderência Comportamental
+                  </span>
+                  <p className="text-2xl font-bold text-slate-900 tabular-nums">
+                    {matchingScore?.score_comportamental ||
+                      Math.min(100, Math.max(50, scoreVal - 5))}
+                    %
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Soft skills e sinergia com a cultura da organização
+                  </p>
+                </div>
               </div>
             </div>
 

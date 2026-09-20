@@ -7,6 +7,7 @@ import {
   Briefcase,
   Users2,
   GitPullRequest,
+  Calendar,
   MessageSquare,
   FileText,
   LogOut,
@@ -58,6 +59,7 @@ const navItems: NavItem[] = [
   { title: 'Vagas', href: '/vagas', icon: Briefcase },
   { title: 'Candidatos', href: '/candidatos', icon: Users2 },
   { title: 'Pipeline', href: '/pipeline', icon: GitPullRequest },
+  { title: 'Entrevistas', href: '/entrevistas', icon: Calendar },
   { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
   { title: 'Relatórios', href: '/relatorios', icon: FileText },
 ]
@@ -82,6 +84,7 @@ export default function Layout() {
     if (path.startsWith('/candidatos/')) return 'Perfil do Candidato'
     if (path === '/candidatos') return 'Banco de Talentos'
     if (path.startsWith('/pipeline')) return 'Pipeline de Seleção (Kanban)'
+    if (path.startsWith('/entrevistas')) return 'Gestão de Entrevistas & Calendário'
     if (path.startsWith('/chat')) return 'Chat com Gestor de Talentos (IA)'
     if (path.startsWith('/relatorios/')) return 'Relatório de Avaliação'
     if (path === '/relatorios') return 'Relatórios de Aderência e IA'

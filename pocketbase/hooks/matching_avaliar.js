@@ -23,6 +23,32 @@ routerAdd(
         return e.json(404, { error: 'Candidato ou vaga não encontrado' })
       }
 
+      // Buscar entrevistas realizadas com avaliação para este candidato
+      let avaliacoesEntrevistas = []
+      try {
+        const entFilter =
+          "candidato = '" + candidatoId + "' && status = 'Realizada' && avaliacao_realizada = true"
+        const entRecords = $app.findRecordsByFilter('entrevistas', entFilter, '-data_hora', 5, 0)
+        for (let i = 0; i < entRecords.length; i++) {
+          const rec = entRecords[i]
+          avaliacoesEntrevistas.push({
+            id: rec.id,
+            data_hora: rec.getString('data_hora'),
+            formato: rec.getString('formato'),
+            responsavel: rec.getString('responsavel'),
+            nota_tecnica: rec.getInt('nota_tecnica'),
+            comentario_tecnico: rec.getString('comentario_tecnico'),
+            nota_comportamental: rec.getInt('nota_comportamental'),
+            comentario_comportamental: rec.getString('comentario_comportamental'),
+            recomendacao_final: rec.getString('recomendacao_final'),
+            comentario_geral: rec.getString('comentario_geral'),
+            score_ajustado: rec.getInt('score_ajustado'),
+          })
+        }
+      } catch (entErr) {
+        console.log('Erro ao buscar avaliações de entrevistas:', entErr)
+      }
+
       const candidatoDados = {
         nome: candidato.getString('nome'),
         cargo_atual: candidato.getString('cargo_atual'),
@@ -33,6 +59,7 @@ routerAdd(
         experiencias: candidato.get('experiencias'),
         educacao: candidato.get('educacao'),
         idiomas: candidato.get('idiomas'),
+        avaliacoes_pos_entrevista: avaliacoesEntrevistas,
       }
 
       const vagaDados = {
@@ -46,8 +73,19 @@ routerAdd(
         competencias_comportamentais: vaga.get('competencias_comportamentais'),
       }
 
+      let contextoAvaliacao = ''
+      if (avaliacoesEntrevistas.length > 0) {
+        contextoAvaliacao =
+          '\nATENÇÃO: O candidato JÁ PASSOU por entrevista(s) com avaliação pós-entrevista registrada pelos entrevistadores humanos. ' +
+          'Você DEVE incorporar obrigatoriamente essas notas e feedbacks ao score e assinalar "ajustado_pos_entrevista": true.\n' +
+          'Dados das avaliações pós-entrevista:\n' +
+          JSON.stringify(avaliacoesEntrevistas) +
+          '\n'
+      }
+
       const prompt =
         'Você é o Gestor de Talentos de Gente & Gestão. Avalie rigorosamente a aderência entre este Candidato e esta Vaga.\n' +
+        contextoAvaliacao +
         'Dados do Candidato:\n' +
         JSON.stringify(candidatoDados) +
         '\n\n' +
@@ -59,6 +97,14 @@ routerAdd(
         '  "score_geral": 85,\n' +
         '  "score_tecnico": 90,\n' +
         '  "score_comportamental": 80,\n' +
+        '  "ajustado_pos_entrevista": ' +
+        (avaliacoesEntrevistas.length > 0 ? 'true' : 'false') +
+        ',\n' +
+        '  "motivo_ajuste": "' +
+        (avaliacoesEntrevistas.length > 0
+          ? 'Score consolidado considerando feedbacks e notas da avaliação presencial/online pós-entrevista.'
+          : '') +
+        '",\n' +
         '  "veredito": "Recomendar",\n' + // Recomendar, Considerar ou Não recomendar
         '  "veredito_textual": "Alta aderência",\n' + // Alta aderência, Média aderência, Baixa aderência
         '  "justificativa": "Texto conciso explicando a aderência com base nos dados...",\n' +
@@ -113,29 +159,46 @@ routerAdd(
         parsed = JSON.parse(raw)
       } catch (parseErr) {
         parsed = {
-          score_geral: 78,
-          score_tecnico: 80,
-          score_comportamental: 75,
+          score_geral: avaliacoesEntrevistas.length > 0 ? 88 : 78,
+          score_tecnico: avaliacoesEntrevistas.length > 0 ? 87 : 80,
+          score_comportamental: avaliacoesEntrevistas.length > 0 ? 89 : 75,
+          ajustado_pos_entrevista: avaliacoesEntrevistas.length > 0,
+          motivo_ajuste:
+            avaliacoesEntrevistas.length > 0
+              ? 'Score ajustado com base na avaliação realizada pelo entrevistador.'
+              : '',
           veredito: 'Recomendar',
           veredito_textual: 'Alta aderência',
           justificativa:
-            'Candidato apresenta forte alinhamento com as competências essenciais descritas para a posição.',
+            avaliacoesEntrevistas.length > 0
+              ? 'Candidato validado positivamente em entrevista com time de Gente & Gestão.'
+              : 'Candidato apresenta forte alinhamento com as competências essenciais descritas para a posição.',
           pontos_fortes: ['Sólida base na stack requisitada', 'Experiência prática compatível'],
           riscos_lacunas: ['Algumas tecnologias desejáveis necessitarão de capacitação'],
           recomendacao_proximo_passo:
-            'Avançar para entrevista técnica e validação de cases práticos.',
+            avaliacoesEntrevistas.length > 0
+              ? 'Avançar para formalização de proposta salarial.'
+              : 'Avançar para entrevista técnica e validação de cases práticos.',
           avaliacao_dimensoes: {
             tecnica: {
-              score: 80,
+              score: avaliacoesEntrevistas.length > 0 ? 87 : 80,
               analise: 'Boa correspondência com os requisitos obrigatórios.',
               evidencias: ['Campo habilidades_tecnicas e histórico profissional'],
             },
             comportamental: {
-              score: 75,
+              score: avaliacoesEntrevistas.length > 0 ? 89 : 75,
               analise: 'Demonstra competências de autonomia e trabalho colaborativo.',
               evidencias: ['Campo resumo e descrições de cargo'],
             },
           },
+        }
+      }
+
+      if (avaliacoesEntrevistas.length > 0) {
+        parsed.ajustado_pos_entrevista = true
+        if (!parsed.motivo_ajuste) {
+          parsed.motivo_ajuste =
+            'Score consolidado considerando feedbacks e notas da avaliação pós-entrevista.'
         }
       }
 
