@@ -35,6 +35,7 @@ import AdmissaoPublica from '@/pages/AdmissaoPublica'
 import ExperienciaPublica from '@/pages/ExperienciaPublica'
 import IndicarPublica from '@/pages/IndicarPublica'
 import Indicacoes from '@/pages/Indicacoes'
+import PrestadoresPJ from '@/pages/PrestadoresPJ'
 import NotFound from '@/pages/NotFound'
 
 import { Toaster } from '@/components/ui/toaster'
@@ -107,8 +108,9 @@ export default function App() {
               <Route path="onboarding" element={<Onboarding />} />
               <Route path="experiencia" element={<ExperienciaCandidato />} />
               <Route path="indicacoes" element={<Indicacoes />} />
+              <Route path="prestadores-pj" element={<PrestadoresPJ />} />
               <Route path="banco-talentos" element={<BancoTalentos />} />{' '}
-              <Route path="alertas" element={<Alertas />} />
+              <Route path="alertas" element={<Alertas />} />{' '}
               <Route path="entrevistas" element={<Entrevistas />} />
               <Route path="chat" element={<Chat />} />
               <Route path="relatorios" element={<Relatorios />} />

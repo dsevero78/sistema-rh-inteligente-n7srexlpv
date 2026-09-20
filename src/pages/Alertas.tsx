@@ -29,6 +29,7 @@ import {
   ShieldCheck,
   Save,
   Plus,
+  Building2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -110,7 +111,7 @@ export function Alertas() {
       const [alertasRes, vagasRes, prefsRes] = await Promise.all([
         pb.collection('alertas').getFullList({
           sort: '-created',
-          expand: 'candidato,vaga',
+          expand: 'candidato,vaga,prestador',
         }),
         pb.collection('vagas').getFullList({
           sort: '-created',
@@ -438,11 +439,16 @@ export function Alertas() {
         const candNome = a.expand?.candidato?.nome?.toLowerCase() || ''
         const candCargo = a.expand?.candidato?.cargo_atual?.toLowerCase() || ''
         const vagaNome = a.expand?.vaga?.titulo?.toLowerCase() || ''
+        const prestNome =
+          a.expand?.prestador?.nome_fantasia?.toLowerCase() ||
+          a.expand?.prestador?.razao_social?.toLowerCase() ||
+          ''
         const resumo = a.resumo_ia?.toLowerCase() || ''
         if (
           !candNome.includes(termo) &&
           !candCargo.includes(termo) &&
           !vagaNome.includes(termo) &&
+          !prestNome.includes(termo) &&
           !resumo.includes(termo)
         ) {
           return false
@@ -770,7 +776,14 @@ export function Alertas() {
                       {/* Left: Info Candidato e Vaga */}
                       <div className="flex items-start gap-4 flex-1 min-w-0">
                         {/* Ring de Score ou Ícone do Evento */}
-                        {alerta.tipo === 'aprovacao_vaga_gestor' ? (
+                        {alerta.tipo?.includes('pj') ? (
+                          <div className="w-13 h-13 rounded-xl flex flex-col items-center justify-center shrink-0 border font-extrabold bg-amber-50 text-amber-800 border-amber-200">
+                            <Briefcase className="w-6 h-6 text-amber-600" />
+                            <span className="text-[8px] uppercase tracking-wider font-bold mt-0.5">
+                              PJ
+                            </span>
+                          </div>
+                        ) : alerta.tipo === 'aprovacao_vaga_gestor' ? (
                           <div className="w-13 h-13 rounded-xl flex flex-col items-center justify-center shrink-0 border font-extrabold bg-emerald-50 text-emerald-700 border-emerald-200">
                             <CheckCircle2 className="w-6 h-6 text-emerald-600" />
                             <span className="text-[8px] uppercase tracking-wider font-bold mt-0.5">
@@ -809,11 +822,19 @@ export function Alertas() {
                               </Badge>
                             )}
                             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                              {alerta.tipo === 'aprovacao_vaga_gestor'
-                                ? 'Aprovação / Alinhamento de Vaga pelo Gestor'
-                                : alerta.tipo === 'parecer_gestor_candidato'
-                                  ? 'Parecer Formal do Gestor Contratante'
-                                  : 'Talento do Banco enquadrado'}
+                              {alerta.tipo === 'contrato_pj_vencendo'
+                                ? 'Renovação Contratual de Prestador PJ'
+                                : alerta.tipo === 'documento_pj_vencido'
+                                  ? 'Documento / Certidão PJ Vencida'
+                                  : alerta.tipo === 'documento_pj_vencendo'
+                                    ? 'Documento PJ Próximo do Vencimento'
+                                    : alerta.tipo === 'nota_fiscal_pj_atrasada'
+                                      ? 'Nota Fiscal PJ em Atraso'
+                                      : alerta.tipo === 'aprovacao_vaga_gestor'
+                                        ? 'Aprovação / Alinhamento de Vaga pelo Gestor'
+                                        : alerta.tipo === 'parecer_gestor_candidato'
+                                          ? 'Parecer Formal do Gestor Contratante'
+                                          : 'Talento do Banco enquadrado'}
                             </span>
                             <span className="text-slate-300">·</span>
                             <span className="text-xs text-slate-400">
@@ -829,7 +850,17 @@ export function Alertas() {
                           </div>
 
                           <div className="mt-1 flex items-baseline gap-2 flex-wrap">
-                            {alerta.tipo === 'aprovacao_vaga_gestor' ? (
+                            {alerta.tipo?.includes('pj') ? (
+                              <Link
+                                to="/prestadores-pj"
+                                className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors flex items-center gap-1.5"
+                              >
+                                <Building2 className="w-4 h-4 text-amber-600" />
+                                {alerta.expand?.prestador?.nome_fantasia ||
+                                  alerta.expand?.prestador?.razao_social ||
+                                  'Prestador PJ'}
+                              </Link>
+                            ) : alerta.tipo === 'aprovacao_vaga_gestor' ? (
                               <Link
                                 to={vaga ? `/vagas/${vaga.id}` : '#'}
                                 className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors flex items-center gap-1.5"
@@ -871,7 +902,18 @@ export function Alertas() {
 
                       {/* Right: Ações Rápidas */}
                       <div className="flex items-center gap-2 self-end lg:self-center shrink-0 flex-wrap">
-                        {alerta.tipo === 'aprovacao_vaga_gestor' && vaga ? (
+                        {alerta.tipo?.includes('pj') ? (
+                          <Link to="/prestadores-pj">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs font-medium border-amber-200 text-amber-800 hover:bg-amber-50"
+                            >
+                              <Building2 className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                              Ver Prestador PJ
+                            </Button>
+                          </Link>
+                        ) : alerta.tipo === 'aprovacao_vaga_gestor' && vaga ? (
                           <Link to={`/vagas/${vaga.id}`}>
                             <Button
                               variant="outline"
@@ -895,7 +937,8 @@ export function Alertas() {
                           </Link>
                         ) : null}
 
-                        {alerta.tipo !== 'aprovacao_vaga_gestor' &&
+                        {!alerta.tipo?.includes('pj') &&
+                          alerta.tipo !== 'aprovacao_vaga_gestor' &&
                           alerta.tipo !== 'parecer_gestor_candidato' && (
                             <Button
                               size="sm"

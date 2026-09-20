@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T02:12:31.480Z",
+  "generatedAt": "2026-09-20T02:21:51.407Z",
   "collections": [
     {
       "name": "users",
@@ -851,14 +851,14 @@
         {
           "name": "vaga",
           "type": "relation",
-          "required": true,
+          "required": false,
           "system": false,
           "collectionRef": "vagas"
         },
         {
           "name": "candidato",
           "type": "relation",
-          "required": true,
+          "required": false,
           "system": false,
           "collectionRef": "candidatos"
         },
@@ -906,6 +906,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "prestador",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "prestadores_pj"
         }
       ],
       "indexes": [
@@ -2130,6 +2137,575 @@
         "CREATE INDEX idx_indicacoes_vaga ON indicacoes (vaga)",
         "CREATE INDEX idx_indicacoes_status ON indicacoes (status)",
         "CREATE INDEX idx_indicacoes_email ON indicacoes (indicado_email)"
+      ]
+    },
+    {
+      "name": "prestadores_pj",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "razao_social",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome_fantasia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "area_atuacao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "contato_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato_email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato_telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "endereco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_bancarios",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "banco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "regime_tributario",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Simples Nacional", "Lucro Presumido", "Lucro Real", "MEI"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Ativo", "Em renovação", "Pausado", "Encerrado"]
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contrato_social_anexo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_inicio_parceria",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "media_avaliacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_avaliacoes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_prestadores_cnpj ON prestadores_pj (cnpj)",
+        "CREATE INDEX idx_prestadores_status ON prestadores_pj (status)",
+        "CREATE INDEX idx_prestadores_area ON prestadores_pj (area_atuacao)"
+      ]
+    },
+    {
+      "name": "contratos_pj",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "prestador",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "prestadores_pj"
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "numero_contrato",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Mensal", "Por hora", "Por projeto"]
+        },
+        {
+          "name": "data_inicio",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_fim",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Vigente", "Vencendo", "Renovado", "Encerrado", "Rescindido"]
+        },
+        {
+          "name": "gestor_responsavel",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "gestor_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "clausulas_resumo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contrato_assinado_anexo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_contratos_prestador ON contratos_pj (prestador)",
+        "CREATE INDEX idx_contratos_status ON contratos_pj (status)",
+        "CREATE INDEX idx_contratos_data_fim ON contratos_pj (data_fim)"
+      ]
+    },
+    {
+      "name": "documentos_pj",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "prestador",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "prestadores_pj"
+        },
+        {
+          "name": "tipo_documento",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Contrato social",
+            "Certidão negativa federal",
+            "Certidão estadual/municipal",
+            "FGTS/CRF",
+            "CNDT",
+            "Certificado digital",
+            "Outro"
+          ]
+        },
+        {
+          "name": "titulo_personalizado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_emissao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_validade",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "anexo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_calculado",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Válido", "Vencendo", "Vencido", "Sem validade"]
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_docs_prestador ON documentos_pj (prestador)",
+        "CREATE INDEX idx_docs_tipo ON documentos_pj (tipo_documento)",
+        "CREATE INDEX idx_docs_validade ON documentos_pj (data_validade)"
+      ]
+    },
+    {
+      "name": "notas_fiscais_pj",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "prestador",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "prestadores_pj"
+        },
+        {
+          "name": "contrato",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "contratos_pj"
+        },
+        {
+          "name": "numero_nf",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "competencia",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_emissao",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_vencimento",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_pagamento",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Recebida",
+            "Em conferência",
+            "Aprovada para pagamento",
+            "Paga",
+            "Atrasada",
+            "Glosada"
+          ]
+        },
+        {
+          "name": "anexo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_glosa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_nfs_prestador ON notas_fiscais_pj (prestador)",
+        "CREATE INDEX idx_nfs_contrato ON notas_fiscais_pj (contrato)",
+        "CREATE INDEX idx_nfs_status ON notas_fiscais_pj (status)",
+        "CREATE INDEX idx_nfs_vencimento ON notas_fiscais_pj (data_vencimento)"
+      ]
+    },
+    {
+      "name": "avaliacoes_prestador_pj",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "prestador",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "prestadores_pj"
+        },
+        {
+          "name": "contrato",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "contratos_pj"
+        },
+        {
+          "name": "avaliador",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "avaliador_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "periodo_avaliado",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nota_qualidade_tecnica",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nota_prazo",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nota_comunicacao",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nota_aderencia_cultural",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nota_media",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "recomendacao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Continuar", "Renovar com ressalvas", "Não renovar"]
+        },
+        {
+          "name": "comentario",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pontos_fortes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pontos_melhoria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_aval_pj_prestador ON avaliacoes_prestador_pj (prestador)",
+        "CREATE INDEX idx_aval_pj_recomendacao ON avaliacoes_prestador_pj (recomendacao)"
       ]
     }
   ]

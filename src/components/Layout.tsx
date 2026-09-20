@@ -28,6 +28,7 @@ import {
   Mail,
   Heart,
   Gift,
+  Handshake,
 } from 'lucide-react'
 import type { RecordModel } from 'pocketbase'
 import { Button } from '@/components/ui/button'
@@ -103,7 +104,7 @@ export default function Layout() {
     try {
       const records = await pb.collection('alertas').getFullList({
         sort: '-created',
-        expand: 'candidato,vaga',
+        expand: 'candidato,vaga,prestador',
       })
       setAlertasRecentes(records.slice(0, 6))
       const count = records.filter((a) => a.status === 'Novo').length
@@ -156,6 +157,7 @@ export default function Layout() {
     if (path.startsWith('/onboarding')) return 'Onboarding do Contratado (Dia 1)'
     if (path.startsWith('/experiencia')) return 'Experiência do Candidato (Candidate Experience)'
     if (path.startsWith('/indicacoes')) return 'Programa de Indicação de Talentos'
+    if (path.startsWith('/prestadores-pj')) return 'Gestão de Prestadores de Serviços PJ'
     if (path.startsWith('/banco-talentos')) return 'Banco de Talentos & Reaproveitamento'
     if (path.startsWith('/alertas')) return 'Alertas Automáticos de Talentos'
     if (path.startsWith('/entrevistas')) return 'Gestão de Entrevistas & Calendário'
@@ -236,6 +238,12 @@ export default function Layout() {
                 href: '/indicacoes',
                 icon: Gift,
                 badge: 'Promotores',
+              },
+              {
+                title: 'Prestadores PJ',
+                href: '/prestadores-pj',
+                icon: Handshake,
+                badge: 'PJ',
               },
               {
                 title: 'Banco de Talentos',
@@ -484,12 +492,16 @@ export default function Layout() {
                     alertasRecentes.map((al) => {
                       const cand = al.expand?.candidato
                       const vaga = al.expand?.vaga
+                      const prest = al.expand?.prestador
                       const isNovo = al.status === 'Novo'
                       const isAprovVaga = al.tipo === 'aprovacao_vaga_gestor'
                       const isParecerGestor = al.tipo === 'parecer_gestor_candidato'
+                      const isAlertaPj = al.tipo && al.tipo.includes('pj')
 
                       const handleClickNotif = () => {
-                        if (isAprovVaga && vaga) {
+                        if (isAlertaPj) {
+                          navigate('/prestadores-pj')
+                        } else if (isAprovVaga && vaga) {
                           navigate(`/vagas/${vaga.id}`)
                         } else if (isParecerGestor && cand) {
                           navigate(`/candidatos/${cand.id}`)
@@ -520,8 +532,16 @@ export default function Layout() {
                                   Parecer do Gestor
                                 </span>
                               ) : null}
-
-                              {isAprovVaga ? (
+                              {isAlertaPj ? (
+                                <>
+                                  <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                                    Prestador PJ
+                                  </span>
+                                  <span className="text-xs font-bold text-slate-900 truncate">
+                                    {prest?.nome_fantasia || prest?.razao_social || 'Fornecedor PJ'}
+                                  </span>
+                                </>
+                              ) : isAprovVaga ? (
                                 <span className="text-xs font-bold text-slate-900 truncate">
                                   {vaga?.titulo || 'Vaga sob Gestão'}
                                 </span>
@@ -535,7 +555,7 @@ export default function Layout() {
                                     {vaga?.titulo || 'Vaga'}
                                   </span>
                                 </>
-                              )}
+                              )}{' '}
                             </div>
 
                             {/* Score Ring / Badge */}
