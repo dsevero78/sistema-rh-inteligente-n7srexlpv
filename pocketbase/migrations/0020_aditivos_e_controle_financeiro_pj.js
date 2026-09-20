@@ -2,27 +2,22 @@
 
 migrate(
   (app) => {
-    // 0. Se já existir coleção aditivos_pj corrompida sem campos, deleta e recria
+    // 0. Deletar coleção antiga se existir
     try {
-      const oldCol = app.findCollectionByNameOrId('aditivos_pj')
-      if (oldCol) {
-        app.delete(oldCol)
-      }
+      const old = app.findCollectionByNameOrId('aditivos_pj')
+      if (old) app.delete(old)
     } catch (_) {}
 
-    // 1. Obter IDs das coleções existentes
     const prestadoresCol = app.findCollectionByNameOrId('prestadores_pj')
     const contratosCol = app.findCollectionByNameOrId('contratos_pj')
 
-    // 2. Adicionar campo contador_aditivos em contratos_pj se ainda não existir
+    // 1. Contador em contratos_pj
     if (contratosCol) {
-      let jaTemContador = false
+      let hasField = false
       try {
-        const fld = contratosCol.fields.getByName('contador_aditivos')
-        if (fld) jaTemContador = true
+        if (contratosCol.fields.getByName('contador_aditivos')) hasField = true
       } catch (_) {}
-
-      if (!jaTemContador) {
+      if (!hasField) {
         contratosCol.fields.add(
           new NumberField({
             name: 'contador_aditivos',
@@ -33,7 +28,7 @@ migrate(
       }
     }
 
-    // 3. Criar coleção aditivos_pj com os campos exatos
+    // 2. Criar coleção aditivos_pj
     const aditivosCol = new Collection({
       name: 'aditivos_pj',
       type: 'base',
@@ -43,125 +38,111 @@ migrate(
       createRule: "@request.auth.id != ''",
       updateRule: "@request.auth.id != ''",
       deleteRule: "@request.auth.id != ''",
-      fields: [
-        {
-          name: 'numero_aditivo',
-          type: 'text',
-          required: true,
-          min: 1,
-          max: 50,
-        },
-        {
-          name: 'sequencia',
-          type: 'number',
-          required: true,
-          min: 1,
-        },
-        {
-          name: 'tipo',
-          type: 'select',
-          required: true,
-          values: [
-            'Reajuste de valor',
-            'Prolongamento de vigência',
-            'Reajuste e Prolongamento',
-            'Mudança de escopo',
-            'Outro',
-          ],
-          maxSelect: 1,
-        },
-        {
-          name: 'contrato',
-          type: 'relation',
-          required: true,
-          collectionId: contratosCol.id,
-          cascadeDelete: true,
-          maxSelect: 1,
-        },
-        {
-          name: 'prestador',
-          type: 'relation',
-          required: true,
-          collectionId: prestadoresCol.id,
-          cascadeDelete: true,
-          maxSelect: 1,
-        },
-        {
-          name: 'data_assinatura',
-          type: 'date',
-          required: false,
-        },
-        {
-          name: 'nova_vigencia_fim',
-          type: 'date',
-          required: false,
-        },
-        {
-          name: 'novo_valor_mensal',
-          type: 'number',
-          required: false,
-          min: 0,
-        },
-        {
-          name: 'valor_anterior',
-          type: 'number',
-          required: false,
-          min: 0,
-        },
-        {
-          name: 'vigencia_anterior_fim',
-          type: 'date',
-          required: false,
-        },
-        {
-          name: 'descricao',
-          type: 'text',
-          required: false,
-          max: 3000,
-        },
-        {
-          name: 'status',
-          type: 'select',
-          required: true,
-          values: ['Rascunho', 'Pendente de assinatura', 'Vigente'],
-          maxSelect: 1,
-        },
-        {
-          name: 'anexo_aditivo',
-          type: 'file',
-          required: false,
-          maxSelect: 1,
-          maxSize: 15728640,
-          mimeTypes: [
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'image/jpeg',
-            'image/png',
-          ],
-        },
-        {
-          name: 'created',
-          type: 'autodate',
-          onCreate: true,
-          onUpdate: false,
-        },
-        {
-          name: 'updated',
-          type: 'autodate',
-          onCreate: true,
-          onUpdate: true,
-        },
-      ],
-      indexes: [
-        'CREATE INDEX idx_aditivos_contrato ON aditivos_pj (contrato)',
-        'CREATE INDEX idx_aditivos_prestador ON aditivos_pj (prestador)',
-        'CREATE INDEX idx_aditivos_status ON aditivos_pj (status)',
-      ],
     })
+
+    aditivosCol.fields.add(
+      new TextField({
+        name: 'numero_aditivo',
+        required: true,
+      }),
+    )
+    aditivosCol.fields.add(
+      new NumberField({
+        name: 'sequencia',
+        required: true,
+        min: 1,
+      }),
+    )
+    aditivosCol.fields.add(
+      new SelectField({
+        name: 'tipo',
+        required: true,
+        values: [
+          'Reajuste de valor',
+          'Prolongamento de vigência',
+          'Reajuste e Prolongamento',
+          'Mudança de escopo',
+          'Outro',
+        ],
+        maxSelect: 1,
+      }),
+    )
+    aditivosCol.fields.add(
+      new RelationField({
+        name: 'contrato',
+        required: true,
+        collectionId: contratosCol.id,
+        cascadeDelete: true,
+        maxSelect: 1,
+      }),
+    )
+    aditivosCol.fields.add(
+      new RelationField({
+        name: 'prestador',
+        required: true,
+        collectionId: prestadoresCol.id,
+        cascadeDelete: true,
+        maxSelect: 1,
+      }),
+    )
+    aditivosCol.fields.add(
+      new DateField({
+        name: 'data_assinatura',
+      }),
+    )
+    aditivosCol.fields.add(
+      new DateField({
+        name: 'nova_vigencia_fim',
+      }),
+    )
+    aditivosCol.fields.add(
+      new NumberField({
+        name: 'novo_valor_mensal',
+        min: 0,
+      }),
+    )
+    aditivosCol.fields.add(
+      new NumberField({
+        name: 'valor_anterior',
+        min: 0,
+      }),
+    )
+    aditivosCol.fields.add(
+      new DateField({
+        name: 'vigencia_anterior_fim',
+      }),
+    )
+    aditivosCol.fields.add(
+      new TextField({
+        name: 'descricao',
+      }),
+    )
+    aditivosCol.fields.add(
+      new SelectField({
+        name: 'status',
+        required: true,
+        values: ['Rascunho', 'Pendente de assinatura', 'Vigente'],
+        maxSelect: 1,
+      }),
+    )
+    aditivosCol.fields.add(
+      new FileField({
+        name: 'anexo_aditivo',
+        maxSelect: 1,
+        maxSize: 15728640,
+        mimeTypes: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'image/jpeg',
+          'image/png',
+        ],
+      }),
+    )
+
     app.save(aditivosCol)
 
-    // 4. Conectar agente gestor-de-talentos à nova coleção e atualizar memória
+    // 3. Atualizar agente gestor-de-talentos
     try {
       $ai.agents.putTools(app, 'gestor-de-talentos', [
         {
@@ -188,9 +169,9 @@ migrate(
       console.log('Aviso ao atualizar agente gestor-de-talentos com aditivos_pj:', agentErr)
     }
 
-    // 5. Inserir Seeds Realistas
+    // 4. Seeds realistas
     try {
-      // Seed 1 para Nexus Cloud (id: 2hpaeyv6fptjt23, contrato: 8v4mrmounlzwyff)
+      // Seed 1 Nexus Cloud: Aditivo 01
       const ad1 = new Record(aditivosCol)
       ad1.set('numero_aditivo', 'ADIT-2025-01')
       ad1.set('sequencia', 1)
@@ -209,7 +190,7 @@ migrate(
       ad1.set('status', 'Vigente')
       app.save(ad1)
 
-      // Seed 2 para Nexus Cloud: Aditivo 02 - Prolongamento de Vigência
+      // Seed 2 Nexus Cloud: Aditivo 02
       const ad2 = new Record(aditivosCol)
       ad2.set('numero_aditivo', 'ADIT-2025-02')
       ad2.set('sequencia', 2)
@@ -228,14 +209,14 @@ migrate(
       ad2.set('status', 'Vigente')
       app.save(ad2)
 
-      // Atualizar contrato Nexus Cloud com contador
+      // Atualizar contrato Nexus
       try {
         const ctNexus = app.findRecordById('contratos_pj', '8v4mrmounlzwyff')
         ctNexus.set('contador_aditivos', 2)
         app.save(ctNexus)
       } catch (_) {}
 
-      // Seed 3 para Vértice Mídia (id: 5r0iaorzoycr27j, contrato: ic3d5zlkyi7kiy0)
+      // Seed 3 Vértice Mídia: Aditivo 01 - Pendente de assinatura
       const ad3 = new Record(aditivosCol)
       ad3.set('numero_aditivo', 'ADIT-2026-01')
       ad3.set('sequencia', 1)
@@ -254,7 +235,7 @@ migrate(
       ad3.set('status', 'Pendente de assinatura')
       app.save(ad3)
 
-      // Atualizar contrato Vértice Mídia com contador
+      // Atualizar contrato Vértice
       try {
         const ctVertice = app.findRecordById('contratos_pj', 'ic3d5zlkyi7kiy0')
         ctVertice.set('contador_aditivos', 1)

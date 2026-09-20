@@ -319,7 +319,140 @@ cronAdd('monitorar_prestadores_pj_cron', '0 3 * * *', () => {
       console.log('Erro ao checar contratos PJ:', errContratos)
     }
 
-    // 3. MONITORAR NOTAS FISCAIS ATRASADAS
+    // 3. MONITORAR ADITIVOS PJ PENDENTES DE ASSINATURA HÁ MAIS DE 7 DIAS
+    try {
+      const aditivos = $app.findRecordsByFilter(
+        'aditivos_pj',
+        "status = 'Pendente de assinatura'",
+        '-created',
+        200,
+        0,
+      )
+      for (let a = 0; a < aditivos.length; a++) {
+        const ad = aditivos[a]
+        const criacaoAdStr = ad.getString('created') || ad.getString('updated')
+        if (!criacaoAdStr) continue
+
+        const criacaoAdDate = new Date(criacaoAdStr)
+        const diffDiasCriacao = Math.floor(
+          (agora.getTime() - criacaoAdDate.getTime()) / (1000 * 60 * 60 * 24),
+        )
+
+        // Se pendente há mais de 7 dias
+        if (diffDiasCriacao >= 7) {
+          const prestId = ad.getString('prestador')
+          let prestNome = 'Prestador PJ'
+          let prestCnpj = ''
+          try {
+            const p = $app.findRecordById('prestadores_pj', prestId)
+            prestNome = p.getString('nome_fantasia') || p.getString('razao_social')
+            prestCnpj = p.getString('cnpj')
+          } catch (_) {}
+
+          let jaExisteAd = false
+          try {
+            const alRecentes = $app.findRecordsByFilter(
+              'alertas',
+              "tipo = 'aditivo_pj_pendente' && prestador = '" + prestId + "'",
+              '-created',
+              1,
+              0,
+            )
+            if (alRecentes && alRecentes.length > 0) {
+              const criacaoAl = new Date(
+                alRecentes[0].getString('created') || alRecentes[0].getString('criado_em'),
+              )
+              const diffHoras = (agora.getTime() - criacaoAl.getTime()) / (1000 * 60 * 60)
+              if (diffHoras < 72) jaExisteAd = true
+            }
+          } catch (_) {}
+
+          if (!jaExisteAd) {
+            const numAdit = ad.getString('numero_aditivo')
+            const tipoAdit = ad.getString('tipo')
+            const novoValor = ad.getInt('novo_valor_mensal')
+
+            const resumoAd =
+              'Aditivo Contratual Pendente de Assinatura: O Aditivo ' +
+              numAdit +
+              ' (' +
+              tipoAdit +
+              (novoValor > 0 ? ', novo valor R$ ' + novoValor.toLocaleString('pt-BR') : '') +
+              ') com ' +
+              prestNome +
+              ' aguarda assinatura há ' +
+              diffDiasCriacao +
+              ' dias. Regularize a formalização jurídica.'
+
+            const alAd = new Record(alertasCol)
+            alAd.set('prestador', prestId)
+            alAd.set('score', 92)
+            alAd.set('tipo', 'aditivo_pj_pendente')
+            alAd.set('status', 'Novo')
+            alAd.set('resumo_ia', resumoAd)
+            alAd.set('criado_em', agoraIso)
+            $app.save(alAd)
+
+            // Disparar e-mail de notificação de aditivo pendente
+            try {
+              const htmlAd =
+                '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;">' +
+                '<div style="background-color: #0f172a; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 24px;">' +
+                '<h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700;">Gente & Gestão</h1>' +
+                '<p style="color: #94a3b8; margin: 4px 0 0 0; font-size: 13px;">Alerta de Aditivo Contratual PJ Pendente de Assinatura</p>' +
+                '</div>' +
+                '<p style="color: #334155; font-size: 15px; line-height: 1.6;">Identificamos que um aditivo contratual está pendente de assinatura há mais de <strong>' +
+                diffDiasCriacao +
+                ' dias</strong>.</p>' +
+                '<div style="background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px; margin: 20px 0;">' +
+                '<div style="display: inline-block; background-color: #f59e0b; color: #ffffff; font-size: 11px; font-weight: bold; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; margin-bottom: 10px;">' +
+                'Pendente de Assinatura (> 7 dias)' +
+                '</div>' +
+                '<p style="margin: 6px 0; color: #1e293b; font-size: 14px;"><strong>Prestador:</strong> ' +
+                prestNome +
+                (prestCnpj ? ' (CNPJ ' + prestCnpj + ')' : '') +
+                '</p>' +
+                '<p style="margin: 6px 0; color: #1e293b; font-size: 14px;"><strong>Número do Aditivo:</strong> ' +
+                numAdit +
+                '</p>' +
+                '<p style="margin: 6px 0; color: #1e293b; font-size: 14px;"><strong>Tipo de Aditivo:</strong> ' +
+                tipoAdit +
+                '</p>' +
+                (novoValor > 0
+                  ? '<p style="margin: 6px 0; color: #1d4ed8; font-size: 14px;"><strong>Novo Valor Mensal:</strong> R$ ' +
+                    novoValor.toLocaleString('pt-BR') +
+                    '</p>'
+                  : '') +
+                '<p style="margin: 12px 0 0 0; color: #475569; font-size: 13px; line-height: 1.5; background-color: #f1f5f9; padding: 10px; border-radius: 6px;">' +
+                resumoAd +
+                '</p>' +
+                '</div>' +
+                '<p style="color: #64748b; font-size: 12px;">Acesse a aba "Aditivos" na ficha do prestador para anexar o documento assinado ou alterar o status para Vigente.</p>' +
+                '<p style="color: #334155; font-size: 14px; margin-top: 24px;">Atenciosamente,<br><strong>Sistema RH Inteligente — Gente & Gestão</strong></p>' +
+                '</div>'
+
+              const msg = new MailerMessage({
+                from: { address: senderAddress, name: senderName },
+                to: emailsRh.map((em) => ({ address: em })),
+                subject:
+                  '🖋️ [Ação Requerida] Aditivo Pendente de Assinatura: ' +
+                  numAdit +
+                  ' — ' +
+                  prestNome,
+                html: htmlAd,
+              })
+              mailClient.send(msg)
+            } catch (errEmailAd) {
+              console.log('Falha ao enviar e-mail de aditivo PJ:', errEmailAd)
+            }
+          }
+        }
+      }
+    } catch (errAditivos) {
+      console.log('Erro ao checar aditivos PJ pendentes:', errAditivos)
+    }
+
+    // 4. MONITORAR NOTAS FISCAIS ATRASADAS
     try {
       const nfs = $app.findRecordsByFilter(
         'notas_fiscais_pj',
@@ -554,7 +687,72 @@ routerAdd(
         }
       }
 
-      // 3. Notas
+      // 3. Aditivos Pendentes (> 7 dias)
+      try {
+        const aditivos = $app.findRecordsByFilter(
+          'aditivos_pj',
+          "status = 'Pendente de assinatura'",
+          '-created',
+          200,
+          0,
+        )
+        for (let a = 0; a < aditivos.length; a++) {
+          const ad = aditivos[a]
+          const criacaoAdStr = ad.getString('created') || ad.getString('updated')
+          if (!criacaoAdStr) continue
+
+          const criacaoAdDate = new Date(criacaoAdStr)
+          const diffDiasCriacao = Math.floor(
+            (agora.getTime() - criacaoAdDate.getTime()) / (1000 * 60 * 60 * 24),
+          )
+
+          if (diffDiasCriacao >= 7) {
+            const prestId = ad.getString('prestador')
+            let prestNome = 'Prestador PJ'
+            try {
+              const p = $app.findRecordById('prestadores_pj', prestId)
+              prestNome = p.getString('nome_fantasia') || p.getString('razao_social')
+            } catch (_) {}
+
+            let jaExiste = false
+            try {
+              const alRec = $app.findRecordsByFilter(
+                'alertas',
+                "tipo = 'aditivo_pj_pendente' && prestador = '" + prestId + "'",
+                '',
+                1,
+                0,
+              )
+              if (alRec && alRec.length > 0) jaExiste = true
+            } catch (_) {}
+
+            if (!jaExiste) {
+              const alAd = new Record(alertasCol)
+              alAd.set('prestador', prestId)
+              alAd.set('score', 92)
+              alAd.set('tipo', 'aditivo_pj_pendente')
+              alAd.set('status', 'Novo')
+              alAd.set(
+                'resumo_ia',
+                'Aditivo Contratual Pendente de Assinatura: O Aditivo ' +
+                  ad.getString('numero_aditivo') +
+                  ' com ' +
+                  prestNome +
+                  ' aguarda assinatura há ' +
+                  diffDiasCriacao +
+                  ' dias.',
+              )
+              alAd.set('criado_em', agoraIso)
+              $app.save(alAd)
+              alertasGerados++
+            }
+          }
+        }
+      } catch (errAditVar) {
+        console.log('Erro ao checar aditivos na varredura:', errAditVar)
+      }
+
+      // 4. Notas
       const nfs = $app.findRecordsByFilter(
         'notas_fiscais_pj',
         "status != 'Paga' && status != 'Glosada' && data_vencimento != ''",

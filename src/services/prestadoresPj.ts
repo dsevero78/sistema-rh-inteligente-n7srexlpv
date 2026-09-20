@@ -49,6 +49,35 @@ export interface PrestadorPJ extends RecordModel {
   total_avaliacoes?: number
 }
 
+export type TipoAditivoPJ =
+  | 'Reajuste de valor'
+  | 'Prolongamento de vigência'
+  | 'Reajuste e Prolongamento'
+  | 'Mudança de escopo'
+  | 'Outro'
+
+export type StatusAditivoPJ = 'Rascunho' | 'Pendente de assinatura' | 'Vigente'
+
+export interface AditivoPJ extends RecordModel {
+  numero_aditivo: string
+  sequencia: number
+  tipo: TipoAditivoPJ
+  contrato: string
+  prestador: string
+  data_assinatura?: string
+  nova_vigencia_fim?: string
+  novo_valor_mensal?: number
+  valor_anterior?: number
+  vigencia_anterior_fim?: string
+  descricao?: string
+  status: StatusAditivoPJ
+  anexo_aditivo?: string
+  expand?: {
+    contrato?: ContratoPJ
+    prestador?: PrestadorPJ
+  }
+}
+
 export interface ContratoPJ extends RecordModel {
   prestador: string
   titulo: string
@@ -62,8 +91,10 @@ export interface ContratoPJ extends RecordModel {
   gestor_nome?: string
   clausulas_resumo?: string
   contrato_assinado_anexo?: string
+  contador_aditivos?: number
   expand?: {
     prestador?: PrestadorPJ
+    aditivos_pj_via_contrato?: AditivoPJ[]
   }
 }
 
@@ -198,6 +229,193 @@ export function getAnexoUrl(record: RecordModel, filename?: string): string {
   return pb.files.getURL(record, filename)
 }
 
+// ----------------------------------------------------------------------------
+// Cálculos Financeiros: Valor Mensal Atual e Valor-Hora (Base 160h/mês)
+// ----------------------------------------------------------------------------
+export const HORAS_MES_PADRAO = 160
+
+/**
+ * Retorna o valor mensal atual efetivo de um contrato,
+ * considerando o último aditivo Vigente que tenha reajustado o valor.
+ */
+export function calcularValorMensalEfetivo(
+  contrato: ContratoPJ,
+  aditivosDoContrato: AditivoPJ[] = [],
+): number {
+  if (!contrato) return 0
+
+  // Filtrar aditivos vigentes deste contrato que tenham novo_valor_mensal definido
+  const aditivosReajuste = aditivosDoContrato
+    .filter(
+      (a) =>
+        a.contrato === contrato.id &&
+        a.status === 'Vigente' &&
+        (a.tipo === 'Reajuste de valor' || a.tipo === 'Reajuste e Prolongamento') &&
+        typeof a.novo_valor_mensal === 'number' &&
+        a.novo_valor_mensal > 0,
+    )
+    .sort((a, b) => (b.sequencia || 0) - (a.sequencia || 0))
+
+  if (aditivosReajuste.length > 0 && aditivosReajuste[0].novo_valor_mensal) {
+    return aditivosReajuste[0].novo_valor_mensal
+  }
+
+  return contrato.valor || 0
+}
+
+/**
+ * Retorna a vigência final efetiva de um contrato,
+ * considerando o último aditivo Vigente que tenha prolongado o prazo.
+ */
+export function calcularVigenciaFimEfetiva(
+  contrato: ContratoPJ,
+  aditivosDoContrato: AditivoPJ[] = [],
+): string {
+  if (!contrato) return ''
+
+  const aditivosProrrogacao = aditivosDoContrato
+    .filter(
+      (a) =>
+        a.contrato === contrato.id &&
+        a.status === 'Vigente' &&
+        (a.tipo === 'Prolongamento de vigência' || a.tipo === 'Reajuste e Prolongamento') &&
+        !!a.nova_vigencia_fim,
+    )
+    .sort((a, b) => (b.sequencia || 0) - (a.sequencia || 0))
+
+  if (aditivosProrrogacao.length > 0 && aditivosProrrogacao[0].nova_vigencia_fim) {
+    return aditivosProrrogacao[0].nova_vigencia_fim
+  }
+
+  return contrato.data_fim || ''
+}
+
+/**
+ * Calcula o valor-hora considerando a premissa padrão de 160 horas no mês.
+ * Formula: valorMensalAtual / 160
+ * Se o contrato for 'Por hora', o valor contratado já é o valor-hora.
+ */
+export function calcularValorHora(
+  contrato: ContratoPJ,
+  aditivosDoContrato: AditivoPJ[] = [],
+): {
+  valorHora: number
+  valorMensal: number
+  premissaTexto: string
+  isEstimativa: boolean
+} {
+  if (!contrato) {
+    return { valorHora: 0, valorMensal: 0, premissaTexto: 'base 160h/mês', isEstimativa: false }
+  }
+
+  const valorMensalAtual = calcularValorMensalEfetivo(contrato, aditivosDoContrato)
+
+  if (contrato.tipo === 'Por hora') {
+    const valorHora = valorMensalAtual
+    const valorMensalEstimado = valorHora * HORAS_MES_PADRAO
+    return {
+      valorHora,
+      valorMensal: valorMensalEstimado,
+      premissaTexto: 'taxa/hora (est. 160h/mês)',
+      isEstimativa: true,
+    }
+  }
+
+  if (contrato.tipo === 'Por projeto') {
+    // Para contrato por projeto, dividimos o valor por 160h ou exibimos a média
+    const valorHora = Number((valorMensalAtual / HORAS_MES_PADRAO).toFixed(2))
+    return {
+      valorHora,
+      valorMensal: valorMensalAtual,
+      premissaTexto: 'projeto (base 160h/mês)',
+      isEstimativa: true,
+    }
+  }
+
+  // Padrão: Mensal
+  const valorHora = Number((valorMensalAtual / HORAS_MES_PADRAO).toFixed(2))
+  return {
+    valorHora,
+    valorMensal: valorMensalAtual,
+    premissaTexto: 'base 160h/mês',
+    isEstimativa: false,
+  }
+}
+
+/**
+ * Calcula os dias restantes até o término da vigência e o status do semáforo.
+ */
+export function calcularPrazosContrato(
+  dataInicioStr: string,
+  dataFimStr: string,
+): {
+  diasRestantes: number
+  diasTotais: number
+  diasDecorridos: number
+  percentualDecorrido: number
+  statusSemaforo: 'verde' | 'ambar' | 'vermelho' | 'vencido'
+  statusTexto: string
+} {
+  const agora = new Date()
+  const fim = new Date(dataFimStr)
+  const inicio = new Date(dataInicioStr)
+
+  const diffMs = fim.getTime() - agora.getTime()
+  const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+
+  const totalMs = fim.getTime() - inicio.getTime()
+  const diasTotais = Math.max(1, Math.ceil(totalMs / (1000 * 60 * 60 * 24)))
+
+  const decorridoMs = agora.getTime() - inicio.getTime()
+  const diasDecorridos = Math.max(0, Math.ceil(decorridoMs / (1000 * 60 * 60 * 24)))
+  const percentualDecorrido = Math.min(
+    100,
+    Math.max(0, Math.round((diasDecorridos / diasTotais) * 100)),
+  )
+
+  if (diasRestantes < 0) {
+    return {
+      diasRestantes,
+      diasTotais,
+      diasDecorridos,
+      percentualDecorrido: 100,
+      statusSemaforo: 'vencido',
+      statusTexto: `Vencido há ${Math.abs(diasRestantes)} dias`,
+    }
+  }
+
+  if (diasRestantes <= 30) {
+    return {
+      diasRestantes,
+      diasTotais,
+      diasDecorridos,
+      percentualDecorrido,
+      statusSemaforo: 'vermelho',
+      statusTexto: `Vencendo em ${diasRestantes} dias`,
+    }
+  }
+
+  if (diasRestantes <= 60) {
+    return {
+      diasRestantes,
+      diasTotais,
+      diasDecorridos,
+      percentualDecorrido,
+      statusSemaforo: 'ambar',
+      statusTexto: `Atenção: ${diasRestantes} dias restantes`,
+    }
+  }
+
+  return {
+    diasRestantes,
+    diasTotais,
+    diasDecorridos,
+    percentualDecorrido,
+    statusSemaforo: 'verde',
+    statusTexto: `Vigência regular (${diasRestantes} dias)`,
+  }
+}
+
 // ============================================================================
 // Métodos de Acesso ao PocketBase
 // ============================================================================
@@ -328,6 +546,205 @@ export const prestadoresService = {
 
   async excluirContrato(id: string): Promise<boolean> {
     return await pb.collection('contratos_pj').delete(id)
+  },
+
+  // --------------------------------------------------------------------------
+  // Aditivos Contratuais PJ
+  // --------------------------------------------------------------------------
+  async listarAditivos(filtros?: {
+    prestadorId?: string
+    contratoId?: string
+  }): Promise<AditivoPJ[]> {
+    const parts: string[] = []
+    if (filtros?.prestadorId) parts.push(`prestador = '${filtros.prestadorId}'`)
+    if (filtros?.contratoId) parts.push(`contrato = '${filtros.contratoId}'`)
+    const filter = parts.join(' && ')
+
+    return await pb.collection('aditivos_pj').getFullList<AditivoPJ>({
+      filter,
+      sort: '-sequencia,-created',
+      expand: 'contrato,prestador',
+    })
+  },
+
+  async obterAditivo(id: string): Promise<AditivoPJ> {
+    return await pb.collection('aditivos_pj').getOne<AditivoPJ>(id, {
+      expand: 'contrato,prestador',
+    })
+  },
+
+  async criarAditivo(dados: Partial<AditivoPJ>, anexoFile?: File): Promise<AditivoPJ> {
+    // Se não informou sequência, autocalcular pelo contrato
+    let sequencia = dados.sequencia
+    if (!sequencia && dados.contrato) {
+      try {
+        const existentes = await pb.collection('aditivos_pj').getFullList<AditivoPJ>({
+          filter: `contrato = '${dados.contrato}'`,
+          sort: '-sequencia',
+          fields: 'sequencia',
+        })
+        sequencia = existentes.length > 0 ? (existentes[0].sequencia || 0) + 1 : 1
+      } catch (_) {
+        sequencia = 1
+      }
+    }
+
+    const payload: Partial<AditivoPJ> = {
+      ...dados,
+      sequencia: sequencia || 1,
+    }
+
+    let criado: AditivoPJ
+    if (anexoFile) {
+      const formData = new FormData()
+      Object.entries(payload).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) {
+          formData.append(k, String(v))
+        }
+      })
+      formData.append('anexo_aditivo', anexoFile)
+      criado = await pb.collection('aditivos_pj').create<AditivoPJ>(formData)
+    } else {
+      criado = await pb.collection('aditivos_pj').create<AditivoPJ>(payload)
+    }
+
+    // Se o aditivo foi criado como Vigente ou precisa atualizar o contrato
+    await this.sincronizarEfeitosAditivo(criado)
+
+    return criado
+  },
+
+  async atualizarAditivo(
+    id: string,
+    dados: Partial<AditivoPJ>,
+    anexoFile?: File,
+  ): Promise<AditivoPJ> {
+    let atualizado: AditivoPJ
+    if (anexoFile) {
+      const formData = new FormData()
+      Object.entries(dados).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) {
+          formData.append(k, String(v))
+        }
+      })
+      formData.append('anexo_aditivo', anexoFile)
+      atualizado = await pb.collection('aditivos_pj').update<AditivoPJ>(id, formData)
+    } else {
+      atualizado = await pb.collection('aditivos_pj').update<AditivoPJ>(id, dados)
+    }
+
+    await this.sincronizarEfeitosAditivo(atualizado)
+
+    return atualizado
+  },
+
+  async excluirAditivo(id: string): Promise<boolean> {
+    const aditivo = await pb.collection('aditivos_pj').getOne<AditivoPJ>(id)
+    const contratoId = aditivo.contrato
+    const res = await pb.collection('aditivos_pj').delete(id)
+
+    // Recalcular contador no contrato
+    if (contratoId) {
+      try {
+        const restantes = await pb.collection('aditivos_pj').getFullList({
+          filter: `contrato = '${contratoId}'`,
+        })
+        await pb.collection('contratos_pj').update(contratoId, {
+          contador_aditivos: restantes.length,
+        })
+      } catch (errRecalc) {
+        console.warn('Aviso ao recalcular contador do contrato após exclusão:', errRecalc)
+      }
+    }
+
+    return res
+  },
+
+  /**
+   * Sincroniza os efeitos colaterais de um aditivo:
+   * 1. Atualiza o contador de aditivos no contrato vinculado.
+   * 2. Se o aditivo estiver com status 'Vigente':
+   *    - Reajuste de valor -> atualiza valor no contrato_pj
+   *    - Prolongamento de vigência -> atualiza data_fim no contrato_pj
+   *    - Reajuste e Prolongamento -> atualiza ambos
+   * 3. Se estiver 'Pendente de assinatura', atualiza o marco de lifecycle correspondente.
+   */
+  async sincronizarEfeitosAditivo(aditivo: AditivoPJ): Promise<void> {
+    if (!aditivo.contrato) return
+
+    try {
+      const [todosDoContrato, contratoAtual] = await Promise.all([
+        pb.collection('aditivos_pj').getFullList<AditivoPJ>({
+          filter: `contrato = '${aditivo.contrato}'`,
+          sort: 'sequencia',
+        }),
+        pb.collection('contratos_pj').getOne<ContratoPJ>(aditivo.contrato),
+      ])
+
+      const patchContrato: Partial<ContratoPJ> = {
+        contador_aditivos: todosDoContrato.length,
+      }
+
+      // Se aditivo está Vigente, aplicar seus efeitos no contrato
+      if (aditivo.status === 'Vigente') {
+        const reajustaValor =
+          aditivo.tipo === 'Reajuste de valor' || aditivo.tipo === 'Reajuste e Prolongamento'
+        const prorrogaVigencia =
+          aditivo.tipo === 'Prolongamento de vigência' ||
+          aditivo.tipo === 'Reajuste e Prolongamento'
+
+        if (
+          reajustaValor &&
+          typeof aditivo.novo_valor_mensal === 'number' &&
+          aditivo.novo_valor_mensal > 0
+        ) {
+          patchContrato.valor = aditivo.novo_valor_mensal
+        }
+
+        if (prorrogaVigencia && aditivo.nova_vigencia_fim) {
+          patchContrato.data_fim = aditivo.nova_vigencia_fim
+          // Se estava 'Vencendo', verificar se agora tem mais de 30 dias
+          const fimNova = new Date(aditivo.nova_vigencia_fim)
+          const diffDias = Math.ceil(
+            (fimNova.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+          )
+          if (diffDias > 30 && contratoAtual.status === 'Vencendo') {
+            patchContrato.status = 'Vigente'
+          }
+        }
+      }
+
+      await pb.collection('contratos_pj').update(aditivo.contrato, patchContrato)
+
+      // Atualizar marco de aditivo_contrato no lifecycle PJ
+      if (aditivo.prestador) {
+        try {
+          const marcos = await pb.collection('marcos_lifecycle_pj').getFullList<MarcoLifecyclePJ>({
+            filter: `prestador = '${aditivo.prestador}' && chave_marco = 'aditivo_contrato'`,
+          })
+          if (marcos.length > 0) {
+            const m = marcos[0]
+            if (aditivo.status === 'Vigente') {
+              await this.atualizarStatusMarco(m.id, 'REGISTRADO', {
+                responsavel: 'Jurídico / Diretor',
+                observacao: `Aditivo ${aditivo.numero_aditivo} vigente (${aditivo.tipo})`,
+                autor: 'Módulo de Aditivos PJ',
+              })
+            } else if (aditivo.status === 'Pendente de assinatura') {
+              await this.atualizarStatusMarco(m.id, 'PENDENTE DO PJ', {
+                responsavel: 'Fornecedor PJ / Sócios',
+                observacao: `Aditivo ${aditivo.numero_aditivo} aguardando assinatura`,
+                autor: 'Módulo de Aditivos PJ',
+              })
+            }
+          }
+        } catch (marcoErr) {
+          console.warn('Aviso ao sincronizar marco de aditivo no lifecycle:', marcoErr)
+        }
+      }
+    } catch (err) {
+      console.warn('Aviso ao sincronizar efeitos do aditivo no contrato:', err)
+    }
   },
 
   // --------------------------------------------------------------------------

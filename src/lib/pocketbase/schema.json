@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T02:48:34.548Z",
+  "generatedAt": "2026-09-20T02:49:10.575Z",
   "collections": [
     {
       "name": "users",
@@ -2915,27 +2915,9 @@
           "type": "file",
           "required": false,
           "system": false
-        },
-        {
-          "name": "created",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate"]
-        },
-        {
-          "name": "updated",
-          "type": "autodate",
-          "required": false,
-          "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
-      "indexes": [
-        "CREATE INDEX idx_aditivos_contrato ON aditivos_pj (contrato)",
-        "CREATE INDEX idx_aditivos_prestador ON aditivos_pj (prestador)",
-        "CREATE INDEX idx_aditivos_status ON aditivos_pj (status)"
-      ]
+      "indexes": []
     }
   ]
 }

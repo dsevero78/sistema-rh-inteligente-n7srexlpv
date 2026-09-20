@@ -10,8 +10,13 @@ import {
   NotaFiscalPJ,
   AvaliacaoPrestadorPJ,
   MarcoLifecyclePJ,
+  AditivoPJ,
   prestadoresService,
   getAnexoUrl,
+  calcularValorMensalEfetivo,
+  calcularVigenciaFimEfetiva,
+  calcularValorHora,
+  HORAS_MES_PADRAO,
 } from '@/services/prestadoresPj'
 import { useToast } from '@/hooks/use-toast'
 import {
@@ -35,9 +40,14 @@ import {
   ShieldAlert,
   GitCommit,
   Sparkles,
+  FileSignature,
+  TrendingUp,
 } from 'lucide-react'
 import { DocumentViewerModal } from './DocumentViewerModal'
 import { LifecycleJornadaPJ } from './LifecycleJornadaPJ'
+import { AbaAditivos } from './AbaAditivos'
+import { BlocoPrazosEFinanceiroContrato } from './BlocoPrazosEFinanceiroContrato'
+import { ModalNovoAditivo } from './ModalNovoAditivo'
 import {
   ModalNovoContrato,
   ModalNovoDocumento,
@@ -51,6 +61,7 @@ interface PrestadorDetalhesViewProps {
   documentos: DocumentoPJ[]
   notasFiscais: NotaFiscalPJ[]
   avaliacoes: AvaliacaoPrestadorPJ[]
+  aditivos?: AditivoPJ[]
   marcosLifecycle?: MarcoLifecyclePJ[]
   onVoltar: () => void
   onEditar: () => void
@@ -63,6 +74,7 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
   documentos,
   notasFiscais,
   avaliacoes,
+  aditivos: propsAditivos = [],
   marcosLifecycle = [],
   onVoltar,
   onEditar,
@@ -72,8 +84,28 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
 
   // Controle de Abas: 'jornada' é a seção PRINCIPAL e DOMINANTE
   const [activeTab, setActiveTab] = useState<
-    'jornada' | 'perfil' | 'documentos' | 'notas' | 'avaliacoes'
+    'jornada' | 'perfil' | 'aditivos' | 'documentos' | 'notas' | 'avaliacoes'
   >('jornada')
+
+  // Aditivos locais
+  const [aditivosLocais, setAditivosLocais] = useState<AditivoPJ[]>(propsAditivos || [])
+  const [modalNovoAditivoOpen, setModalNovoAditivoOpen] = useState(false)
+  const [contratoPreSelecionadoId, setContratoPreSelecionadoId] = useState<string | undefined>(
+    undefined,
+  )
+
+  const carregarAditivos = async () => {
+    try {
+      const lista = await prestadoresService.listarAditivos({ prestadorId: prestador.id })
+      setAditivosLocais(lista)
+    } catch (err) {
+      console.warn('Erro ao carregar aditivos do prestador:', err)
+    }
+  }
+
+  React.useEffect(() => {
+    carregarAditivos()
+  }, [prestador.id])
 
   // Marcos de Lifecycle locais
   const [marcosLocais, setMarcosLocais] = useState<MarcoLifecyclePJ[]>(marcosLifecycle)
@@ -113,7 +145,7 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
 
   // Recarga composta
   const handleRecarregarTudo = async () => {
-    await carregarMarcos()
+    await Promise.all([carregarMarcos(), carregarAditivos()])
     onAtualizarDados()
   }
 
@@ -184,10 +216,18 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
     }
   }
 
-  // Cálculos de resumo financeiro do prestador
+  // Cálculos de resumo financeiro do prestador considerando aditivos vigentes
   const totalMensal = contratos
     .filter((c) => c.status === 'Vigente' || c.status === 'Vencendo')
-    .reduce((acc, c) => acc + (c.valor || 0), 0)
+    .reduce((acc, c) => {
+      const adits = aditivosLocais.filter((a) => a.contrato === c.id)
+      return acc + calcularValorMensalEfetivo(c, adits)
+    }, 0)
+
+  // Valor-hora total médio ponderado considerando a premissa de 160h/mês
+  const valorHoraGeral = Number((totalMensal / HORAS_MES_PADRAO).toFixed(2))
+
+  const totalAditivos = aditivosLocais.length
 
   const nfsPendentes = notasFiscais.filter((n) => n.status !== 'Paga' && n.status !== 'Glosada')
   const totalPendente = nfsPendentes.reduce((acc, n) => acc + (n.valor || 0), 0)
@@ -301,18 +341,55 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         </div>
       </div>
 
-      {/* Mini Cards de KPIs do Prestador */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-slate-50/50">
+      {/* Mini Cards de KPIs do Prestador com Financeiro em Destaque e Valor-Hora (Base 160h) */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        {/* Card 1: Comprometimento Mensal Efetivo */}
+        <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-blue-50/30">
           <CardContent className="p-4">
-            <span className="text-[11px] font-medium text-slate-500">Comprometimento Mensal</span>
-            <div className="text-lg font-bold text-slate-900 mt-1">
+            <span className="text-[11px] font-medium text-slate-500">Valor Mensal Atual</span>
+            <div className="text-lg font-bold text-blue-700 mt-1">
               R$ {totalMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[10px] text-slate-400">Contratos vigentes/ativos</span>
+            <span className="text-[10px] text-slate-400">Considerando aditivos vigentes</span>
           </CardContent>
         </Card>
 
+        {/* Card 2: Valor-Hora (Base 160h/mês) em Destaque */}
+        <Card className="border-indigo-200 shadow-xs bg-gradient-to-br from-white to-indigo-50/40">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-indigo-700">Valor-Hora Calculado</span>
+              <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">
+                160h/mês
+              </span>
+            </div>
+            <div className="text-lg font-extrabold text-indigo-900 mt-1">
+              R$ {valorHoraGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              <span className="text-xs font-normal text-indigo-600">/h</span>
+            </div>
+            <span className="text-[10px] text-indigo-600 font-mono">
+              (R$ {totalMensal.toLocaleString('pt-BR')} ÷ 160h)
+            </span>
+          </CardContent>
+        </Card>
+
+        {/* Card 3: Aditivos Formalizados */}
+        <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-purple-50/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-slate-500">Aditivos Contratuais</span>
+              <FileSignature className="w-4 h-4 text-purple-600" />
+            </div>
+            <div className="text-lg font-bold text-purple-900 mt-1">
+              {totalAditivos} formalizado(s)
+            </div>
+            <span className="text-[10px] text-purple-700">
+              {aditivosLocais.filter((a) => a.status === 'Pendente de assinatura').length > 0
+                ? `${aditivosLocais.filter((a) => a.status === 'Pendente de assinatura').length} pendente(s)`
+                : 'Todos regularizados'}
+            </span>
+          </CardContent>
+        </Card>
         <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-slate-50/50">
           <CardContent className="p-4">
             <span className="text-[11px] font-medium text-slate-500">Média de Desempenho</span>
@@ -377,6 +454,13 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
             <Building2 className="w-3.5 h-3.5" />
             Perfil & Contratos ({contratos.length})
           </TabsTrigger>
+          <TabsTrigger
+            value="aditivos"
+            className="gap-2 text-xs font-semibold data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-900"
+          >
+            <FileSignature className="w-3.5 h-3.5 text-indigo-600" />
+            Aditivos & Prazos ({aditivosLocais.length})
+          </TabsTrigger>
           <TabsTrigger value="documentos" className="gap-2 text-xs">
             <FileCheck className="w-3.5 h-3.5" />
             Documentos & Certidões ({documentos.length})
@@ -422,6 +506,47 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
           <LifecycleJornadaPJ
             prestador={prestador}
             marcos={marcosLocais}
+            onAtualizar={handleRecarregarTudo}
+          />
+        </TabsContent>
+
+        {/* ------------------------------------------------------------------ */}
+        {/* ABA: Aditivos Contratuais & Controle de Prazos                     */}
+        {/* ------------------------------------------------------------------ */}
+        <TabsContent value="aditivos" className="space-y-6">
+          {/* Seção de Prazos e Semáforos de Cada Contrato */}
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-purple-600" />
+                Controle de Prazos & Semáforo de Vigência Contratual
+              </h3>
+              <p className="text-xs text-slate-500">
+                Prazos em tempo real com semáforo (Verde / Âmbar / Vermelho), dias restantes e
+                valor-hora com base 160h/mês.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {contratos.map((ct) => (
+                <BlocoPrazosEFinanceiroContrato
+                  key={ct.id}
+                  contrato={ct}
+                  aditivos={aditivosLocais}
+                  onNovoAditivo={() => {
+                    setContratoPreSelecionadoId(ct.id)
+                    setModalNovoAditivoOpen(true)
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Aba de Aditivos com histórico completo e delta */}
+          <AbaAditivos
+            prestador={prestador}
+            contratos={contratos}
+            aditivos={aditivosLocais}
             onAtualizar={handleRecarregarTudo}
           />
         </TabsContent>
@@ -614,37 +739,65 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
                       }`}
                     >
                       <CardContent className="p-5 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-bold text-slate-900">{c.titulo}</h4>
-                              <Badge
-                                variant={
-                                  c.status === 'Vigente'
-                                    ? 'default'
-                                    : c.status === 'Vencendo'
-                                      ? 'destructive'
-                                      : 'outline'
-                                }
-                                className="text-[10px]"
-                              >
-                                {c.status}
-                              </Badge>
-                            </div>
-                            {c.numero_contrato && (
-                              <span className="text-[11px] font-mono text-slate-400">
-                                Nº: {c.numero_contrato}
-                              </span>
-                            )}
-                          </div>
+                        {(() => {
+                          const aditsDeste = aditivosLocais.filter((a) => a.contrato === c.id)
+                          const valorEfetivo = calcularValorMensalEfetivo(c, aditsDeste)
+                          const infoHora = calcularValorHora(c, aditsDeste)
+                          const vigenciaEfetiva = calcularVigenciaFimEfetiva(c, aditsDeste)
+                          const contagemAdit = aditsDeste.length
 
-                          <span className="text-sm font-extrabold text-blue-700">
-                            R$ {c.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            <span className="text-[10px] text-slate-400 font-normal ml-1">
-                              /{c.tipo}
-                            </span>
-                          </span>
-                        </div>
+                          return (
+                            <>
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className="text-sm font-bold text-slate-900">{c.titulo}</h4>
+                                    <Badge
+                                      variant={
+                                        c.status === 'Vigente'
+                                          ? 'default'
+                                          : c.status === 'Vencendo'
+                                            ? 'destructive'
+                                            : 'outline'
+                                      }
+                                      className="text-[10px]"
+                                    >
+                                      {c.status}
+                                    </Badge>
+                                    {contagemAdit > 0 && (
+                                      <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px]">
+                                        {contagemAdit} aditivo(s)
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {c.numero_contrato && (
+                                    <span className="text-[11px] font-mono text-slate-400">
+                                      Nº: {c.numero_contrato}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="text-right">
+                                  <span className="text-sm font-extrabold text-blue-700 block">
+                                    R${' '}
+                                    {valorEfetivo.toLocaleString('pt-BR', {
+                                      minimumFractionDigits: 2,
+                                    })}
+                                    <span className="text-[10px] text-slate-400 font-normal ml-1">
+                                      /{c.tipo}
+                                    </span>
+                                  </span>
+                                  <span className="text-[10px] text-indigo-700 font-semibold block">
+                                    R$ {infoHora.valorHora.toFixed(2)}/h
+                                    <span className="text-[9px] text-slate-400 font-normal ml-0.5">
+                                      (160h/mês)
+                                    </span>
+                                  </span>
+                                </div>
+                              </div>
+                            </>
+                          )
+                        })()}
 
                         <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                           <div className="flex items-center gap-1.5">
@@ -1089,6 +1242,16 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Modal Novo Aditivo */}
+      <ModalNovoAditivo
+        open={modalNovoAditivoOpen}
+        onOpenChange={setModalNovoAditivoOpen}
+        prestador={prestador}
+        contratos={contratos}
+        contratoPreSelecionadoId={contratoPreSelecionadoId}
+        onSuccess={handleRecarregarTudo}
+      />
 
       {/* Modais Secundários */}
       <ModalNovoContrato

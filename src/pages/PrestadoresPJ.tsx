@@ -30,6 +30,10 @@ import {
   AvaliacaoPrestadorPJ,
   MarcoLifecyclePJ,
   EtapaLifecyclePJ,
+  AditivoPJ,
+  calcularValorMensalEfetivo,
+  calcularValorHora,
+  HORAS_MES_PADRAO,
 } from '@/services/prestadoresPj'
 import {
   Building2,
@@ -62,6 +66,7 @@ export const PrestadoresPJ: React.FC = () => {
   const [documentos, setDocumentos] = useState<DocumentoPJ[]>([])
   const [notasFiscais, setNotasFiscais] = useState<NotaFiscalPJ[]>([])
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoPrestadorPJ[]>([])
+  const [aditivos, setAditivos] = useState<AditivoPJ[]>([])
   const [todosMarcos, setTodosMarcos] = useState<MarcoLifecyclePJ[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -89,12 +94,13 @@ export const PrestadoresPJ: React.FC = () => {
   // Carga inicial dos dados
   const carregarDados = async () => {
     try {
-      const [pList, cList, dList, nList, aList, mList] = await Promise.all([
+      const [pList, cList, dList, nList, aList, adList, mList] = await Promise.all([
         prestadoresService.listarPrestadores(),
         prestadoresService.listarContratos(),
         prestadoresService.listarDocumentos(),
         prestadoresService.listarNotasFiscais(),
         prestadoresService.listarAvaliacoes(),
+        prestadoresService.listarAditivos(),
         pb.collection('marcos_lifecycle_pj').getFullList<MarcoLifecyclePJ>({ sort: 'ordem' }),
       ])
 
@@ -103,6 +109,7 @@ export const PrestadoresPJ: React.FC = () => {
       setDocumentos(dList)
       setNotasFiscais(nList)
       setAvaliacoes(aList)
+      setAditivos(adList)
       setTodosMarcos(mList)
     } catch (err) {
       console.error('Erro ao carregar módulo PJ:', err)
@@ -125,6 +132,7 @@ export const PrestadoresPJ: React.FC = () => {
   useRealtime('prestadores_pj', () => carregarDados())
   useRealtime('contratos_pj', () => carregarDados())
   useRealtime('documentos_pj', () => carregarDados())
+  useRealtime('aditivos_pj', () => carregarDados())
   useRealtime('notas_fiscais_pj', () => carregarDados())
   useRealtime('avaliacoes_prestador_pj', () => carregarDados())
   useRealtime('marcos_lifecycle_pj', () => carregarDados())
@@ -170,7 +178,13 @@ export const PrestadoresPJ: React.FC = () => {
 
     const valorMensal = contratos
       .filter((c) => c.status === 'Vigente' || c.status === 'Vencendo')
-      .reduce((acc, c) => acc + (c.tipo === 'Mensal' ? c.valor : 0), 0)
+      .reduce((acc, c) => {
+        const aditsDeste = aditivos.filter((a) => a.contrato === c.id)
+        return acc + (c.tipo === 'Mensal' ? calcularValorMensalEfetivo(c, aditsDeste) : 0)
+      }, 0)
+
+    const valorHoraGeral = Number((valorMensal / HORAS_MES_PADRAO).toFixed(2))
+    const totalAditivos = aditivos.length
 
     const contratosVencendo30Dias = contratos.filter((c) => {
       if (c.status === 'Encerrado' || c.status === 'Rescindido') return false
@@ -186,11 +200,12 @@ export const PrestadoresPJ: React.FC = () => {
       ativos,
       contratosVigentes,
       valorMensal,
+      valorHoraGeral,
+      totalAditivos,
       contratosVencendo30Dias,
       docsVencidos,
     }
-  }, [prestadores, contratos, documentos])
-
+  }, [prestadores, contratos, documentos, aditivos])
   // Lista de áreas únicas para filtro
   const areasDisponiveis = useMemo(() => {
     const set = new Set<string>()
@@ -258,6 +273,11 @@ export const PrestadoresPJ: React.FC = () => {
     return avaliacoes.filter((a) => a.prestador === prestadorSelecionadoId)
   }, [prestadorSelecionadoId, avaliacoes])
 
+  const aditivosDoSelecionado = useMemo(() => {
+    if (!prestadorSelecionadoId) return []
+    return aditivos.filter((a) => a.prestador === prestadorSelecionadoId)
+  }, [prestadorSelecionadoId, aditivos])
+
   const marcosDoSelecionado = useMemo(() => {
     if (!prestadorSelecionadoId) return []
     return todosMarcos.filter((m) => m.prestador === prestadorSelecionadoId)
@@ -314,6 +334,7 @@ export const PrestadoresPJ: React.FC = () => {
           documentos={docsDoSelecionado}
           notasFiscais={nfsDoSelecionado}
           avaliacoes={avaliacoesDoSelecionado}
+          aditivos={aditivosDoSelecionado}
           marcosLifecycle={marcosDoSelecionado}
           onVoltar={() => setPrestadorSelecionadoId(null)}
           onEditar={() => {
@@ -405,11 +426,16 @@ export const PrestadoresPJ: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* KPI 3: Valor Mensal Comprometido */}
-            <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-slate-50/50">
+            {/* KPI 3: Valor Mensal Atual e Valor-Hora (Base 160h/mês) */}
+            <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-indigo-50/30">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-medium">Valor Mensal Comprometido</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium">Valor Mensal Atual</span>
+                    <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1 py-0.2 rounded font-bold">
+                      160h/mês
+                    </span>
+                  </div>
                   <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
                     <DollarSign className="w-4 h-4" />
                   </div>
@@ -417,7 +443,10 @@ export const PrestadoresPJ: React.FC = () => {
                 <div className="text-xl font-bold text-slate-900 mt-2">
                   R$ {kpis.valorMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </div>
-                <span className="text-[11px] text-slate-400">Despesa fixa mensal PJ</span>
+                <span className="text-[11px] text-indigo-700 font-bold block truncate">
+                  R$ {kpis.valorHoraGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/h
+                  &bull; {kpis.totalAditivos} aditivos
+                </span>
               </CardContent>
             </Card>
 
@@ -564,9 +593,15 @@ export const PrestadoresPJ: React.FC = () => {
                   return diff <= 30 && diff > 0
                 })
 
+                const aditsDestePrestador = aditivos.filter((a) => a.prestador === p.id)
                 const valorMensalTotal = contratosDoPrestador
                   .filter((c) => c.status === 'Vigente' || c.status === 'Vencendo')
-                  .reduce((acc, c) => acc + (c.tipo === 'Mensal' ? c.valor : 0), 0)
+                  .reduce((acc, c) => {
+                    const aditsDoC = aditsDestePrestador.filter((a) => a.contrato === c.id)
+                    return acc + (c.tipo === 'Mensal' ? calcularValorMensalEfetivo(c, aditsDoC) : 0)
+                  }, 0)
+
+                const valorHoraPrestador = Number((valorMensalTotal / HORAS_MES_PADRAO).toFixed(2))
 
                 return (
                   <Card
@@ -668,25 +703,43 @@ export const PrestadoresPJ: React.FC = () => {
                         )
                       })()}
 
-                      {/* Informações Centrais */}
-                      <div className="bg-slate-50/80 rounded-lg p-3 text-xs space-y-1.5 border border-slate-100">
+                      {/* Informações Centrais com Financeiro em Destaque & Valor-Hora (Base 160h) */}
+                      <div className="bg-slate-50/80 rounded-lg p-3 text-xs space-y-2 border border-slate-100">
                         <div className="flex justify-between items-center text-slate-600">
-                          <span>Contratos Ativos:</span>
+                          <span>Contratos & Aditivos:</span>
                           <strong className="text-slate-900">
                             {
                               contratosDoPrestador.filter(
                                 (c) => c.status === 'Vigente' || c.status === 'Vencendo',
                               ).length
-                            }
+                            }{' '}
+                            ativo(s) &bull;{' '}
+                            <span className="text-indigo-700">
+                              {aditsDestePrestador.length} aditivo(s)
+                            </span>
                           </strong>
                         </div>
+
                         <div className="flex justify-between items-center text-slate-600">
-                          <span>Faturamento Mensal:</span>
+                          <span>Valor Mensal Atual:</span>
                           <strong className="text-blue-700 font-bold">
                             R${' '}
                             {valorMensalTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </strong>
                         </div>
+
+                        {/* Valor-Hora (Base 160h/mês) */}
+                        <div className="flex justify-between items-center bg-white p-1.5 rounded-md border border-indigo-100 text-[11px]">
+                          <span className="text-indigo-900 font-medium">Valor-Hora (÷ 160h):</span>
+                          <strong className="text-indigo-700 font-bold">
+                            R${' '}
+                            {valorHoraPrestador.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                            })}
+                            /h
+                          </strong>
+                        </div>
+
                         <div className="flex justify-between items-center text-slate-600">
                           <span>Responsável:</span>
                           <span className="text-slate-800 truncate max-w-[150px]">
