@@ -753,21 +753,37 @@ export function Alertas() {
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                       {/* Left: Info Candidato e Vaga */}
                       <div className="flex items-start gap-4 flex-1 min-w-0">
-                        {/* Ring de Score */}
-                        <div
-                          className={`relative w-13 h-13 rounded-xl flex flex-col items-center justify-center shrink-0 border font-extrabold ${
-                            score >= 85
-                              ? 'bg-blue-600 text-white border-blue-700 shadow-sm shadow-blue-500/20'
-                              : score >= 75
-                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                : 'bg-slate-100 text-slate-700 border-slate-200'
-                          }`}
-                        >
-                          <span className="text-base leading-none">{score}%</span>
-                          <span className="text-[9px] uppercase tracking-wider font-semibold opacity-90">
-                            fit
-                          </span>
-                        </div>
+                        {/* Ring de Score ou Ícone do Evento */}
+                        {alerta.tipo === 'aprovacao_vaga_gestor' ? (
+                          <div className="w-13 h-13 rounded-xl flex flex-col items-center justify-center shrink-0 border font-extrabold bg-emerald-50 text-emerald-700 border-emerald-200">
+                            <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                            <span className="text-[8px] uppercase tracking-wider font-bold mt-0.5">
+                              Vaga
+                            </span>
+                          </div>
+                        ) : alerta.tipo === 'parecer_gestor_candidato' ? (
+                          <div className="w-13 h-13 rounded-xl flex flex-col items-center justify-center shrink-0 border font-extrabold bg-purple-50 text-purple-700 border-purple-200">
+                            <User className="w-6 h-6 text-purple-600" />
+                            <span className="text-[8px] uppercase tracking-wider font-bold mt-0.5">
+                              Parecer
+                            </span>
+                          </div>
+                        ) : (
+                          <div
+                            className={`relative w-13 h-13 rounded-xl flex flex-col items-center justify-center shrink-0 border font-extrabold ${
+                              score >= 85
+                                ? 'bg-blue-600 text-white border-blue-700 shadow-sm shadow-blue-500/20'
+                                : score >= 75
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : 'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            <span className="text-base leading-none">{score}%</span>
+                            <span className="text-[9px] uppercase tracking-wider font-semibold opacity-90">
+                              fit
+                            </span>
+                          </div>
+                        )}
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -777,7 +793,11 @@ export function Alertas() {
                               </Badge>
                             )}
                             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                              Talento do Banco enquadrado
+                              {alerta.tipo === 'aprovacao_vaga_gestor'
+                                ? 'Aprovação / Alinhamento de Vaga pelo Gestor'
+                                : alerta.tipo === 'parecer_gestor_candidato'
+                                  ? 'Parecer Formal do Gestor Contratante'
+                                  : 'Talento do Banco enquadrado'}
                             </span>
                             <span className="text-slate-300">·</span>
                             <span className="text-xs text-slate-400">
@@ -793,25 +813,36 @@ export function Alertas() {
                           </div>
 
                           <div className="mt-1 flex items-baseline gap-2 flex-wrap">
-                            <Link
-                              to={cand ? `/candidatos/${cand.id}` : '#'}
-                              className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors flex items-center gap-1"
-                            >
-                              {cand?.nome || 'Candidato'}
-                            </Link>
-                            <span className="text-xs text-slate-500 font-medium">
-                              ({cand?.cargo_atual || 'Profissional'})
-                            </span>
-                            <span className="text-slate-300">→</span>
-                            <Link
-                              to={vaga ? `/vagas/${vaga.id}` : '#'}
-                              className="text-sm font-semibold text-blue-700 hover:underline flex items-center gap-1"
-                            >
-                              <Briefcase className="w-3.5 h-3.5 text-blue-600" />
-                              {vaga?.titulo || 'Vaga Aberta'}
-                            </Link>
+                            {alerta.tipo === 'aprovacao_vaga_gestor' ? (
+                              <Link
+                                to={vaga ? `/vagas/${vaga.id}` : '#'}
+                                className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors flex items-center gap-1.5"
+                              >
+                                <Briefcase className="w-4 h-4 text-emerald-600" />
+                                {vaga?.titulo || 'Vaga em Análise'}
+                              </Link>
+                            ) : (
+                              <>
+                                <Link
+                                  to={cand ? `/candidatos/${cand.id}` : '#'}
+                                  className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors flex items-center gap-1"
+                                >
+                                  {cand?.nome || 'Candidato'}
+                                </Link>
+                                <span className="text-xs text-slate-500 font-medium">
+                                  ({cand?.cargo_atual || 'Profissional'})
+                                </span>
+                                <span className="text-slate-300">→</span>
+                                <Link
+                                  to={vaga ? `/vagas/${vaga.id}` : '#'}
+                                  className="text-sm font-semibold text-blue-700 hover:underline flex items-center gap-1"
+                                >
+                                  <Briefcase className="w-3.5 h-3.5 text-blue-600" />
+                                  {vaga?.titulo || 'Vaga Aberta'}
+                                </Link>
+                              </>
+                            )}
                           </div>
-
                           {/* Resumo da IA */}
                           {alerta.resumo_ia && (
                             <div className="mt-2 text-xs text-slate-700 bg-slate-50/80 border border-slate-200/70 rounded-lg p-2.5 flex items-start gap-2">
@@ -824,30 +855,44 @@ export function Alertas() {
 
                       {/* Right: Ações Rápidas */}
                       <div className="flex items-center gap-2 self-end lg:self-center shrink-0 flex-wrap">
-                        {cand && (
+                        {alerta.tipo === 'aprovacao_vaga_gestor' && vaga ? (
+                          <Link to={`/vagas/${vaga.id}`}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs font-medium border-emerald-200 text-emerald-800 hover:bg-emerald-50"
+                            >
+                              <Briefcase className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                              Ver Vaga
+                            </Button>
+                          </Link>
+                        ) : cand ? (
                           <Link to={`/candidatos/${cand.id}`}>
                             <Button
                               variant="outline"
                               size="sm"
                               className="h-8 text-xs font-medium border-slate-200 text-slate-700 hover:bg-slate-50"
                             >
-                              <User className="w-3.5 h-3.5 mr-1" />
+                              <User className="w-3.5 h-3.5 mr-1 text-blue-600" />
                               Ver Perfil
                             </Button>
                           </Link>
-                        )}
+                        ) : null}
 
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setAlertaAlvo(alerta)
-                            setModalReaproveitarOpen(true)
-                          }}
-                          className="h-8 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
-                        >
-                          <ArrowRight className="w-3.5 h-3.5 mr-1" />
-                          Reaproveitar na Vaga
-                        </Button>
+                        {alerta.tipo !== 'aprovacao_vaga_gestor' &&
+                          alerta.tipo !== 'parecer_gestor_candidato' && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setAlertaAlvo(alerta)
+                                setModalReaproveitarOpen(true)
+                              }}
+                              className="h-8 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                            >
+                              <ArrowRight className="w-3.5 h-3.5 mr-1" />
+                              Reaproveitar na Vaga
+                            </Button>
+                          )}
 
                         {isNovo && (
                           <Button

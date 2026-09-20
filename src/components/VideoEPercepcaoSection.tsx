@@ -69,6 +69,11 @@ export function VideoEPercepcaoSection({
   const [editingPercepcao, setEditingPercepcao] = useState<RecordModel | null>(null)
   const [savingPercepcao, setSavingPercepcao] = useState(false)
 
+  // Estados de Análise de Vídeo da IA
+  const [analiseIa, setAnaliseIa] = useState<RecordModel | null>(null)
+  const [loadingAnaliseIa, setLoadingAnaliseIa] = useState(true)
+  const [gerandoAnaliseIa, setGerandoAnaliseIa] = useState(false)
+
   // Formulário estruturado de percepção
   const [visibilidade, setVisibilidade] = useState<
     'Privada (só o RH autor)' | 'Compartilhada com o gestor'
@@ -100,9 +105,63 @@ export function VideoEPercepcaoSection({
     }
   }
 
+  const carregarAnaliseIa = async () => {
+    try {
+      setLoadingAnaliseIa(true)
+      const list = await pb.collection('analises_video_ia').getFullList({
+        filter: `candidato = '${candidato.id}'`,
+        sort: '-created',
+      })
+      if (list && list.length > 0) {
+        setAnaliseIa(list[0])
+      } else {
+        setAnaliseIa(null)
+      }
+    } catch (err) {
+      console.error('Erro ao buscar análise da IA sobre vídeo:', err)
+    } finally {
+      setLoadingAnaliseIa(false)
+    }
+  }
+
   useEffect(() => {
     carregarPercepcoes()
+    carregarAnaliseIa()
   }, [candidato.id])
+
+  const handleGerarAnaliseIa = async () => {
+    setGerandoAnaliseIa(true)
+    try {
+      const res = await pb.send('/backend/v1/analisar-video-ia', {
+        method: 'POST',
+        body: {
+          candidatoId: candidato.id,
+          vagaId: candidato.vaga || null,
+        },
+      })
+      if (res && res.analise) {
+        setAnaliseIa(res.analise)
+        toast({
+          title: 'Análise de vídeo gerada com sucesso!',
+          description: 'A IA sintetizou as percepções compartilhadas e metadados do candidato.',
+        })
+      } else {
+        await carregarAnaliseIa()
+        toast({
+          title: 'Análise processada!',
+          description: 'Os dados foram atualizados.',
+        })
+      }
+    } catch (err: unknown) {
+      toast({
+        title: 'Erro ao gerar análise da IA',
+        description: err instanceof Error ? err.message : 'Falha na comunicação com o assistente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setGerandoAnaliseIa(false)
+    }
+  }
 
   // Salvar Vídeo
   const handleSalvarVideo = async () => {
@@ -350,6 +409,218 @@ export function VideoEPercepcaoSection({
               >
                 Anexar Agora
               </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 1.1 BLOCO DE ANÁLISE DA IA SOBRE O VÍDEO DE APRESENTAÇÃO */}
+      <Card className="border-slate-200 shadow-xs bg-white overflow-hidden">
+        <CardHeader className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-linear-to-r from-blue-50/40 via-white to-white">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded border border-blue-200">
+                IA Generativa
+              </span>
+              <span className="text-xs text-slate-400">· Avaliação de Apresentação & Postura</span>
+            </div>
+            <CardTitle className="text-base font-bold text-slate-900 mt-1 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-600" />
+              Análise da IA sobre o Vídeo de Apresentação
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500">
+              Síntese automática da oratória, postura e aderência baseada em percepções
+              compartilhadas do RH e metadados.
+            </CardDescription>
+          </div>
+
+          <Button
+            size="sm"
+            onClick={handleGerarAnaliseIa}
+            disabled={gerandoAnaliseIa}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold h-9 shadow-xs shrink-0"
+          >
+            {gerandoAnaliseIa ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                Analisando com IA...
+              </>
+            ) : analiseIa ? (
+              <>
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                Regerar Análise
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                Analisar Vídeo com IA
+              </>
+            )}
+          </Button>
+        </CardHeader>
+
+        <CardContent className="p-5">
+          {loadingAnaliseIa ? (
+            <div className="p-6 text-center text-xs text-slate-400">
+              Carregando análise da IA...
+            </div>
+          ) : !analiseIa ? (
+            <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl space-y-2 bg-slate-50/50">
+              <Sparkles className="w-8 h-8 text-blue-300 mx-auto" />
+              <p className="text-xs text-slate-700 font-semibold">
+                Nenhuma análise de IA gerada ainda para este vídeo
+              </p>
+              <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+                Clique no botão acima para acionar o motor de inteligência artificial. A IA
+                sintetiza percepções compartilhadas do RH, competências do candidato e metadados da
+                apresentação, mantendo sigilo de notas privadas.
+              </p>
+              <Button
+                size="sm"
+                onClick={handleGerarAnaliseIa}
+                disabled={gerandoAnaliseIa}
+                variant="outline"
+                className="text-xs text-blue-600 border-blue-200 hover:bg-blue-50 mt-2"
+              >
+                {gerandoAnaliseIa ? 'Processando...' : 'Gerar Primeira Análise'}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Top Banner: Veredito e Base Utilizada */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white border border-slate-200 px-3 py-1 rounded-lg text-center shadow-2xs">
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase">
+                      Nota Estimada
+                    </span>
+                    <span className="text-base font-extrabold text-blue-700">
+                      {analiseIa.nota_estimada || 8.5}/10
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-900">Recomendação IA:</span>
+                      <Badge
+                        className={`text-xs font-bold ${
+                          analiseIa.recomendacao_geral === 'Fortemente Recomendado'
+                            ? 'bg-emerald-600 text-white'
+                            : analiseIa.recomendacao_geral === 'Recomendado'
+                              ? 'bg-blue-600 text-white'
+                              : analiseIa.recomendacao_geral === 'Requer Alinhamento'
+                                ? 'bg-amber-600 text-white'
+                                : 'bg-rose-600 text-white'
+                        }`}
+                      >
+                        {analiseIa.recomendacao_geral || 'Recomendado'}
+                      </Badge>
+                    </div>
+                    {analiseIa.data_geracao && (
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Gerada em {new Date(analiseIa.data_geracao).toLocaleString('pt-BR')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Base Utilizada */}
+                <div className="text-left sm:text-right max-w-sm">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Base de Dados Utilizada
+                  </span>
+                  <p className="text-[11px] text-slate-600 font-medium">
+                    {analiseIa.base_utilizada ||
+                      `Baseado em ${analiseIa.qtd_percepcoes_consideradas || 0} percepção(ões) compartilhada(s) e no perfil.`}
+                  </p>
+                </div>
+              </div>
+
+              {/* Resumo Executivo da Apresentação */}
+              {analiseIa.resumo_executivo && (
+                <div className="p-4 bg-blue-50/40 rounded-xl border border-blue-100 text-xs text-slate-800 space-y-1">
+                  <strong className="block font-bold text-blue-900 text-[11px] uppercase tracking-wide">
+                    Síntese Executiva da Apresentação
+                  </strong>
+                  <p className="leading-relaxed">{analiseIa.resumo_executivo}</p>
+                </div>
+              )}
+
+              {/* Grid de Dimensões Avaliadas */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                {analiseIa.comunicacao_oratoria && (
+                  <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
+                    <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
+                      Comunicação & Oratória
+                    </strong>
+                    <p className="text-slate-600 leading-relaxed">
+                      {analiseIa.comunicacao_oratoria}
+                    </p>
+                  </div>
+                )}
+
+                {analiseIa.postura_presenca && (
+                  <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
+                    <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
+                      Postura & Presença
+                    </strong>
+                    <p className="text-slate-600 leading-relaxed">{analiseIa.postura_presenca}</p>
+                  </div>
+                )}
+
+                {analiseIa.dominio_experiencia && (
+                  <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
+                    <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
+                      Domínio das Experiências
+                    </strong>
+                    <p className="text-slate-600 leading-relaxed">
+                      {analiseIa.dominio_experiencia}
+                    </p>
+                  </div>
+                )}
+
+                {analiseIa.fit_cultural && (
+                  <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
+                    <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
+                      Fit Cultural Percebido
+                    </strong>
+                    <p className="text-slate-600 leading-relaxed">{analiseIa.fit_cultural}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Pontos Fortes e Riscos/Atenção */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {Array.isArray(analiseIa.pontos_fortes) && analiseIa.pontos_fortes.length > 0 && (
+                  <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-950 space-y-1">
+                    <strong className="block text-[11px] font-bold uppercase tracking-wide text-emerald-800">
+                      Destaques Positivos Identificados
+                    </strong>
+                    <ul className="space-y-1 list-disc list-inside">
+                      {analiseIa.pontos_fortes.map((p: string, idx: number) => (
+                        <li key={idx} className="leading-relaxed">
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {Array.isArray(analiseIa.pontos_atencao) && analiseIa.pontos_atencao.length > 0 && (
+                  <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-950 space-y-1">
+                    <strong className="block text-[11px] font-bold uppercase tracking-wide text-amber-800">
+                      Pontos de Atenção para Entrevistas
+                    </strong>
+                    <ul className="space-y-1 list-disc list-inside">
+                      {analiseIa.pontos_atencao.map((p: string, idx: number) => (
+                        <li key={idx} className="leading-relaxed">
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </CardContent>

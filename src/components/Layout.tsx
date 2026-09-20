@@ -421,7 +421,9 @@ export default function Layout() {
                 <div className="p-3.5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
                   <div className="flex items-center gap-2">
                     <Bell className="w-4 h-4 text-blue-400" />
-                    <span className="text-xs font-bold tracking-tight">Alertas de Talentos</span>
+                    <span className="text-xs font-bold tracking-tight">
+                      Central de Notificações
+                    </span>
                     {alertasNovosCount > 0 && (
                       <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.2 rounded-full font-bold">
                         {alertasNovosCount} novo(s)
@@ -451,38 +453,71 @@ export default function Layout() {
                       const cand = al.expand?.candidato
                       const vaga = al.expand?.vaga
                       const isNovo = al.status === 'Novo'
+                      const isAprovVaga = al.tipo === 'aprovacao_vaga_gestor'
+                      const isParecerGestor = al.tipo === 'parecer_gestor_candidato'
+
+                      const handleClickNotif = () => {
+                        if (isAprovVaga && vaga) {
+                          navigate(`/vagas/${vaga.id}`)
+                        } else if (isParecerGestor && cand) {
+                          navigate(`/candidatos/${cand.id}`)
+                        } else {
+                          navigate('/alertas')
+                        }
+                      }
+
                       return (
                         <div
                           key={al.id}
-                          onClick={() => navigate('/alertas')}
+                          onClick={handleClickNotif}
                           className={`p-3 transition-colors hover:bg-slate-50/80 cursor-pointer ${
                             isNovo ? 'bg-blue-50/40' : ''
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                               {isNovo && (
                                 <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
                               )}
-                              <span className="font-bold text-xs text-slate-900 truncate">
-                                {cand?.nome || 'Talento'}
-                              </span>
-                              <span className="text-[10px] text-slate-400">→</span>
-                              <span className="text-xs font-medium text-blue-700 truncate">
-                                {vaga?.titulo || 'Vaga'}
-                              </span>
+                              {isAprovVaga ? (
+                                <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                  Vaga Validada
+                                </span>
+                              ) : isParecerGestor ? (
+                                <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 border border-purple-200">
+                                  Parecer do Gestor
+                                </span>
+                              ) : null}
+
+                              {isAprovVaga ? (
+                                <span className="text-xs font-bold text-slate-900 truncate">
+                                  {vaga?.titulo || 'Vaga sob Gestão'}
+                                </span>
+                              ) : (
+                                <>
+                                  <span className="font-bold text-xs text-slate-900 truncate">
+                                    {cand?.nome || 'Talento'}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">→</span>
+                                  <span className="text-xs font-medium text-blue-700 truncate">
+                                    {vaga?.titulo || 'Vaga'}
+                                  </span>
+                                </>
+                              )}
                             </div>
 
                             {/* Score Ring / Badge */}
-                            <span
-                              className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded shrink-0 ${
-                                (al.score || 75) >= 85
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-slate-100 text-slate-700'
-                              }`}
-                            >
-                              {al.score || 75}% fit
-                            </span>
+                            {!isAprovVaga && (
+                              <span
+                                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded shrink-0 ${
+                                  (al.score || 75) >= 85
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-slate-100 text-slate-700'
+                                }`}
+                              >
+                                {al.score || 75}% fit
+                              </span>
+                            )}
                           </div>
 
                           {al.resumo_ia && (

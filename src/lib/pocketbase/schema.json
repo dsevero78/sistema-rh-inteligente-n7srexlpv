@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T01:22:21.357Z",
+  "generatedAt": "2026-09-20T01:33:24.498Z",
   "collections": [
     {
       "name": "users",
@@ -1402,6 +1402,122 @@
         "CREATE INDEX idx_percepcoes_vaga ON percepcoes_rh (vaga)",
         "CREATE INDEX idx_percepcoes_autor ON percepcoes_rh (autor)",
         "CREATE INDEX idx_percepcoes_visib ON percepcoes_rh (visibilidade)"
+      ]
+    },
+    {
+      "name": "analises_video_ia",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "resumo_executivo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "comunicacao_oratoria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "postura_presenca",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dominio_experiencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fit_cultural",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pontos_fortes",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pontos_atencao",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nota_estimada",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "recomendacao_geral",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Fortemente Recomendado",
+            "Recomendado",
+            "Requer Alinhamento",
+            "Não Recomendado"
+          ]
+        },
+        {
+          "name": "base_utilizada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "qtd_percepcoes_consideradas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gerado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "data_geracao",
+          "type": "date",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_analises_candidato ON analises_video_ia (candidato)",
+        "CREATE INDEX idx_analises_vaga ON analises_video_ia (vaga)"
       ]
     }
   ]
