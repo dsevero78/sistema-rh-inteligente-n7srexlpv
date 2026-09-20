@@ -9,6 +9,7 @@ import {
   DocumentoPJ,
   NotaFiscalPJ,
   AvaliacaoPrestadorPJ,
+  MarcoLifecyclePJ,
   prestadoresService,
   getAnexoUrl,
 } from '@/services/prestadoresPj'
@@ -32,8 +33,11 @@ import {
   ArrowLeft,
   Edit2,
   ShieldAlert,
+  GitCommit,
+  Sparkles,
 } from 'lucide-react'
 import { DocumentViewerModal } from './DocumentViewerModal'
+import { LifecycleJornadaPJ } from './LifecycleJornadaPJ'
 import {
   ModalNovoContrato,
   ModalNovoDocumento,
@@ -47,6 +51,7 @@ interface PrestadorDetalhesViewProps {
   documentos: DocumentoPJ[]
   notasFiscais: NotaFiscalPJ[]
   avaliacoes: AvaliacaoPrestadorPJ[]
+  marcosLifecycle?: MarcoLifecyclePJ[]
   onVoltar: () => void
   onEditar: () => void
   onAtualizarDados: () => void
@@ -58,16 +63,59 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
   documentos,
   notasFiscais,
   avaliacoes,
+  marcosLifecycle = [],
   onVoltar,
   onEditar,
   onAtualizarDados,
 }) => {
   const { toast } = useToast()
 
-  // Controle de Abas
-  const [activeTab, setActiveTab] = useState<'perfil' | 'documentos' | 'notas' | 'avaliacoes'>(
-    'perfil',
-  )
+  // Controle de Abas: 'jornada' é a seção PRINCIPAL e DOMINANTE
+  const [activeTab, setActiveTab] = useState<
+    'jornada' | 'perfil' | 'documentos' | 'notas' | 'avaliacoes'
+  >('jornada')
+
+  // Marcos de Lifecycle locais
+  const [marcosLocais, setMarcosLocais] = useState<MarcoLifecyclePJ[]>(marcosLifecycle)
+  const [carregandoMarcos, setCarregandoMarcos] = useState(false)
+
+  // Carga ou inicialização de marcos
+  const carregarMarcos = async () => {
+    setCarregandoMarcos(true)
+    try {
+      let list = await prestadoresService.listarMarcosLifecycle(prestador.id)
+      if (list.length === 0) {
+        list = await prestadoresService.inicializarMarcosParaPrestador(prestador.id, prestador)
+      } else {
+        // Tentar sincronização inteligente com dados reais
+        const mudou = await prestadoresService.sincronizarMarcosComDadosReais(
+          prestador,
+          list,
+          contratos,
+          documentos,
+          notasFiscais,
+        )
+        if (mudou) {
+          list = await prestadoresService.listarMarcosLifecycle(prestador.id)
+        }
+      }
+      setMarcosLocais(list)
+    } catch (err) {
+      console.warn('Erro ao carregar marcos do prestador:', err)
+    } finally {
+      setCarregandoMarcos(false)
+    }
+  }
+
+  React.useEffect(() => {
+    carregarMarcos()
+  }, [prestador.id])
+
+  // Recarga composta
+  const handleRecarregarTudo = async () => {
+    await carregarMarcos()
+    onAtualizarDados()
+  }
 
   // Modais de Cadastro
   const [modalContratoOpen, setModalContratoOpen] = useState(false)
@@ -315,9 +363,16 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         </Card>
       </div>
 
-      {/* Abas Principais */}
+      {/* Abas Principais com a JORNADA como seção PRINCIPAL / DOMINANTE */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
-        <TabsList className="bg-slate-100 p-1 border border-slate-200/80 rounded-xl">
+        <TabsList className="bg-slate-100 p-1 border border-slate-200/80 rounded-xl flex flex-wrap">
+          <TabsTrigger
+            value="jornada"
+            className="gap-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-800 shadow-2xs"
+          >
+            <GitCommit className="w-3.5 h-3.5 text-emerald-600" />
+            Jornada do Prestador ({prestador.etapa_lifecycle || 'Lifecycle'})
+          </TabsTrigger>
           <TabsTrigger value="perfil" className="gap-2 text-xs">
             <Building2 className="w-3.5 h-3.5" />
             Perfil & Contratos ({contratos.length})
@@ -337,7 +392,42 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         </TabsList>
 
         {/* ------------------------------------------------------------------ */}
-        {/* ABA 1: Perfil da Empresa & Lista de Contratos                      */}
+        {/* ABA DOMINANTE: JORNADA DE LIFECYCLE COMPLETA (Entrada até Saída)   */}
+        {/* ------------------------------------------------------------------ */}
+        <TabsContent value="jornada" className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <GitCommit className="w-4 h-4 text-emerald-600" />
+                Jornada de Lifecycle do Prestador PJ
+              </h3>
+              <p className="text-xs text-slate-500">
+                Acompanhamento contínuo da Entrada à Saída com validação de CNPJ, contratos,
+                aprovação de notas fiscais, aditivos e encerramento.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRecarregarTudo}
+                className="h-8 text-xs border-slate-200 text-slate-700 bg-white"
+              >
+                Sincronizar Marcos
+              </Button>
+            </div>
+          </div>
+
+          <LifecycleJornadaPJ
+            prestador={prestador}
+            marcos={marcosLocais}
+            onAtualizar={handleRecarregarTudo}
+          />
+        </TabsContent>
+
+        {/* ------------------------------------------------------------------ */}
+        {/* ABA 2: Perfil da Empresa & Lista de Contratos                      */}
         {/* ------------------------------------------------------------------ */}
         <TabsContent value="perfil" className="space-y-6">
           {/* Informações da Empresa */}

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T02:21:51.407Z",
+  "generatedAt": "2026-09-20T02:40:51.482Z",
   "collections": [
     {
       "name": "users",
@@ -2267,6 +2267,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "etapa_lifecycle",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Entrada", "Ativo", "Mudanças", "Saída"]
         }
       ],
       "indexes": [
@@ -2706,6 +2713,102 @@
       "indexes": [
         "CREATE INDEX idx_aval_pj_prestador ON avaliacoes_prestador_pj (prestador)",
         "CREATE INDEX idx_aval_pj_recomendacao ON avaliacoes_prestador_pj (recomendacao)"
+      ]
+    },
+    {
+      "name": "marcos_lifecycle_pj",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "prestador",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "prestadores_pj"
+        },
+        {
+          "name": "etapa",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Entrada", "Ativo", "Mudanças", "Saída"]
+        },
+        {
+          "name": "chave_marco",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome_marco",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["REGISTRADO", "PENDENTE DO PJ", "PENDENTE DA EMPRESA", "NÃO ENVIADO"]
+        },
+        {
+          "name": "data_conclusao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historico_auditoria",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_marcos_prestador ON marcos_lifecycle_pj (prestador)",
+        "CREATE INDEX idx_marcos_etapa ON marcos_lifecycle_pj (etapa)",
+        "CREATE INDEX idx_marcos_status ON marcos_lifecycle_pj (status)",
+        "CREATE INDEX idx_marcos_ordem ON marcos_lifecycle_pj (prestador, etapa, ordem)"
       ]
     }
   ]

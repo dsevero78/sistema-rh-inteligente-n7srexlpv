@@ -1,6 +1,33 @@
 import pb from '@/lib/pocketbase/client'
 import type { RecordModel } from 'pocketbase'
 
+export type EtapaLifecyclePJ = 'Entrada' | 'Ativo' | 'Mudanças' | 'Saída'
+export type StatusMarcoLifecycle =
+  | 'REGISTRADO'
+  | 'PENDENTE DO PJ'
+  | 'PENDENTE DA EMPRESA'
+  | 'NÃO ENVIADO'
+
+export interface AuditoriaMarcoItem {
+  status: StatusMarcoLifecycle
+  data: string
+  autor?: string
+  obs?: string
+}
+
+export interface MarcoLifecyclePJ extends RecordModel {
+  prestador: string
+  etapa: EtapaLifecyclePJ
+  chave_marco: string
+  nome_marco: string
+  ordem: number
+  status: StatusMarcoLifecycle
+  data_conclusao?: string
+  responsavel?: string
+  observacao?: string
+  historico_auditoria?: AuditoriaMarcoItem[]
+}
+
 export interface PrestadorPJ extends RecordModel {
   razao_social: string
   nome_fantasia?: string
@@ -14,6 +41,7 @@ export interface PrestadorPJ extends RecordModel {
   banco?: string
   regime_tributario?: 'Simples Nacional' | 'Lucro Presumido' | 'Lucro Real' | 'MEI'
   status: 'Ativo' | 'Em renovação' | 'Pausado' | 'Encerrado'
+  etapa_lifecycle?: EtapaLifecyclePJ
   observacoes?: string
   contrato_social_anexo?: string
   data_inicio_parceria?: string
@@ -467,6 +495,302 @@ export const prestadoresService = {
     }
 
     return novaAvaliacao
+  },
+
+  // --------------------------------------------------------------------------
+  // Marcos do Ciclo de Vida (Lifecycle PJ)
+  // --------------------------------------------------------------------------
+  async listarMarcosLifecycle(prestadorId: string): Promise<MarcoLifecyclePJ[]> {
+    return await pb.collection('marcos_lifecycle_pj').getFullList<MarcoLifecyclePJ>({
+      filter: `prestador = '${prestadorId}'`,
+      sort: 'ordem,created',
+    })
+  },
+
+  async atualizarStatusMarco(
+    marcoId: string,
+    novoStatus: StatusMarcoLifecycle,
+    dados?: {
+      responsavel?: string
+      observacao?: string
+      autor?: string
+    },
+  ): Promise<MarcoLifecyclePJ> {
+    const atual = await pb.collection('marcos_lifecycle_pj').getOne<MarcoLifecyclePJ>(marcoId)
+    const historico = Array.isArray(atual.historico_auditoria) ? [...atual.historico_auditoria] : []
+
+    historico.unshift({
+      status: novoStatus,
+      data: new Date().toISOString(),
+      autor: dados?.autor || 'RH / Gestor',
+      obs: dados?.observacao || undefined,
+    })
+
+    const patch: Partial<MarcoLifecyclePJ> = {
+      status: novoStatus,
+      historico_auditoria: historico,
+    }
+
+    if (novoStatus === 'REGISTRADO') {
+      patch.data_conclusao = new Date().toISOString()
+    } else {
+      patch.data_conclusao = ''
+    }
+
+    if (dados?.responsavel !== undefined) {
+      patch.responsavel = dados.responsavel
+    }
+    if (dados?.observacao !== undefined) {
+      patch.observacao = dados.observacao
+    }
+
+    const atualizado = await pb
+      .collection('marcos_lifecycle_pj')
+      .update<MarcoLifecyclePJ>(marcoId, patch)
+
+    // Se o marco ficou "PENDENTE DO PJ" além de data ou recém-marcado, registrar alerta no sino se ainda não houver
+    if (novoStatus === 'PENDENTE DO PJ') {
+      try {
+        const prest = await pb.collection('prestadores_pj').getOne<PrestadorPJ>(atual.prestador)
+        await pb.collection('alertas').create({
+          score: 80,
+          tipo: 'marco_lifecycle_pj_pendente',
+          status: 'Novo',
+          prestador: prest.id,
+          resumo_ia: `Ação Pendente do PJ: O marco "${atual.nome_marco}" (${atual.etapa}) do prestador ${prest.nome_fantasia || prest.razao_social} está pendente do PJ. Observação: ${dados?.observacao || 'Aguardando ação externa.'}`,
+          criado_em: new Date().toISOString(),
+        })
+      } catch (errAlerta) {
+        console.warn('Aviso ao gerar alerta de pendência PJ:', errAlerta)
+      }
+    }
+
+    return atualizado
+  },
+
+  async atualizarEtapaLifecycle(
+    prestadorId: string,
+    novaEtapa: EtapaLifecyclePJ,
+  ): Promise<PrestadorPJ> {
+    // Mapear etapa para status coerente se aplicável
+    let novoStatus: 'Ativo' | 'Em renovação' | 'Pausado' | 'Encerrado' | undefined = undefined
+    if (novaEtapa === 'Entrada') novoStatus = 'Ativo'
+    else if (novaEtapa === 'Ativo') novoStatus = 'Ativo'
+    else if (novaEtapa === 'Mudanças') novoStatus = 'Em renovação'
+    else if (novaEtapa === 'Saída') novoStatus = 'Encerrado'
+
+    const payload: Partial<PrestadorPJ> = {
+      etapa_lifecycle: novaEtapa,
+    }
+    if (novoStatus) payload.status = novoStatus
+
+    return await pb.collection('prestadores_pj').update<PrestadorPJ>(prestadorId, payload)
+  },
+
+  // Inicializar template de marcos se o prestador não possuir marcos cadastrados
+  async inicializarMarcosParaPrestador(
+    prestadorId: string,
+    prestador?: PrestadorPJ,
+  ): Promise<MarcoLifecyclePJ[]> {
+    const existentes = await this.listarMarcosLifecycle(prestadorId)
+    if (existentes.length > 0) return existentes
+
+    const templateMarcos: Record<
+      EtapaLifecyclePJ,
+      Array<{ chave: string; nome: string; ordem: number }>
+    > = {
+      Entrada: [
+        { chave: 'cnpj_validado', nome: 'Cadastro com CNPJ validado', ordem: 1 },
+        { chave: 'contrato_assinado', nome: 'Contrato assinado pelas duas partes', ordem: 2 },
+        { chave: 'documentos_aprovados', nome: 'Documentos da contratação aprovados', ordem: 3 },
+        { chave: 'beneficios_cadastrados', nome: 'Benefícios e adicionais cadastrados', ordem: 4 },
+      ],
+      Ativo: [
+        { chave: 'nf_periodo', nome: 'Nota fiscal do período', ordem: 1 },
+        { chave: 'reembolso_periodo', nome: 'Reembolso do período', ordem: 2 },
+        { chave: 'aprovacao_gestor', nome: 'Aprovação do gestor', ordem: 3 },
+        { chave: 'pagamento_periodo', nome: 'Pagamento do período', ordem: 4 },
+      ],
+      Mudanças: [
+        { chave: 'reajuste_alcada', nome: 'Reajuste aprovado na alçada', ordem: 1 },
+        { chave: 'aditivo_contrato', nome: 'Aditivo de contrato', ordem: 2 },
+        { chave: 'mudanca_escopo', nome: 'Mudança de escopo registrada', ordem: 3 },
+        { chave: 'ausencias_periodo', nome: 'Ausências do período lançadas', ordem: 4 },
+      ],
+      Saída: [
+        { chave: 'encerramento_escopo', nome: 'Encerramento de escopo/atividades', ordem: 1 },
+        { chave: 'nf_final_quites', nome: 'NF final e quites', ordem: 2 },
+        { chave: 'revogacao_acessos', nome: 'Devolução/revogação de acessos', ordem: 3 },
+        { chave: 'termo_encerramento', nome: 'Termo de encerramento assinado', ordem: 4 },
+        { chave: 'certidoes_finais', nome: 'Certidões de regularidade finais', ordem: 5 },
+      ],
+    }
+
+    // Se temos dados do prestador, auto-derivar marcos da Entrada
+    const cnpjOk = prestador?.cnpj ? true : false
+    const docs = await this.listarDocumentos(prestadorId)
+    const contratos = await this.listarContratos(prestadorId)
+
+    const criados: MarcoLifecyclePJ[] = []
+    const etapas: EtapaLifecyclePJ[] = ['Entrada', 'Ativo', 'Mudanças', 'Saída']
+
+    for (const etapa of etapas) {
+      for (const item of templateMarcos[etapa]) {
+        let statusInicial: StatusMarcoLifecycle = 'NÃO ENVIADO'
+        let obsInicial = ''
+        let respInicial = ''
+        let conclusao: string | undefined = undefined
+
+        if (etapa === 'Entrada') {
+          if (item.chave === 'cnpj_validado' && cnpjOk) {
+            statusInicial = 'REGISTRADO'
+            obsInicial = 'CNPJ cadastrado e formatado no padrão da Receita Federal'
+            respInicial = 'Validação Automática'
+            conclusao = new Date().toISOString()
+          } else if (item.chave === 'contrato_assinado' && contratos.length > 0) {
+            statusInicial = 'REGISTRADO'
+            obsInicial = `Contrato vinculado: ${contratos[0].titulo}`
+            respInicial = contratos[0].gestor_nome || 'Jurídico Interno'
+            conclusao = new Date().toISOString()
+          } else if (item.chave === 'documentos_aprovados' && docs.length > 0) {
+            statusInicial = 'REGISTRADO'
+            obsInicial = `${docs.length} documento(s) anexado(s)`
+            respInicial = 'Compliance RH'
+            conclusao = new Date().toISOString()
+          } else if (
+            item.chave === 'beneficios_cadastrados' &&
+            (prestador?.dados_bancarios || prestador?.banco)
+          ) {
+            statusInicial = 'REGISTRADO'
+            obsInicial = 'Dados de faturamento e dados bancários preenchidos'
+            respInicial = 'RH Operações'
+            conclusao = new Date().toISOString()
+          }
+        }
+
+        const criado = await pb.collection('marcos_lifecycle_pj').create<MarcoLifecyclePJ>({
+          prestador: prestadorId,
+          etapa,
+          chave_marco: item.chave,
+          nome_marco: item.nome,
+          ordem: item.ordem,
+          status: statusInicial,
+          data_conclusao: conclusao,
+          responsavel: respInicial,
+          observacao: obsInicial,
+          historico_auditoria: [
+            {
+              status: statusInicial,
+              data: new Date().toISOString(),
+              autor: 'Sistema RH Inteligente',
+              obs: obsInicial || 'Inicialização de template de ciclo de vida',
+            },
+          ],
+        })
+        criados.push(criado)
+      }
+    }
+
+    return criados
+  },
+
+  // Sincronizar marcos com dados reais existentes (CNPJ, Contratos, Documentos, NFs)
+  async sincronizarMarcosComDadosReais(
+    prestador: PrestadorPJ,
+    marcos: MarcoLifecyclePJ[],
+    contratos: ContratoPJ[],
+    documentos: DocumentoPJ[],
+    notasFiscais: NotaFiscalPJ[],
+  ): Promise<boolean> {
+    let houveAlteracao = false
+
+    for (const marco of marcos) {
+      if (marco.etapa === 'Entrada') {
+        if (
+          marco.chave_marco === 'cnpj_validado' &&
+          marco.status !== 'REGISTRADO' &&
+          prestador.cnpj
+        ) {
+          await this.atualizarStatusMarco(marco.id, 'REGISTRADO', {
+            responsavel: 'Validação Automática RFB',
+            observacao: `CNPJ ${prestador.cnpj} validado`,
+            autor: 'Sincronizador Automático',
+          })
+          houveAlteracao = true
+        }
+        if (
+          marco.chave_marco === 'contrato_assinado' &&
+          marco.status !== 'REGISTRADO' &&
+          contratos.length > 0
+        ) {
+          const temAssinado = contratos.some((c) => !!c.contrato_assinado_anexo)
+          if (temAssinado) {
+            await this.atualizarStatusMarco(marco.id, 'REGISTRADO', {
+              responsavel: 'Jurídico / Diretor',
+              observacao: 'Contrato assinado em arquivo anexado',
+              autor: 'Sincronizador Automático',
+            })
+            houveAlteracao = true
+          }
+        }
+        if (
+          marco.chave_marco === 'documentos_aprovados' &&
+          marco.status !== 'REGISTRADO' &&
+          documentos.length > 0
+        ) {
+          const temDocsValidos = documentos.some(
+            (d) => d.status_calculado === 'Válido' || d.status_calculado === 'Sem validade',
+          )
+          if (temDocsValidos) {
+            await this.atualizarStatusMarco(marco.id, 'REGISTRADO', {
+              responsavel: 'Compliance RH',
+              observacao: `${documentos.length} certidão(ões) e documento(s) em conformidade`,
+              autor: 'Sincronizador Automático',
+            })
+            houveAlteracao = true
+          }
+        }
+        if (marco.chave_marco === 'beneficios_cadastrados' && marco.status !== 'REGISTRADO') {
+          if (prestador.dados_bancarios || prestador.banco) {
+            await this.atualizarStatusMarco(marco.id, 'REGISTRADO', {
+              responsavel: 'RH Operações',
+              observacao: 'Conta bancária e chave PIX cadastradas',
+              autor: 'Sincronizador Automático',
+            })
+            houveAlteracao = true
+          }
+        }
+      }
+
+      // Ativo: auto-apoiar em notas_fiscais_pj se houver NF aprovada/paga
+      if (marco.etapa === 'Ativo') {
+        if (
+          marco.chave_marco === 'nf_periodo' &&
+          marco.status === 'NÃO ENVIADO' &&
+          notasFiscais.length > 0
+        ) {
+          await this.atualizarStatusMarco(marco.id, 'REGISTRADO', {
+            responsavel: 'Contabilidade / Fornecedor',
+            observacao: `NF ${notasFiscais[0].numero_nf} (${notasFiscais[0].competencia}) lançada`,
+            autor: 'Sincronizador Automático',
+          })
+          houveAlteracao = true
+        }
+        if (marco.chave_marco === 'pagamento_periodo' && marco.status !== 'REGISTRADO') {
+          const temPaga = notasFiscais.some((n) => n.status === 'Paga')
+          if (temPaga) {
+            await this.atualizarStatusMarco(marco.id, 'REGISTRADO', {
+              responsavel: 'Tesouraria',
+              observacao: 'Nota fiscal com comprovante de liquidação liquidada',
+              autor: 'Sincronizador Automático',
+            })
+            houveAlteracao = true
+          }
+        }
+      }
+    }
+
+    return houveAlteracao
   },
 
   // Disparo manual da varredura de pendências PJ

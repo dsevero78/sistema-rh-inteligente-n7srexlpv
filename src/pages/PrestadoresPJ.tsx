@@ -19,6 +19,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
   prestadoresService,
@@ -27,6 +28,8 @@ import {
   DocumentoPJ,
   NotaFiscalPJ,
   AvaliacaoPrestadorPJ,
+  MarcoLifecyclePJ,
+  EtapaLifecyclePJ,
 } from '@/services/prestadoresPj'
 import {
   Building2,
@@ -44,6 +47,8 @@ import {
   Star,
   RefreshCw,
   Trash2,
+  GitCommit,
+  Check,
 } from 'lucide-react'
 import { ModalNovoPrestador } from '@/components/prestadores/ModalNovoPrestador'
 import { PrestadorDetalhesView } from '@/components/prestadores/PrestadorDetalhesView'
@@ -57,6 +62,7 @@ export const PrestadoresPJ: React.FC = () => {
   const [documentos, setDocumentos] = useState<DocumentoPJ[]>([])
   const [notasFiscais, setNotasFiscais] = useState<NotaFiscalPJ[]>([])
   const [avaliacoes, setAvaliacoes] = useState<AvaliacaoPrestadorPJ[]>([])
+  const [todosMarcos, setTodosMarcos] = useState<MarcoLifecyclePJ[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -83,12 +89,13 @@ export const PrestadoresPJ: React.FC = () => {
   // Carga inicial dos dados
   const carregarDados = async () => {
     try {
-      const [pList, cList, dList, nList, aList] = await Promise.all([
+      const [pList, cList, dList, nList, aList, mList] = await Promise.all([
         prestadoresService.listarPrestadores(),
         prestadoresService.listarContratos(),
         prestadoresService.listarDocumentos(),
         prestadoresService.listarNotasFiscais(),
         prestadoresService.listarAvaliacoes(),
+        pb.collection('marcos_lifecycle_pj').getFullList<MarcoLifecyclePJ>({ sort: 'ordem' }),
       ])
 
       setPrestadores(pList)
@@ -96,6 +103,7 @@ export const PrestadoresPJ: React.FC = () => {
       setDocumentos(dList)
       setNotasFiscais(nList)
       setAvaliacoes(aList)
+      setTodosMarcos(mList)
     } catch (err) {
       console.error('Erro ao carregar módulo PJ:', err)
       toast({
@@ -119,6 +127,7 @@ export const PrestadoresPJ: React.FC = () => {
   useRealtime('documentos_pj', () => carregarDados())
   useRealtime('notas_fiscais_pj', () => carregarDados())
   useRealtime('avaliacoes_prestador_pj', () => carregarDados())
+  useRealtime('marcos_lifecycle_pj', () => carregarDados())
 
   // Disparo manual da varredura de pendências e renovações
   const handleVarreduraManual = async () => {
@@ -249,6 +258,11 @@ export const PrestadoresPJ: React.FC = () => {
     return avaliacoes.filter((a) => a.prestador === prestadorSelecionadoId)
   }, [prestadorSelecionadoId, avaliacoes])
 
+  const marcosDoSelecionado = useMemo(() => {
+    if (!prestadorSelecionadoId) return []
+    return todosMarcos.filter((m) => m.prestador === prestadorSelecionadoId)
+  }, [prestadorSelecionadoId, todosMarcos])
+
   // Fluxo de verificação de dependências antes da exclusão
   const iniciarExclusao = async (prestador: PrestadorPJ, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -300,6 +314,7 @@ export const PrestadoresPJ: React.FC = () => {
           documentos={docsDoSelecionado}
           notasFiscais={nfsDoSelecionado}
           avaliacoes={avaliacoesDoSelecionado}
+          marcosLifecycle={marcosDoSelecionado}
           onVoltar={() => setPrestadorSelecionadoId(null)}
           onEditar={() => {
             setPrestadorParaEditar(prestadorSelecionado)
@@ -563,8 +578,8 @@ export const PrestadoresPJ: React.FC = () => {
                       {/* Topo do Card */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
+                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                            <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">
                               {p.area_atuacao}
                             </span>
                             {temDocVencido && (
@@ -579,26 +594,79 @@ export const PrestadoresPJ: React.FC = () => {
                             )}
                           </div>
 
-                          <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate mt-1">
+                          <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
                             {p.nome_fantasia || p.razao_social}
                           </h3>
-                          <p className="text-[11px] text-slate-400 font-mono truncate">
-                            {p.cnpj} &bull; {p.razao_social}
-                          </p>
+                          <p className="text-[11px] text-slate-400 font-mono truncate">{p.cnpj}</p>
                         </div>
 
-                        <Badge
-                          className={
-                            p.status === 'Ativo'
-                              ? 'bg-emerald-100 text-emerald-800 border-emerald-200 shrink-0'
-                              : p.status === 'Em renovação'
-                                ? 'bg-amber-100 text-amber-800 border-amber-200 shrink-0'
-                                : 'bg-slate-100 text-slate-700 border-slate-200 shrink-0'
-                          }
-                        >
-                          {p.status}
-                        </Badge>
+                        {/* Pílula da Etapa Atual do Lifecycle em Destaque (como solicitado) */}
+                        {(() => {
+                          const etapa =
+                            p.etapa_lifecycle ||
+                            (p.status === 'Em renovação'
+                              ? 'Mudanças'
+                              : p.status === 'Encerrado'
+                                ? 'Saída'
+                                : 'Ativo')
+                          return (
+                            <span className="px-3 py-1 rounded-full bg-[#E5F9ED] text-[#1E3A2B] text-xs font-bold tracking-tight shadow-2xs border border-[#C6EFD7] shrink-0">
+                              {etapa}
+                            </span>
+                          )
+                        })()}
                       </div>
+
+                      {/* Mini-indicador de progresso da etapa do Lifecycle */}
+                      {(() => {
+                        const etapaAtual =
+                          p.etapa_lifecycle ||
+                          (p.status === 'Em renovação'
+                            ? 'Mudanças'
+                            : p.status === 'Encerrado'
+                              ? 'Saída'
+                              : 'Ativo')
+                        const marcosDeste = todosMarcos.filter(
+                          (m) => m.prestador === p.id && m.etapa === etapaAtual,
+                        )
+                        const total = marcosDeste.length
+                        const concluidos = marcosDeste.filter(
+                          (m) => m.status === 'REGISTRADO',
+                        ).length
+                        const pendPj = marcosDeste.filter(
+                          (m) => m.status === 'PENDENTE DO PJ',
+                        ).length
+                        const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0
+
+                        return (
+                          <div className="bg-slate-50/90 rounded-lg p-2.5 border border-slate-100 text-xs space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="font-semibold text-slate-700 flex items-center gap-1">
+                                <GitCommit className="w-3.5 h-3.5 text-[#2D7A4D]" />
+                                Jornada: <strong className="text-slate-900">{etapaAtual}</strong>
+                              </span>
+                              <span className="text-[#2D7A4D] font-bold">
+                                {concluidos}/{total || 4} ({pct}%)
+                              </span>
+                            </div>
+
+                            {/* Barra de progresso */}
+                            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-[#2D7A4D] transition-all duration-300"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+
+                            {pendPj > 0 && (
+                              <div className="text-[10px] text-amber-800 flex items-center gap-1 font-medium pt-0.5">
+                                <Clock className="w-3 h-3 text-amber-600" />
+                                {pendPj} ação(ões) pendente(s) do PJ
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
 
                       {/* Informações Centrais */}
                       <div className="bg-slate-50/80 rounded-lg p-3 text-xs space-y-1.5 border border-slate-100">
