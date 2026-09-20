@@ -28,6 +28,7 @@ import Relatorios from '@/pages/Relatorios'
 import RelatorioDetalhes from '@/pages/RelatorioDetalhes'
 import BancoTalentos from '@/pages/BancoTalentos'
 import RelatorioExecutivo from '@/pages/RelatorioExecutivo'
+import Financeiro from '@/pages/Financeiro'
 import Alertas from '@/pages/Alertas'
 import Onboarding from '@/pages/Onboarding'
 import ExperienciaCandidato from '@/pages/ExperienciaCandidato'
@@ -113,6 +114,7 @@ export default function App() {
               <Route path="alertas" element={<Alertas />} />{' '}
               <Route path="entrevistas" element={<Entrevistas />} />
               <Route path="chat" element={<Chat />} />
+              <Route path="financeiro" element={<Financeiro />} />
               <Route path="relatorios" element={<Relatorios />} />
               <Route path="relatorio-executivo" element={<RelatorioExecutivo />} />
               <Route path="relatorios/:id" element={<RelatorioDetalhes />} />

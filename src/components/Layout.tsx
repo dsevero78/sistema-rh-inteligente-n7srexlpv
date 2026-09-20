@@ -29,6 +29,7 @@ import {
   Heart,
   Gift,
   Handshake,
+  CircleDollarSign,
 } from 'lucide-react'
 import type { RecordModel } from 'pocketbase'
 import { Button } from '@/components/ui/button'
@@ -162,6 +163,7 @@ export default function Layout() {
     if (path.startsWith('/alertas')) return 'Alertas Automáticos de Talentos'
     if (path.startsWith('/entrevistas')) return 'Gestão de Entrevistas & Calendário'
     if (path.startsWith('/chat')) return 'Chat com Gestor de Talentos (IA)'
+    if (path.startsWith('/financeiro')) return 'Painel Financeiro Consolidado'
     if (path.startsWith('/relatorios/')) return 'Relatório de Avaliação'
     if (path === '/relatorios') return 'Relatórios de Aderência e IA'
     if (path.startsWith('/relatorio-executivo')) return 'Relatório Executivo Mensal'
@@ -255,6 +257,12 @@ export default function Layout() {
               { title: 'Entrevistas', href: '/entrevistas', icon: Calendar },
               { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
               { title: 'E-mails de Status', href: '/alertas?aba=emails_status', icon: Mail },
+              {
+                title: 'Financeiro',
+                href: '/financeiro',
+                icon: CircleDollarSign,
+                badge: 'NFs & PJ',
+              },
               { title: 'Relatórios', href: '/relatorios', icon: FileText },
               {
                 title: 'Relatório Executivo',

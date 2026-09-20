@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T03:12:40.547Z",
+  "generatedAt": "2026-09-20T23:56:38.631Z",
   "collections": [
     {
       "name": "users",
@@ -167,6 +167,12 @@
         {
           "name": "data_aprovacao_gestor",
           "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "orcamento_mensal",
+          "type": "number",
           "required": false,
           "system": false
         }
