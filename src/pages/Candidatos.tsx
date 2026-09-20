@@ -885,6 +885,9 @@ export default function Candidatos() {
                     <SelectItem value="LinkedIn" className="text-xs">
                       LinkedIn
                     </SelectItem>
+                    <SelectItem value="Indicação" className="text-xs">
+                      Indicação (Programa de Talentos)
+                    </SelectItem>
                     <SelectItem value="Indicação interna" className="text-xs">
                       Indicação interna
                     </SelectItem>
@@ -896,7 +899,7 @@ export default function Candidatos() {
                     </SelectItem>
                     <SelectItem value="Outros canais" className="text-xs">
                       Outros canais
-                    </SelectItem>
+                    </SelectItem>{' '}
                   </SelectContent>
                 </Select>
               </div>

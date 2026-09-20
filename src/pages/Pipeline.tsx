@@ -77,6 +77,7 @@ export default function Pipeline() {
 
   // Filters
   const [selectedVaga, setSelectedVaga] = useState<string>(vagaParam)
+  const [origemFilter, setOrigemFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
 
   // Drag and drop state
@@ -272,6 +273,15 @@ export default function Pipeline() {
 
       if (!cand) return matchesVaga
 
+      if (origemFilter !== 'all') {
+        const cOrig = (cand as any).canal_origem || ''
+        if (origemFilter === 'Indicação') {
+          if (cOrig !== 'Indicação' && cOrig !== 'Indicação interna') return false
+        } else if (cOrig !== origemFilter) {
+          return false
+        }
+      }
+
       const q = search.toLowerCase()
       const matchesSearch =
         cand.nome?.toLowerCase().includes(q) ||
@@ -280,7 +290,7 @@ export default function Pipeline() {
 
       return matchesVaga && matchesSearch
     })
-  }, [pipelineItems, selectedVaga, search])
+  }, [pipelineItems, selectedVaga, origemFilter, search])
 
   // Group by stage
   const groupedColumns = useMemo(() => {
@@ -309,9 +319,9 @@ export default function Pipeline() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Select value={selectedVaga} onValueChange={handleVagaFilterChange}>
-            <SelectTrigger className="w-[220px] h-10 text-xs bg-white border-slate-200">
+            <SelectTrigger className="w-[200px] h-10 text-xs bg-white border-slate-200">
               <SelectValue placeholder="Todas as vagas" />
             </SelectTrigger>
             <SelectContent>
@@ -323,6 +333,29 @@ export default function Pipeline() {
                   {v.titulo}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={origemFilter} onValueChange={setOrigemFilter}>
+            <SelectTrigger className="w-[180px] h-10 text-xs bg-white border-slate-200">
+              <SelectValue placeholder="Origem / Canal" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">
+                Todos os canais
+              </SelectItem>
+              <SelectItem value="Indicação" className="text-xs">
+                🎁 Indicação (Promotores)
+              </SelectItem>
+              <SelectItem value="Página de Carreira" className="text-xs">
+                Página de Carreira
+              </SelectItem>
+              <SelectItem value="LinkedIn" className="text-xs">
+                LinkedIn
+              </SelectItem>
+              <SelectItem value="Banco de talentos" className="text-xs">
+                Banco de Talentos
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -422,6 +455,12 @@ export default function Pipeline() {
                               <p className="text-[11px] text-slate-500 truncate">
                                 {cand.cargo_atual}
                               </p>
+                              {((cand as any).canal_origem === 'Indicação' ||
+                                (cand as any).canal_origem === 'Indicação interna') && (
+                                <span className="inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 border border-purple-200">
+                                  🎁 Indicação
+                                </span>
+                              )}
                             </div>
                           </div>
 

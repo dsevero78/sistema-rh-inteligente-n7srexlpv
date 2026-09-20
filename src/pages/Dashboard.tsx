@@ -142,6 +142,7 @@ export default function Dashboard() {
     const counts: Record<string, number> = {
       'Página de Carreira': 0,
       LinkedIn: 0,
+      Indicação: 0,
       'Indicação interna': 0,
       'Site da empresa': 0,
       'Banco de talentos': 0,
@@ -149,7 +150,10 @@ export default function Dashboard() {
     }
 
     candidatos.forEach((c) => {
-      const orig = (c as any).canal_origem || 'Outros canais'
+      let orig = (c as any).canal_origem || 'Outros canais'
+      if (orig === 'Indicação interna' || orig === 'Indicação') {
+        orig = 'Indicação'
+      }
       if (counts[orig] !== undefined) {
         counts[orig]++
       } else {
@@ -161,7 +165,8 @@ export default function Dashboard() {
     const colorMap: Record<string, string> = {
       'Página de Carreira': '#1D4ED8',
       LinkedIn: '#0A66C2',
-      'Indicação interna': '#10B981',
+      Indicação: '#8B5CF6',
+      'Indicação interna': '#8B5CF6',
       'Site da empresa': '#6366F1',
       'Banco de talentos': '#F59E0B',
       'Outros canais': '#94A3B8',

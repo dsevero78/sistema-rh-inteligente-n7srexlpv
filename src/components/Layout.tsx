@@ -27,6 +27,7 @@ import {
   UserCheck,
   Mail,
   Heart,
+  Gift,
 } from 'lucide-react'
 import type { RecordModel } from 'pocketbase'
 import { Button } from '@/components/ui/button'
@@ -154,6 +155,7 @@ export default function Layout() {
     if (path.startsWith('/ofertas')) return 'Ofertas e Propostas Salariais'
     if (path.startsWith('/onboarding')) return 'Onboarding do Contratado (Dia 1)'
     if (path.startsWith('/experiencia')) return 'Experiência do Candidato (Candidate Experience)'
+    if (path.startsWith('/indicacoes')) return 'Programa de Indicação de Talentos'
     if (path.startsWith('/banco-talentos')) return 'Banco de Talentos & Reaproveitamento'
     if (path.startsWith('/alertas')) return 'Alertas Automáticos de Talentos'
     if (path.startsWith('/entrevistas')) return 'Gestão de Entrevistas & Calendário'
@@ -228,6 +230,12 @@ export default function Layout() {
                 href: '/experiencia',
                 icon: Heart,
                 badge: 'NPS',
+              },
+              {
+                title: 'Indicações',
+                href: '/indicacoes',
+                icon: Gift,
+                badge: 'Promotores',
               },
               {
                 title: 'Banco de Talentos',

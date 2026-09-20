@@ -33,6 +33,8 @@ import Onboarding from '@/pages/Onboarding'
 import ExperienciaCandidato from '@/pages/ExperienciaCandidato'
 import AdmissaoPublica from '@/pages/AdmissaoPublica'
 import ExperienciaPublica from '@/pages/ExperienciaPublica'
+import IndicarPublica from '@/pages/IndicarPublica'
+import Indicacoes from '@/pages/Indicacoes'
 import NotFound from '@/pages/NotFound'
 
 import { Toaster } from '@/components/ui/toaster'
@@ -82,6 +84,7 @@ export default function App() {
             <Route path="/candidatar/:vagaId" element={<CandidaturaPublica />} />
             <Route path="/admissao/:token" element={<AdmissaoPublica />} />
             <Route path="/experiencia/:token" element={<ExperienciaPublica />} />
+            <Route path="/indicar/:token" element={<IndicarPublica />} />
 
             {/* Authenticated Global Layout Routes */}
             <Route
@@ -103,6 +106,7 @@ export default function App() {
               <Route path="ofertas" element={<Ofertas />} />
               <Route path="onboarding" element={<Onboarding />} />
               <Route path="experiencia" element={<ExperienciaCandidato />} />
+              <Route path="indicacoes" element={<Indicacoes />} />
               <Route path="banco-talentos" element={<BancoTalentos />} />{' '}
               <Route path="alertas" element={<Alertas />} />
               <Route path="entrevistas" element={<Entrevistas />} />

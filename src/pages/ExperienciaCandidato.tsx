@@ -18,6 +18,7 @@ import {
   TrendingUp,
   MessageSquare,
   Sparkles,
+  Gift,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -162,10 +163,19 @@ export default function ExperienciaCandidato() {
     navigator.clipboard.writeText(url)
     toast({
       title: 'Link copiado!',
-      description: 'O link da pesquisa de experiência está pronto para envio.',
+      description: 'O link da pesquisa foi copiado para a área de transferência.',
     })
   }
 
+  const handleCopiarLinkIndicacao = (tokenPesquisa: string, tokenIndicador?: string) => {
+    const token = tokenIndicador || 'ind-' + tokenPesquisa.replace(/^exp-/, '')
+    const url = `${window.location.origin}/indicar/${token}`
+    navigator.clipboard.writeText(url)
+    toast({
+      title: 'Link de indicação copiado!',
+      description: 'Envie este link para o promotor indicar novos talentos diretamente.',
+    })
+  }
   // Disparo manual de pesquisa
   const handleDispararPesquisaManual = async () => {
     if (!disparoCandId || !disparoVagaId) {
@@ -543,6 +553,7 @@ export default function ExperienciaCandidato() {
               const vaga = av.expand?.vaga
               const respondido = av.respondido
               const isAlerta = av.alerta_oportunidade
+              const isPromotor = (av.nps_score ?? 0) >= 9 || (av.nota_geral ?? 0) >= 9
 
               return (
                 <div
@@ -572,6 +583,23 @@ export default function ExperienciaCandidato() {
                           <Badge className="bg-rose-600 text-white border-0 text-[10px] font-bold">
                             Alerta de Oportunidade
                           </Badge>
+                        )}
+
+                        {respondido && (av.nps_score >= 9 || av.nota_geral >= 9) && (
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px] font-bold"
+                            >
+                              ⭐ Promotor
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-semibold"
+                            >
+                              🎁 Pode Indicar
+                            </Badge>
+                          </div>
                         )}
 
                         {!respondido && (
@@ -608,6 +636,24 @@ export default function ExperienciaCandidato() {
 
                     {/* Ações e Notas */}
                     <div className="flex items-center gap-2 shrink-0">
+                      {respondido && isPromotor && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            handleCopiarLinkIndicacao(
+                              av.token_pesquisa,
+                              (av as any).token_indicador,
+                            )
+                          }
+                          className="text-xs h-8 bg-purple-50 border-purple-200 text-purple-800 hover:bg-purple-100 font-semibold"
+                          title="Copiar link exclusivo para este candidato indicar talentos"
+                        >
+                          <Gift className="w-3.5 h-3.5 mr-1 text-purple-600" />
+                          Link de Indicação
+                        </Button>
+                      )}
+
                       {respondido ? (
                         <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-2 rounded-lg">
                           <div className="text-right">
