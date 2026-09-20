@@ -24,8 +24,10 @@ import {
   formatarCNPJ,
   validarCNPJ,
   PrestadorPJ,
+  HORAS_MES_PADRAO,
+  calcularValorHoraPor160,
 } from '@/services/prestadoresPj'
-import { Building2, UploadCloud, AlertCircle } from 'lucide-react'
+import { Building2, UploadCloud, AlertCircle, DollarSign, Calculator } from 'lucide-react'
 
 interface ModalNovoPrestadorProps {
   open: boolean
@@ -66,6 +68,12 @@ export const ModalNovoPrestador: React.FC<ModalNovoPrestadorProps> = ({
       ? prestadorParaEditar.data_inicio_parceria.substring(0, 10)
       : new Date().toISOString().substring(0, 10),
   )
+  const [valorMensalAtual, setValorMensalAtual] = useState<string>(
+    prestadorParaEditar?.valor_mensal_atual !== undefined &&
+      prestadorParaEditar.valor_mensal_atual !== null
+      ? String(prestadorParaEditar.valor_mensal_atual)
+      : '',
+  )
   const [observacoes, setObservacoes] = useState(prestadorParaEditar?.observacoes || '')
   const [arquivoContratoSocial, setArquivoContratoSocial] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
@@ -90,6 +98,12 @@ export const ModalNovoPrestador: React.FC<ModalNovoPrestadorProps> = ({
           ? prestadorParaEditar.data_inicio_parceria.substring(0, 10)
           : '',
       )
+      setValorMensalAtual(
+        prestadorParaEditar.valor_mensal_atual !== undefined &&
+          prestadorParaEditar.valor_mensal_atual !== null
+          ? String(prestadorParaEditar.valor_mensal_atual)
+          : '',
+      )
       setObservacoes(prestadorParaEditar.observacoes || '')
       setCnpjInvalido(false)
     } else {
@@ -106,6 +120,7 @@ export const ModalNovoPrestador: React.FC<ModalNovoPrestadorProps> = ({
       setRegimeTributario('Simples Nacional')
       setStatus('Ativo')
       setDataInicio(new Date().toISOString().substring(0, 10))
+      setValorMensalAtual('')
       setObservacoes('')
       setArquivoContratoSocial(null)
       setCnpjInvalido(false)
@@ -155,6 +170,7 @@ export const ModalNovoPrestador: React.FC<ModalNovoPrestadorProps> = ({
 
     setLoading(true)
     try {
+      const numValorMensal = valorMensalAtual !== '' ? parseFloat(valorMensalAtual) : undefined
       const payload: Partial<PrestadorPJ> = {
         razao_social: razaoSocial.trim(),
         nome_fantasia: nomeFantasia.trim() || undefined,
@@ -168,6 +184,7 @@ export const ModalNovoPrestador: React.FC<ModalNovoPrestadorProps> = ({
         dados_bancarios: dadosBancarios.trim() || undefined,
         regime_tributario: regimeTributario as any,
         status,
+        valor_mensal_atual: !isNaN(numValorMensal as number) ? (numValorMensal as number) : 0,
         data_inicio_parceria: dataInicio ? `${dataInicio} 00:00:00.000Z` : undefined,
         observacoes: observacoes.trim() || undefined,
       }
@@ -378,11 +395,77 @@ export const ModalNovoPrestador: React.FC<ModalNovoPrestadorProps> = ({
             </div>
           </div>
 
-          {/* Seção 3: Dados Bancários & Fiscais */}
+          {/* Seção 3: Dados Bancários & Fiscais e Remuneração Mensal */}
           <div className="space-y-3 pt-2">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 border-b pb-1">
-              3. Dados Fiscais & Faturamento
+              3. Dados Fiscais, Faturamento & Valor Mensal
             </h3>
+
+            {/* Configuração de Valor Mensal Atual e cálculo do Valor/Hora (160h) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                  <DollarSign className="w-4 h-4 text-emerald-600" />
+                  <span>Valor Mensal da Prestação de Serviços</span>
+                </div>
+                <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                  <Calculator className="w-3 h-3 text-blue-500" />
+                  <span>Base {HORAS_MES_PADRAO}h/mês</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="valorMensalAtual"
+                    className="text-xs font-semibold text-slate-700"
+                  >
+                    Valor Mensal Atual (R$)
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-xs font-medium text-slate-500">
+                      R$
+                    </span>
+                    <Input
+                      id="valorMensalAtual"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0,00"
+                      value={valorMensalAtual}
+                      onChange={(e) => setValorMensalAtual(e.target.value)}
+                      className="h-9 pl-9 text-xs font-semibold text-slate-900"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    Alimenta o KPI no topo da tela e o card do prestador.
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-lg p-2.5 border border-slate-200">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                    Valor-Hora Recalculado (÷ 160h)
+                  </span>
+                  <div className="flex items-baseline gap-1 mt-0.5">
+                    <span className="text-base font-extrabold text-blue-700">
+                      R${' '}
+                      {calcularValorHoraPor160(parseFloat(valorMensalAtual) || 0).toLocaleString(
+                        'pt-BR',
+                        { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+                      )}
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-medium">/hora</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    Cálculo automático: R${' '}
+                    {(parseFloat(valorMensalAtual) || 0).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                    })}{' '}
+                    ÷ {HORAS_MES_PADRAO}h
+                  </span>
+                </div>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1">

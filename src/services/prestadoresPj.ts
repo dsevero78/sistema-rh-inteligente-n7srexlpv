@@ -64,6 +64,7 @@ export interface PrestadorPJ extends RecordModel {
   data_inicio_parceria?: string
   media_avaliacao?: number
   total_avaliacoes?: number
+  valor_mensal_atual?: number
 }
 
 export type TipoAditivoPJ =
@@ -250,6 +251,43 @@ export function getAnexoUrl(record: RecordModel, filename?: string): string {
 // Cálculos Financeiros: Valor Mensal Atual e Valor-Hora (Base 160h/mês)
 // ----------------------------------------------------------------------------
 export const HORAS_MES_PADRAO = 160
+
+/**
+ * Recalcula o valor-hora dividindo pela premissa base de 160 horas.
+ */
+export function calcularValorHoraPor160(valorMensal?: number | null): number {
+  if (!valorMensal || valorMensal <= 0) return 0
+  return Number((valorMensal / HORAS_MES_PADRAO).toFixed(2))
+}
+
+/**
+ * Retorna o valor mensal atual efetivo de um prestador considerando:
+ * 1. O campo `valor_mensal_atual` configurado no cadastro do prestador
+ * 2. Caso não esteja configurado, o último aditivo vigente do contrato
+ * 3. O valor base do contrato
+ */
+export function obterValorMensalPrestador(
+  prestador?: PrestadorPJ | null,
+  contrato?: ContratoPJ | null,
+  aditivos: AditivoPJ[] = [],
+): number {
+  if (!prestador && !contrato) return 0
+
+  // Se o prestador já tiver valor_mensal_atual configurado explicitamente no seu cadastro
+  if (
+    prestador &&
+    typeof prestador.valor_mensal_atual === 'number' &&
+    prestador.valor_mensal_atual > 0
+  ) {
+    return prestador.valor_mensal_atual
+  }
+
+  if (contrato) {
+    return calcularValorMensalEfetivo(contrato, aditivos)
+  }
+
+  return 0
+}
 
 /**
  * Retorna o valor mensal atual efetivo de um contrato,

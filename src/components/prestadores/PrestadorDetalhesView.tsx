@@ -218,15 +218,24 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
     }
   }
 
-  // Cálculos de resumo financeiro do prestador considerando aditivos vigentes
-  const totalMensal = contratos
+  // Cálculos de resumo financeiro do prestador:
+  // Usa prioritariamente o campo valor_mensal_atual do cadastro do prestador
+  // Se não configurado, calcula pelos contratos e aditivos vigentes
+  const totalContratosAditivos = contratos
     .filter((c) => c.status === 'Vigente' || c.status === 'Vencendo')
     .reduce((acc, c) => {
       const adits = aditivosLocais.filter((a) => a.contrato === c.id)
       return acc + calcularValorMensalEfetivo(c, adits)
     }, 0)
 
-  // Valor-hora total médio ponderado considerando a premissa de 160h/mês
+  const totalMensal =
+    prestador.valor_mensal_atual !== undefined &&
+    prestador.valor_mensal_atual !== null &&
+    prestador.valor_mensal_atual > 0
+      ? prestador.valor_mensal_atual
+      : totalContratosAditivos
+
+  // Valor-hora recalculado automaticamente dividindo pela base 160h/mês
   const valorHoraGeral = Number((totalMensal / HORAS_MES_PADRAO).toFixed(2))
 
   const totalAditivos = aditivosLocais.length
@@ -348,11 +357,25 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         {/* Card 1: Comprometimento Mensal Efetivo */}
         <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-blue-50/30">
           <CardContent className="p-4">
-            <span className="text-[11px] font-medium text-slate-500">Valor Mensal Atual</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-slate-500">Valor Mensal Atual</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onEditar}
+                className="h-5 px-1.5 text-[10px] text-blue-600 hover:text-blue-800 p-0"
+              >
+                Configurar
+              </Button>
+            </div>
             <div className="text-lg font-bold text-blue-700 mt-1">
               R$ {totalMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[10px] text-slate-400">Considerando aditivos vigentes</span>
+            <span className="text-[10px] text-slate-400">
+              {prestador.valor_mensal_atual
+                ? 'Configurado no cadastro'
+                : 'Derivado dos contratos vigentes'}
+            </span>
           </CardContent>
         </Card>
 
@@ -586,6 +609,29 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="bg-blue-50/50 p-2.5 rounded-lg border border-blue-100/80">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 font-medium block text-[11px]">
+                        Valor Mensal Atual (Configurado)
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onEditar}
+                        className="h-5 px-1.5 text-[10px] text-blue-700 hover:text-blue-900"
+                      >
+                        <Edit2 className="w-2.5 h-2.5 mr-1" />
+                        Alterar
+                      </Button>
+                    </div>
+                    <span className="text-base font-extrabold text-blue-800 block">
+                      R$ {totalMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      R$ {valorHoraGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/h
+                      (base 160h/mês)
+                    </span>
+                  </div>
                   <div>
                     <span className="text-slate-400 block mb-0.5">Área de Atuação</span>
                     <span className="font-semibold text-slate-800">{prestador.area_atuacao}</span>

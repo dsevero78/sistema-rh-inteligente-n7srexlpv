@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -169,19 +169,49 @@ export const PrestadoresPJ: React.FC = () => {
     return set
   }, [documentos])
 
+  // Helper para obter o valor mensal efetivo do prestador
+  // Prioridade:
+  // 1. Campo valor_mensal_atual no próprio cadastro do prestador
+  // 2. Se 0 ou vazio, soma dos contratos vigentes/em renovação do prestador (com aditivos vigentes)
+  const getValorMensalPrestador = useCallback(
+    (prestador: PrestadorPJ) => {
+      if (
+        prestador.valor_mensal_atual !== undefined &&
+        prestador.valor_mensal_atual !== null &&
+        prestador.valor_mensal_atual > 0
+      ) {
+        return prestador.valor_mensal_atual
+      }
+
+      const contratosDoPrestador = contratos.filter(
+        (c) =>
+          c.prestador === prestador.id &&
+          (c.status === 'Vigente' || c.status === 'Vencendo' || c.status === 'Renovado'),
+      )
+      const aditsDestePrestador = aditivos.filter((a) => a.prestador === prestador.id)
+
+      return contratosDoPrestador.reduce((acc, c) => {
+        const aditsDoC = aditsDestePrestador.filter((a) => a.contrato === c.id)
+        return acc + (c.tipo === 'Mensal' ? calcularValorMensalEfetivo(c, aditsDoC) : 0)
+      }, 0)
+    },
+    [contratos, aditivos],
+  )
+
   // Cálculo de KPIs
   const kpis = useMemo(() => {
+    const prestadoresAtivosList = prestadores.filter(
+      (p) => p.status === 'Ativo' || p.status === 'Em renovação',
+    )
     const ativos = prestadores.filter((p) => p.status === 'Ativo').length
     const contratosVigentes = contratos.filter(
       (c) => c.status === 'Vigente' || c.status === 'Vencendo',
     ).length
 
-    const valorMensal = contratos
-      .filter((c) => c.status === 'Vigente' || c.status === 'Vencendo')
-      .reduce((acc, c) => {
-        const aditsDeste = aditivos.filter((a) => a.contrato === c.id)
-        return acc + (c.tipo === 'Mensal' ? calcularValorMensalEfetivo(c, aditsDeste) : 0)
-      }, 0)
+    // O Valor Mensal Atual deriva do cadastro de cada prestador ativo/vigente
+    const valorMensal = prestadoresAtivosList.reduce((acc, p) => {
+      return acc + getValorMensalPrestador(p)
+    }, 0)
 
     const valorHoraGeral = Number((valorMensal / HORAS_MES_PADRAO).toFixed(2))
     const totalAditivos = aditivos.length
@@ -205,7 +235,7 @@ export const PrestadoresPJ: React.FC = () => {
       contratosVencendo30Dias,
       docsVencidos,
     }
-  }, [prestadores, contratos, documentos, aditivos])
+  }, [prestadores, contratos, documentos, aditivos, getValorMensalPrestador])
   // Lista de áreas únicas para filtro
   const areasDisponiveis = useMemo(() => {
     const set = new Set<string>()
@@ -594,13 +624,7 @@ export const PrestadoresPJ: React.FC = () => {
                 })
 
                 const aditsDestePrestador = aditivos.filter((a) => a.prestador === p.id)
-                const valorMensalTotal = contratosDoPrestador
-                  .filter((c) => c.status === 'Vigente' || c.status === 'Vencendo')
-                  .reduce((acc, c) => {
-                    const aditsDoC = aditsDestePrestador.filter((a) => a.contrato === c.id)
-                    return acc + (c.tipo === 'Mensal' ? calcularValorMensalEfetivo(c, aditsDoC) : 0)
-                  }, 0)
-
+                const valorMensalTotal = getValorMensalPrestador(p)
                 const valorHoraPrestador = Number((valorMensalTotal / HORAS_MES_PADRAO).toFixed(2))
 
                 return (

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T03:03:55.471Z",
+  "generatedAt": "2026-09-20T03:12:40.547Z",
   "collections": [
     {
       "name": "users",
@@ -2274,6 +2274,12 @@
           "required": false,
           "system": false,
           "selectValues": ["Entrada", "Ativo", "Mudanças", "Saída"]
+        },
+        {
+          "name": "valor_mensal_atual",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
