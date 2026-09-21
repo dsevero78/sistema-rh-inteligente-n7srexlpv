@@ -1694,3 +1694,6 @@ export const prestadoresService = {
     return res.resultado
   },
 }
+
+// Alias para compatibilidade caso algum módulo importe prestadoresPjService
+export const prestadoresPjService = prestadoresService

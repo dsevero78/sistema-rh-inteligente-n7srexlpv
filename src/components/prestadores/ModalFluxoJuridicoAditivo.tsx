@@ -16,7 +16,7 @@ import { Scale, Send, CheckCircle2, AlertCircle, Clock, User, MessageSquare } fr
 import {
   type AditivoPJ,
   type HistoricoEtapaAditivo,
-  prestadoresPjService,
+  prestadoresService,
 } from '@/services/prestadoresPj'
 import { notificacoesRhService } from '@/services/notificacoesRh'
 import pb from '@/lib/pocketbase/client'
@@ -51,7 +51,7 @@ export function ModalFluxoJuridicoAditivo({
     try {
       const nomeAutor = usuarioAtual?.name || usuarioAtual?.email || 'RH / People'
       const emailAutor = usuarioAtual?.email || ''
-      await prestadoresPjService.enviarMinutaParaJuridico(
+      await prestadoresService.enviarMinutaParaJuridico(
         aditivo,
         nomeAutor,
         emailAutor,
@@ -104,7 +104,7 @@ export function ModalFluxoJuridicoAditivo({
     try {
       const nomeAutor = usuarioAtual?.name || usuarioAtual?.email || 'Jurídico Interno'
       const emailAutor = usuarioAtual?.email || ''
-      await prestadoresPjService.registrarDecisaoJuridico(
+      await prestadoresService.registrarDecisaoJuridico(
         aditivo,
         decisao,
         comentario.trim(),
