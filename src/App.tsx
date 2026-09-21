@@ -36,6 +36,7 @@ import Indicadores from '@/pages/Indicadores'
 import Financeiro from '@/pages/Financeiro'
 import Alertas from '@/pages/Alertas'
 import Onboarding from '@/pages/Onboarding'
+import RotinaIntegracaoPage from '@/pages/RotinaIntegracaoPage'
 import ExperienciaCandidato from '@/pages/ExperienciaCandidato'
 import AdmissaoPublica from '@/pages/AdmissaoPublica'
 import ExperienciaPublica from '@/pages/ExperienciaPublica'
@@ -115,7 +116,8 @@ export default function App() {
                 <Route path="pipeline" element={<Pipeline />} />
                 <Route path="ofertas" element={<Ofertas />} />
                 <Route path="onboarding" element={<Onboarding />} />
-                <Route path="experiencia" element={<ExperienciaCandidato />} />
+                <Route path="integracao" element={<RotinaIntegracaoPage />} />
+                <Route path="experiencia" element={<ExperienciaCandidato />} />{' '}
                 <Route path="indicacoes" element={<Indicacoes />} />
                 <Route path="prestadores-pj" element={<PrestadoresPJ />} />
                 <Route path="banco-talentos" element={<BancoTalentos />} />{' '}

@@ -55,6 +55,7 @@ export type ModuloOrigemMeuDia =
   | 'candidatos'
   | 'entrevistas'
   | 'onboarding'
+  | 'integracao_rotina'
   | 'pj_aditivos'
   | 'pj_renovacoes'
   | 'indicacoes'

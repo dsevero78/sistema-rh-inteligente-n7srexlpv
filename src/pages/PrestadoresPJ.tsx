@@ -53,7 +53,9 @@ import {
   Trash2,
   GitCommit,
   Check,
+  Compass,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { ModalNovoPrestador } from '@/components/prestadores/ModalNovoPrestador'
 import { PrestadorDetalhesView } from '@/components/prestadores/PrestadorDetalhesView'
 import {
@@ -399,6 +401,14 @@ export const PrestadoresPJ: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <Link
+                to="/integracao"
+                className="h-9 inline-flex items-center gap-1.5 px-3 rounded-lg text-xs font-semibold bg-[#FEF1EA] text-[#E9530E] border border-[#FBDCC9] hover:bg-[#FBDCC9] transition-colors"
+              >
+                <Compass className="w-3.5 h-3.5 text-[#E9530E]" />
+                Rotina de Integração 30-60-90
+              </Link>
+
               <Button
                 variant="outline"
                 size="sm"

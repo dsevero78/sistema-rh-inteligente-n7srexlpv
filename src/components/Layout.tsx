@@ -207,6 +207,7 @@ export default function Layout() {
     if (path.startsWith('/alertas')) return 'Alertas Automáticos de Talentos'
     if (path.startsWith('/entrevistas')) return 'Gestão de Entrevistas & Calendário'
     if (path.startsWith('/chat')) return 'Chat com Gestor de Talentos (IA)'
+    if (path.startsWith('/integracao')) return 'Rotina de Integração 30-60-90'
     if (path.startsWith('/importar')) return 'Assistente de Importação em Lote'
     if (path.startsWith('/financeiro')) return 'Painel Financeiro Consolidado'
     if (path.startsWith('/indicadores')) return 'Indicadores Estratégicos de Recrutamento'
@@ -289,6 +290,12 @@ export default function Layout() {
               { title: 'Pipeline', href: '/pipeline', icon: GitPullRequest },
               { title: 'Ofertas', href: '/ofertas', icon: FileCheck2 },
               { title: 'Onboarding', href: '/onboarding', icon: UserCheck, badge: 'Dia 1' },
+              {
+                title: 'Integração 30-60-90',
+                href: '/integracao',
+                icon: Compass,
+                badge: 'Rotina',
+              },
               {
                 title: 'Experiência',
                 href: '/experiencia',
