@@ -105,10 +105,11 @@ export default function HorasCompetenciasPage() {
   const [lancamentoDesc, setLancamentoDesc] = useState<string>('')
   const [salvandoApontamento, setSalvandoApontamento] = useState(false)
 
-  // Modal de Parecer / Validação / Devolução do Gestor (quando aplicável ou visualizado pelo RH)
+  // Modal de Validação e Aprovação pelo RH / Devolução para Ajustes
   const [modalValidacaoOpen, setModalValidacaoOpen] = useState(false)
   const [fechamentoEmAcao, setFechamentoEmAcao] = useState<FechamentoCompetencia | null>(null)
   const [parecerTexto, setParecerTexto] = useState('')
+  const [tipoAcaoValidacao, setTipoAcaoValidacao] = useState<'aprovar' | 'devolver'>('aprovar')
   const [salvandoValidacao, setSalvandoValidacao] = useState(false)
 
   // Modal de Cobrança de NF
@@ -250,9 +251,31 @@ export default function HorasCompetenciasPage() {
     }
   }, [pessoasPj, fechamentosPorPessoa, apontamentosPorPessoa, nfsPorPessoa])
 
+  // Identificação do papel do usuário logado
+  const isGestor = user?.cargo_funcao === 'Gestor Contratante'
+  const isRhOuAdmin = !isGestor
+
+  // Filtragem da tabela com suporte ao escopo de visibilidade:
+  // Se for Gestor, exibe apenas pessoas do time dele por padrão (ou dele como responsável)
+  // Se for RH/Admin, vê todas as pessoas da empresa
+  const pessoasVisiveis = useMemo(() => {
+    if (!isGestor || !user?.id) return pessoasPj
+    return pessoasPj.filter((p) => {
+      if (p.gestor_responsavel === user.id) return true
+      if (
+        p.gestor_nome &&
+        user.name &&
+        p.gestor_nome.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])
+      ) {
+        return true
+      }
+      return false
+    })
+  }, [pessoasPj, isGestor, user])
+
   // Filtragem da tabela
   const listaFiltrada = useMemo(() => {
-    return pessoasPj.filter((p) => {
+    return pessoasVisiveis.filter((p) => {
       const fech = fechamentosPorPessoa.get(p.id)
       const nf = nfsPorPessoa.get(p.id)
 
@@ -268,8 +291,11 @@ export default function HorasCompetenciasPage() {
         if (filtroStatus === 'em_apontamento') {
           return !fech || fech.status_ciclo === 'Em apontamento'
         }
-        if (filtroStatus === 'aguardando_gestor') {
-          return fech?.status_ciclo === 'Aguardando validação do gestor'
+        if (filtroStatus === 'aguardando_rh') {
+          return fech?.status_ciclo === 'Aguardando validação do RH'
+        }
+        if (filtroStatus === 'devolvido') {
+          return fech?.status_ciclo === 'Devolvido para ajustes'
         }
         if (filtroStatus === 'validado') {
           return fech?.status_ciclo === 'Validado'
@@ -287,7 +313,7 @@ export default function HorasCompetenciasPage() {
 
       return true
     })
-  }, [pessoasPj, fechamentosPorPessoa, nfsPorPessoa, busca, filtroStatus])
+  }, [pessoasVisiveis, fechamentosPorPessoa, nfsPorPessoa, busca, filtroStatus])
 
   // Lógica de seleção múltipla (apenas os com status 'Validado' podem ser solicitados em lote)
   const itensElegiveisParaLote = useMemo(() => {
@@ -316,7 +342,7 @@ export default function HorasCompetenciasPage() {
     setSelecionados(next)
   }
 
-  // Ação: Lançar Horas
+  // Ação: Lançar Horas (a cargo do Gestor Contratante ou com suporte do RH)
   const handleSalvarApontamento = async () => {
     if (!lancamentoPessoaId) {
       toast({
@@ -339,6 +365,9 @@ export default function HorasCompetenciasPage() {
     setSalvandoApontamento(true)
     try {
       const p = pessoasPj.find((x) => x.id === lancamentoPessoaId)
+      const autorDesc = user?.name
+        ? `${user.name} (${isGestor ? 'Gestor' : 'RH'})`
+        : 'Gestor Contratante'
       await horasService.criarApontamento({
         pessoa: lancamentoPessoaId,
         competencia,
@@ -348,7 +377,7 @@ export default function HorasCompetenciasPage() {
         descricao: lancamentoDesc.trim() || undefined,
         status: 'Aprovado',
         vinculo_referencia: p?.cpf_cnpj || undefined,
-        criado_por: user?.name || 'Douglas Severo (RH)',
+        criado_por: autorDesc,
       })
 
       // Atualizar ou criar fechamento em status 'Em apontamento'
@@ -377,14 +406,14 @@ export default function HorasCompetenciasPage() {
         valor_hora_congelado: vHora,
         valor_total_calculado: valorTot,
         status_ciclo: 'Em apontamento',
-        gestor_nome: p?.gestor_nome || undefined,
-        gestor_validador: p?.gestor_responsavel || undefined,
+        gestor_nome: p?.gestor_nome || user?.name || undefined,
+        gestor_validador: p?.gestor_responsavel || user?.id || undefined,
         prestador: p?.prestador_origem || undefined,
       })
 
       toast({
         title: 'Apontamento registrado com sucesso!',
-        description: `${lancamentoHoras}h lançadas para ${p?.nome} na competência ${competencia}.`,
+        description: `${lancamentoHoras}h apontadas para ${p?.nome} na competência ${competencia}.`,
       })
 
       setModalLancamentoOpen(false)
@@ -403,8 +432,8 @@ export default function HorasCompetenciasPage() {
     }
   }
 
-  // Ação: Submeter Fechamento para o Gestor
-  const handleEnviarParaGestor = async (p: PessoaUnificada) => {
+  // Ação: Gestor conclui os apontamentos e envia para validação do RH
+  const handleEnviarParaRh = async (p: PessoaUnificada) => {
     try {
       const apList = apontamentosPorPessoa.get(p.id) || []
       const totalH = apList.reduce((acc, a) => acc + (a.horas || 0), 0)
@@ -427,26 +456,83 @@ export default function HorasCompetenciasPage() {
         horas_base_contrato: p.horas_mensais_base || 160,
         valor_hora_congelado: vHora,
         valor_total_calculado: valorTot,
-        status_ciclo: 'Aguardando validação do gestor',
-        gestor_nome: p.gestor_nome || 'Gestor Contratante',
-        gestor_validador: p.gestor_responsavel || undefined,
+        status_ciclo: 'Aguardando validação do RH',
+        gestor_nome: p.gestor_nome || user?.name || 'Gestor Contratante',
+        gestor_validador: p.gestor_responsavel || user?.id || undefined,
         prestador: p.prestador_origem || undefined,
       })
 
-      await horasService.enviarParaValidacaoGestor(fech.id, user?.name || 'Douglas Severo (RH)')
+      const autorNome = user?.name || p.gestor_nome || 'Gestor Contratante'
+      await horasService.enviarParaValidacaoRh(fech.id, autorNome)
 
       toast({
-        title: 'Submetido ao Gestor',
-        description: `Horas de ${p.nome} enviadas para validação de ${p.gestor_nome || 'Gestor'}.`,
+        title: 'Apontamento enviado ao RH',
+        description: `Horas de ${p.nome} submetidas para validação e conferência do RH.`,
       })
 
       await carregarDados()
     } catch (err: any) {
       toast({
-        title: 'Erro ao submeter ao gestor',
+        title: 'Erro ao enviar para o RH',
         description: err?.message || 'Falha na operação.',
         variant: 'destructive',
       })
+    }
+  }
+
+  // Ação: RH aprova ou devolve o apontamento com observações
+  const handleConfirmarValidacaoRh = async () => {
+    if (!fechamentoEmAcao) return
+    setSalvandoValidacao(true)
+
+    try {
+      const rhNome = user?.name || 'Douglas Severo (RH)'
+      const rhId = user?.id || ''
+
+      if (tipoAcaoValidacao === 'aprovar') {
+        await horasService.aprovarPeloRh(
+          fechamentoEmAcao.id,
+          rhId,
+          rhNome,
+          parecerTexto.trim() || undefined,
+        )
+        toast({
+          title: 'Competência Validada pelo RH!',
+          description: `Horas aprovadas. A competência agora está apta para solicitação de Nota Fiscal.`,
+        })
+      } else {
+        if (!parecerTexto.trim()) {
+          toast({
+            title: 'Informe o motivo da devolução',
+            description: 'Descreva quais correções ou observações o gestor deve ajustar.',
+            variant: 'destructive',
+          })
+          setSalvandoValidacao(false)
+          return
+        }
+        await horasService.devolverParaAjustesPeloRh(
+          fechamentoEmAcao.id,
+          rhNome,
+          parecerTexto.trim(),
+        )
+        toast({
+          title: 'Devolvido ao Gestor',
+          description: `O apontamento foi retornado ao gestor com as observações registradas no histórico.`,
+        })
+      }
+
+      setModalValidacaoOpen(false)
+      setFechamentoEmAcao(null)
+      setParecerTexto('')
+      await carregarDados()
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao processar validação',
+        description: err?.message || 'Falha ao registrar parecer.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSalvandoValidacao(false)
     }
   }
 
@@ -601,13 +687,16 @@ export default function HorasCompetenciasPage() {
                 <h1 className="text-xl font-bold tracking-tight text-[#212B55] dark:text-[#F7F8FB] font-display">
                   Horas & Fechamento de Competência
                 </h1>
-                <Badge className="bg-[#E9530E] text-white font-mono text-xs font-bold">
-                  RH / Admin
+                <Badge
+                  className={`${isGestor ? 'bg-[#212B55]' : 'bg-[#E9530E]'} text-white font-mono text-xs font-bold`}
+                >
+                  {isGestor ? 'Gestor Contratante' : 'RH / Validador Fiscal'}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5 font-sans">
-                Gestão de horas (base 160h), validação de gestores, solicitação e cobrança de Notas
-                Fiscais em lote para prestadores PJ.
+                {isGestor
+                  ? 'Apontamento de horas dos prestadores da sua área (base 160h) e envio para validação do RH.'
+                  : 'Validação e conferência das horas apontadas pelos gestores, emissão de pareceres e solicitação de NFs em lote.'}
               </p>
             </div>
           </div>
@@ -647,10 +736,10 @@ export default function HorasCompetenciasPage() {
             className="h-9 gap-1.5 text-xs bg-[#212B55] hover:bg-[#11162B] text-white font-semibold shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
-            Lançar Horas
+            {isGestor ? 'Lançar Horas da Área' : 'Lançar Horas (Apoio)'}
           </Button>
 
-          {selecionados.size > 0 && (
+          {isRhOuAdmin && selecionados.size > 0 && (
             <Button
               size="sm"
               onClick={() => setModalLoteOpen(true)}
@@ -704,7 +793,7 @@ export default function HorasCompetenciasPage() {
         <Card className="bg-card border-border/80 shadow-xs">
           <CardHeader className="p-4 pb-2">
             <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">
-              Validados Gestor
+              Validados pelo RH
             </span>
             <CardTitle className="text-2xl font-black text-indigo-700 dark:text-indigo-300 font-mono tabular-nums mt-1">
               {metricasCompetencia.totalFechamentosValidados} prestador(es)
@@ -712,7 +801,7 @@ export default function HorasCompetenciasPage() {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <p className="text-[11px] text-muted-foreground font-sans">
-              Elegíveis para solicitação de NF
+              Aptos para solicitação de NF
             </p>
           </CardContent>
         </Card>
@@ -780,13 +869,16 @@ export default function HorasCompetenciasPage() {
                 Todos os Status
               </SelectItem>
               <SelectItem value="em_apontamento" className="text-xs">
-                Em Apontamento
+                Em Apontamento (Gestor)
               </SelectItem>
-              <SelectItem value="aguardando_gestor" className="text-xs">
-                Aguardando Gestor
+              <SelectItem value="aguardando_rh" className="text-xs">
+                Aguardando Validação do RH
+              </SelectItem>
+              <SelectItem value="devolvido" className="text-xs">
+                Devolvido para Ajustes
               </SelectItem>
               <SelectItem value="validado" className="text-xs">
-                Validados pelo Gestor
+                Validados pelo RH
               </SelectItem>
               <SelectItem value="nf_solicitada" className="text-xs">
                 NF Solicitada
@@ -902,11 +994,13 @@ export default function HorasCompetenciasPage() {
                                 ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300'
                                 : statusCiclo === 'Validado'
                                   ? 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950 dark:text-indigo-300'
-                                  : statusCiclo === 'Aguardando validação do gestor'
+                                  : statusCiclo === 'Aguardando validação do RH'
                                     ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300'
-                                    : statusCiclo === 'NF solicitada'
-                                      ? 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-300'
-                                      : 'bg-slate-100 text-slate-800 border-slate-300'
+                                    : statusCiclo === 'Devolvido para ajustes'
+                                      ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-300'
+                                      : statusCiclo === 'NF solicitada'
+                                        ? 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-300'
+                                        : 'bg-slate-100 text-slate-800 border-slate-300'
                             }`}
                           >
                             {statusCiclo}
@@ -942,18 +1036,56 @@ export default function HorasCompetenciasPage() {
 
                     {/* Ações contextuais por pessoa */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      {statusCiclo === 'Em apontamento' && (
+                      {/* Gestor ou RH: Submeter apontamento concluído para o RH */}
+                      {(statusCiclo === 'Em apontamento' ||
+                        statusCiclo === 'Devolvido para ajustes') && (
                         <Button
                           size="sm"
-                          onClick={() => handleEnviarParaGestor(p)}
+                          onClick={() => handleEnviarParaRh(p)}
                           className="h-8 text-xs bg-[#212B55] hover:bg-[#11162B] text-white font-semibold gap-1"
                         >
                           <Send className="w-3.5 h-3.5" />
-                          Enviar ao Gestor
+                          {statusCiclo === 'Devolvido para ajustes'
+                            ? 'Reenviar ao RH'
+                            : 'Concluir e Enviar ao RH'}
                         </Button>
                       )}
 
-                      {statusCiclo === 'Validado' && !nf && (
+                      {/* RH: Validar ou Devolver competência aguardando validação */}
+                      {isRhOuAdmin && statusCiclo === 'Aguardando validação do RH' && fech && (
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setFechamentoEmAcao(fech)
+                              setTipoAcaoValidacao('aprovar')
+                              setParecerTexto('')
+                              setModalValidacaoOpen(true)
+                            }}
+                            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1 shadow-xs"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Aprovar Horas (RH)
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setFechamentoEmAcao(fech)
+                              setTipoAcaoValidacao('devolver')
+                              setParecerTexto('')
+                              setModalValidacaoOpen(true)
+                            }}
+                            className="h-8 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 font-semibold gap-1"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Devolver com Observações
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* RH: Solicitar NF a partir de competências Validadas */}
+                      {isRhOuAdmin && statusCiclo === 'Validado' && !nf && (
                         <Button
                           size="sm"
                           onClick={() => {
@@ -1083,15 +1215,21 @@ export default function HorasCompetenciasPage() {
 
                     <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
                       <span className="text-[10px] text-muted-foreground uppercase font-semibold block">
-                        Validação do Gestor
+                        Validação pelo RH
                       </span>
                       <span className="text-xs font-bold text-foreground block truncate">
-                        {fech?.gestor_nome || p.gestor_nome || 'Pendente'}
+                        {statusCiclo === 'Validado' || statusCiclo === 'Fechado'
+                          ? 'Aprovado pelo RH'
+                          : statusCiclo === 'Devolvido para ajustes'
+                            ? 'Devolvido para ajustes'
+                            : statusCiclo === 'Aguardando validação do RH'
+                              ? 'Aguardando RH'
+                              : 'Em apontamento'}
                       </span>
                       <span className="text-[10px] text-muted-foreground block">
                         {fech?.data_validacao
                           ? new Date(fech.data_validacao).toLocaleDateString('pt-BR')
-                          : 'Aguardando validação'}
+                          : 'Gestor aponta → RH valida'}
                       </span>
                     </div>
 
@@ -1116,10 +1254,26 @@ export default function HorasCompetenciasPage() {
 
                   {/* Histórico resumido do ciclo se houver */}
                   {fech?.parecer_gestor && (
-                    <div className="text-xs text-muted-foreground bg-muted/20 p-2.5 rounded border border-border/40 flex items-start gap-2">
-                      <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                    <div
+                      className={`text-xs p-2.5 rounded border flex items-start gap-2 ${
+                        statusCiclo === 'Devolvido para ajustes'
+                          ? 'bg-red-50/80 text-red-800 border-red-200 dark:bg-red-950/40 dark:border-red-900 dark:text-red-300'
+                          : 'bg-muted/20 text-muted-foreground border-border/40'
+                      }`}
+                    >
+                      <ShieldCheck
+                        className={`w-4 h-4 shrink-0 mt-0.5 ${
+                          statusCiclo === 'Devolvido para ajustes'
+                            ? 'text-red-600'
+                            : 'text-indigo-600'
+                        }`}
+                      />
                       <div>
-                        <span className="font-semibold text-foreground">Parecer do Gestor: </span>
+                        <span className="font-semibold text-foreground">
+                          {statusCiclo === 'Devolvido para ajustes'
+                            ? 'Observações do RH para correção: '
+                            : 'Parecer de Validação do RH: '}
+                        </span>
                         <span>"{fech.parecer_gestor}"</span>
                       </div>
                     </div>
@@ -1226,6 +1380,111 @@ export default function HorasCompetenciasPage() {
               {salvandoApontamento ? 'Gravando...' : 'Gravar Apontamento'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE VALIDAÇÃO E APROVAÇÃO / DEVOLUÇÃO PELO RH */}
+      <Dialog open={modalValidacaoOpen} onOpenChange={setModalValidacaoOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-[#212B55] dark:text-[#F7F8FB] font-display flex items-center gap-2">
+              {tipoAcaoValidacao === 'aprovar' ? (
+                <>
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  Validação e Aprovação pelo RH
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-5 h-5 text-amber-600" />
+                  Devolver Apontamento com Observações
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription className="text-xs font-sans">
+              {tipoAcaoValidacao === 'aprovar'
+                ? 'Como RH, confirme as horas apontadas pelo gestor da área para congelar o valor e habilitar a emissão de NF.'
+                : 'Descreva os motivos, divergências de horas ou correções necessárias para o gestor ajustar.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {fechamentoEmAcao && (
+            <div className="space-y-4 py-2">
+              <div className="bg-muted/40 p-3 rounded border border-border/60 space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Competência:</span>
+                  <span className="font-mono font-bold">{fechamentoEmAcao.competencia}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Horas Apontadas:</span>
+                  <span className="font-mono font-bold">{fechamentoEmAcao.total_horas}h</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Valor Congelado Calculado:</span>
+                  <span className="font-mono font-bold text-[#E9530E]">
+                    R${' '}
+                    {(fechamentoEmAcao.valor_total_calculado || 0).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                    })}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">
+                  {tipoAcaoValidacao === 'aprovar'
+                    ? 'Parecer de Aprovação do RH (opcional)'
+                    : 'Observações / Motivo da Devolução (obrigatório)'}
+                </Label>
+                <Textarea
+                  placeholder={
+                    tipoAcaoValidacao === 'aprovar'
+                      ? 'Ex: Apontamento em conformidade com o cronograma e contrato ativo...'
+                      : 'Ex: Faltou detalhar horas extras do período; favor revisar as entregas...'
+                  }
+                  value={parecerTexto}
+                  onChange={(e) => setParecerTexto(e.target.value)}
+                  rows={3}
+                  className="text-xs resize-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setModalValidacaoOpen(false)
+                    setFechamentoEmAcao(null)
+                  }}
+                  className="flex-1 h-9 text-xs"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleConfirmarValidacaoRh}
+                  disabled={salvandoValidacao}
+                  className={`flex-1 h-9 text-xs text-white font-bold ${
+                    tipoAcaoValidacao === 'aprovar'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : 'bg-amber-600 hover:bg-amber-700'
+                  }`}
+                >
+                  {tipoAcaoValidacao === 'aprovar' ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                      Validar & Aprovar (RH)
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                      Confirmar Devolução
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

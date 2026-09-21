@@ -24,7 +24,7 @@ export interface ApontamentoHora extends RecordModel {
 
 export type StatusCicloFechamento =
   | 'Em apontamento'
-  | 'Aguardando validação do gestor'
+  | 'Aguardando validação do RH'
   | 'Devolvido para ajustes'
   | 'Validado'
   | 'NF solicitada'
@@ -210,77 +210,176 @@ export const horasService = {
     }
   },
 
-  async enviarParaValidacaoGestor(
+  /**
+   * O GESTOR conclui os apontamentos de horas da competência e submete para validação do RH.
+   */
+  async enviarParaValidacaoRh(
     fechamentoId: string,
     autorNome: string,
+    observacaoGestor?: string,
   ): Promise<FechamentoCompetencia> {
     const atual = await pb
       .collection('fechamentos_competencia')
-      .getOne<FechamentoCompetencia>(fechamentoId)
+      .getOne<FechamentoCompetencia>(fechamentoId, { expand: 'pessoa' })
     const historico = Array.isArray(atual.historico_eventos) ? [...atual.historico_eventos] : []
 
     historico.push({
       data: new Date().toISOString(),
-      autor: autorNome,
-      acao: 'Envio para validação do gestor',
-      observacao: `Fechamento submetido para conferência do gestor contratante. Total: ${atual.total_horas}h.`,
+      autor: `${autorNome} (Gestor)`,
+      acao: 'Envio para validação do RH',
+      observacao:
+        observacaoGestor ||
+        `Fechamento de competência concluído e enviado pelo gestor para conferência do RH. Total: ${atual.total_horas}h.`,
     })
 
-    return pb.collection('fechamentos_competencia').update<FechamentoCompetencia>(fechamentoId, {
-      status_ciclo: 'Aguardando validação do gestor',
-      historico_eventos: historico,
-    })
+    const atualizado = await pb
+      .collection('fechamentos_competencia')
+      .update<FechamentoCompetencia>(fechamentoId, {
+        status_ciclo: 'Aguardando validação do RH',
+        historico_eventos: historico,
+      })
+
+    // Notificar o RH via Central de Notificações
+    try {
+      const { notificacoesRhService } = await import('./notificacoesRh')
+      const pessoaNome = atual.expand?.pessoa?.nome || 'Prestador PJ'
+      await notificacoesRhService.criarNotificacao({
+        titulo: `Competência ${atual.competencia} pronta para validação: ${pessoaNome}`,
+        mensagem: `${autorNome} (Gestor) concluiu os apontamentos (${atual.total_horas}h - R$ ${(atual.valor_total_calculado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}). Valide ou devolva com observações para emissão de NF.`,
+        tipo: 'fechamento_horas_rh',
+        link: `/horas-competencias?comp=${atual.competencia}`,
+        referencia_tipo: 'fechamentos_competencia',
+        referencia_id: fechamentoId,
+        autor_nome: autorNome,
+      })
+    } catch (e) {
+      console.warn('Aviso ao disparar notificação para o RH:', e)
+    }
+
+    return atualizado
   },
 
+  /**
+   * O RH valida e aprova o fechamento de horas do gestor (→ status "Validado", valor calculado congelado).
+   */
+  async aprovarPeloRh(
+    fechamentoId: string,
+    rhId: string,
+    rhNome: string,
+    parecer?: string,
+  ): Promise<FechamentoCompetencia> {
+    const atual = await pb
+      .collection('fechamentos_competencia')
+      .getOne<FechamentoCompetencia>(fechamentoId, { expand: 'pessoa' })
+    const historico = Array.isArray(atual.historico_eventos) ? [...atual.historico_eventos] : []
+
+    historico.push({
+      data: new Date().toISOString(),
+      autor: `${rhNome} (RH)`,
+      acao: 'Validação e aprovação pelo RH',
+      observacao:
+        parecer ||
+        'Horas e entregas validadas pelo RH. Competência pronta para solicitação de Nota Fiscal.',
+    })
+
+    const atualizado = await pb
+      .collection('fechamentos_competencia')
+      .update<FechamentoCompetencia>(fechamentoId, {
+        status_ciclo: 'Validado',
+        gestor_validador: rhId,
+        data_validacao: new Date().toISOString(),
+        parecer_gestor: parecer || 'Validado e aprovado pelo RH',
+        historico_eventos: historico,
+      })
+
+    // Notificar o gestor da área sobre a validação
+    try {
+      const { notificacoesRhService } = await import('./notificacoesRh')
+      const pessoaNome = atual.expand?.pessoa?.nome || 'Prestador PJ'
+      await notificacoesRhService.criarNotificacao({
+        titulo: `Competência ${atual.competencia} validada pelo RH: ${pessoaNome}`,
+        mensagem: `${rhNome} (RH) aprovou o fechamento de ${atual.total_horas}h. A solicitação de Nota Fiscal será iniciada.`,
+        tipo: 'fechamento_horas_gestor',
+        link: `/horas-competencias?comp=${atual.competencia}`,
+        referencia_tipo: 'fechamentos_competencia',
+        referencia_id: fechamentoId,
+        autor_nome: rhNome,
+      })
+    } catch (e) {
+      console.warn('Aviso ao notificar aprovação ao gestor:', e)
+    }
+
+    return atualizado
+  },
+
+  /**
+   * O RH devolve o fechamento para o gestor com observações/correções (→ volta para "Devolvido para ajustes").
+   */
+  async devolverParaAjustesPeloRh(
+    fechamentoId: string,
+    rhNome: string,
+    motivo: string,
+  ): Promise<FechamentoCompetencia> {
+    const atual = await pb
+      .collection('fechamentos_competencia')
+      .getOne<FechamentoCompetencia>(fechamentoId, { expand: 'pessoa' })
+    const historico = Array.isArray(atual.historico_eventos) ? [...atual.historico_eventos] : []
+
+    historico.push({
+      data: new Date().toISOString(),
+      autor: `${rhNome} (RH)`,
+      acao: 'Devolução para ajustes com observações do RH',
+      observacao: motivo,
+    })
+
+    const atualizado = await pb
+      .collection('fechamentos_competencia')
+      .update<FechamentoCompetencia>(fechamentoId, {
+        status_ciclo: 'Devolvido para ajustes',
+        parecer_gestor: motivo,
+        historico_eventos: historico,
+      })
+
+    // Notificar o gestor responsável para realizar as correções
+    try {
+      const { notificacoesRhService } = await import('./notificacoesRh')
+      const pessoaNome = atual.expand?.pessoa?.nome || 'Prestador PJ'
+      await notificacoesRhService.criarNotificacao({
+        titulo: `Ajustes necessários no apontamento de ${pessoaNome} (${atual.competencia})`,
+        mensagem: `${rhNome} (RH) devolveu o apontamento de horas com as seguintes observações: "${motivo}". Acesse o sistema para corrigir e reenviar.`,
+        tipo: 'fechamento_horas_gestor',
+        link: `/horas-competencias?comp=${atual.competencia}`,
+        referencia_tipo: 'fechamentos_competencia',
+        referencia_id: fechamentoId,
+        autor_nome: rhNome,
+      })
+    } catch (e) {
+      console.warn('Aviso ao notificar devolução ao gestor:', e)
+    }
+
+    return atualizado
+  },
+
+  // Aliases para retrocompatibilidade sem quebras
+  async enviarParaValidacaoGestor(
+    fechamentoId: string,
+    autorNome: string,
+  ): Promise<FechamentoCompetencia> {
+    return this.enviarParaValidacaoRh(fechamentoId, autorNome)
+  },
   async aprovarPeloGestor(
     fechamentoId: string,
     gestorId: string,
     gestorNome: string,
     parecer?: string,
   ): Promise<FechamentoCompetencia> {
-    const atual = await pb
-      .collection('fechamentos_competencia')
-      .getOne<FechamentoCompetencia>(fechamentoId)
-    const historico = Array.isArray(atual.historico_eventos) ? [...atual.historico_eventos] : []
-
-    historico.push({
-      data: new Date().toISOString(),
-      autor: `${gestorNome} (Gestor)`,
-      acao: 'Validação do gestor',
-      observacao: parecer || 'Horas validadas e aprovadas sem ressalvas.',
-    })
-
-    return pb.collection('fechamentos_competencia').update<FechamentoCompetencia>(fechamentoId, {
-      status_ciclo: 'Validado',
-      gestor_validador: gestorId,
-      gestor_nome: gestorNome,
-      data_validacao: new Date().toISOString(),
-      parecer_gestor: parecer || 'Aprovado pelo gestor',
-      historico_eventos: historico,
-    })
+    return this.aprovarPeloRh(fechamentoId, gestorId, gestorNome, parecer)
   },
-
   async devolverParaAjustes(
     fechamentoId: string,
     gestorNome: string,
     motivo: string,
   ): Promise<FechamentoCompetencia> {
-    const atual = await pb
-      .collection('fechamentos_competencia')
-      .getOne<FechamentoCompetencia>(fechamentoId)
-    const historico = Array.isArray(atual.historico_eventos) ? [...atual.historico_eventos] : []
-
-    historico.push({
-      data: new Date().toISOString(),
-      autor: `${gestorNome} (Gestor)`,
-      acao: 'Devolução para ajustes',
-      observacao: motivo,
-    })
-
-    return pb.collection('fechamentos_competencia').update<FechamentoCompetencia>(fechamentoId, {
-      status_ciclo: 'Devolvido para ajustes',
-      parecer_gestor: motivo,
-      historico_eventos: historico,
-    })
+    return this.devolverParaAjustesPeloRh(fechamentoId, gestorNome, motivo)
   },
 }

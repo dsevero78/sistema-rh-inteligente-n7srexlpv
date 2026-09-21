@@ -284,6 +284,12 @@ export default function Layout() {
           ? [
               { title: 'Meu Dia', href: '/meu-dia', icon: Sunrise, countKey: 'meudia' as const },
               { title: 'Pessoas (Unificado)', href: '/pessoas', icon: Users, badge: 'Ficha' },
+              {
+                title: 'Horas & Competências',
+                href: '/horas-competencias',
+                icon: Clock,
+                badge: 'Apontar',
+              },
               { title: 'Minhas Vagas', href: '/gestor', icon: Briefcase },
               { title: 'Indicadores', href: '/indicadores', icon: Compass, badge: 'KPIs' },
               { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
@@ -680,13 +686,17 @@ export default function Layout() {
                                             : 'bg-slate-100 text-slate-800 border-slate-300'
                                     }`}
                                   >
-                                    {isVaga
-                                      ? 'Gestor Vaga'
-                                      : isJuridico
-                                        ? 'Jurídico PJ'
-                                        : isParecer
-                                          ? 'Parecer Gestor'
-                                          : 'Notificação'}
+                                    {notif.tipo === 'fechamento_horas_rh'
+                                      ? 'Horas para Validação'
+                                      : notif.tipo === 'fechamento_horas_gestor'
+                                        ? 'Retorno Horas'
+                                        : isVaga
+                                          ? 'Gestor Vaga'
+                                          : isJuridico
+                                            ? 'Jurídico PJ'
+                                            : isParecer
+                                              ? 'Parecer Gestor'
+                                              : 'Notificação'}
                                   </span>
                                   <span className="text-xs font-bold text-slate-900 dark:text-[#F7F8FB] truncate max-w-[200px]">
                                     {notif.titulo}

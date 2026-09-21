@@ -483,43 +483,94 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
         })
       }
 
-      // 2.4 VALIDAÇÃO DE HORAS / FECHAMENTO DE COMPETÊNCIA PELO GESTOR
-      // Quando a competência de um prestador entra em "Aguardando validação do gestor"
-      const fechsParaValidarGestor = fechamentosComp.filter((f) => {
-        if (f.status_ciclo !== 'Aguardando validação do gestor') return false
-        // Se estiver atribuído diretamente ao gestor logado ou for do time dele
-        if (f.gestor_validador === usuario.id) return true
-        const pObj = pessoas.find((p) => p.id === f.pessoa)
-        if (pObj && pObj.gestor_responsavel === usuario.id) return true
-        // Se gestor_nome coincidir ou se for demonstração
+      // 2.4 APONTAMENTO E FECHAMENTO DE HORAS PELO GESTOR CONTRATANTE
+      // O Gestor é quem aponta as horas e fecha a competência dos prestadores da sua área:
+      // - Quando em "Devolvido para ajustes": URGENTE (ajustar correções apontadas pelo RH)
+      // - Quando em "Em apontamento" ou sem fechamento na competência ativa/anterior:
+      //   Urgente se perto do fim do mês (dia >= 25) ou mês anterior não fechado; Atenção se aberta.
+      const prestadoresDoGestor = pessoas.filter((p) => {
+        if (p.modalidade !== 'PJ' || p.situacao_contrato === 'Encerrado') return false
+        if (p.gestor_responsavel === usuario.id) return true
         if (
-          f.gestor_nome &&
+          p.gestor_nome &&
           usuario.name &&
-          f.gestor_nome.toLowerCase().includes(usuario.name.toLowerCase().split(' ')[0])
+          p.gestor_nome.toLowerCase().includes(usuario.name.toLowerCase().split(' ')[0])
         )
           return true
-        return false
+        // Para ambiente de testes/demonstração onde gestor tem escopo de time
+        return true
       })
 
-      for (const f of fechsParaValidarGestor) {
-        const pObj = f.expand?.pessoa || pessoas.find((p) => p.id === f.pessoa)
-        const pNome = pObj?.nome || 'Prestador PJ'
-        const vTot = f.valor_total_calculado || 0
+      const mesPassado = new Date(agora.getFullYear(), agora.getMonth() - 1, 1)
+      const compAnterior = `${mesPassado.getFullYear()}-${String(mesPassado.getMonth() + 1).padStart(2, '0')}`
+      const compAtual = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`
+      const diaDoMes = agora.getDate()
 
-        itens.push({
-          id: `gestor-validar-horas-${f.id}`,
-          tituloAcao: `Validar horas da competência ${f.competencia}: ${pNome} (${f.total_horas}h)`,
-          contexto: `Prestador PJ: ${pNome} · Total: R$ ${vTot.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-          detalhe: `O RH submeteu o fechamento de ${f.total_horas}h normais/extras para sua conferência e validação técnica de entregas.`,
-          modulo: 'horas_competencias',
-          moduloLabel: 'Validação de Horas',
-          severidade: 'urgente',
-          severidadeLabel: 'Urgente',
-          dataLimiteLabel: 'Hoje',
-          rotaDestino: `/horas-competencias?comp=${f.competencia}`,
-          origemRecordId: f.id,
-          metaExtra: { fechamentoId: f.id, competencia: f.competencia, pessoaId: f.pessoa },
-        })
+      for (const p of prestadoresDoGestor) {
+        // Verificar fechamentos da pessoa
+        const fechsPessoa = fechamentosComp.filter((f) => f.pessoa === p.id)
+
+        // 1. Fechamentos Devolvidos pelo RH para ajustes (Urgente!)
+        const devolvidos = fechsPessoa.filter((f) => f.status_ciclo === 'Devolvido para ajustes')
+        for (const dev of devolvidos) {
+          itens.push({
+            id: `gestor-horas-devolvido-${dev.id}`,
+            tituloAcao: `Corrigir apontamento de horas de ${p.nome} (${dev.competencia})`,
+            contexto: `${p.nome} (PJ) · Devolvido pelo RH · Total: ${dev.total_horas}h`,
+            detalhe: dev.parecer_gestor
+              ? `O RH devolveu com a seguinte observação: "${dev.parecer_gestor}". Faça os ajustes e reenvie.`
+              : 'O RH devolveu o fechamento para correções nos apontamentos de horas. Ajuste e reenvie.',
+            modulo: 'horas_competencias',
+            moduloLabel: 'Apontamento de Horas',
+            severidade: 'urgente',
+            severidadeLabel: 'Urgente',
+            dataLimiteLabel: 'Hoje',
+            rotaDestino: `/horas-competencias?comp=${dev.competencia}`,
+            origemRecordId: dev.id,
+            metaExtra: { fechamentoId: dev.id, competencia: dev.competencia, pessoaId: p.id },
+          })
+        }
+
+        // 2. Apontamentos pendentes de fechamento na competência anterior ou atual perto do fim do mês
+        const fechAnt = fechsPessoa.find((f) => f.competencia === compAnterior)
+        if (!fechAnt || fechAnt.status_ciclo === 'Em apontamento') {
+          const isUrgente = diaDoMes >= 5
+          itens.push({
+            id: `gestor-horas-fechar-${p.id}-${compAnterior}`,
+            tituloAcao: `Lançar e fechar horas da competência ${compAnterior}: ${p.nome}`,
+            contexto: `${p.nome} (PJ) · Base: ${p.horas_mensais_base || 160}h/mês · Sua área`,
+            detalhe: isUrgente
+              ? `A competência de ${compAnterior} está aberta e já passou do dia 05. Lance as horas e envie ao RH para não atrasar o faturamento.`
+              : `Lance as horas trabalhadas por ${p.nome} em ${compAnterior} e conclua o envio para validação do RH.`,
+            modulo: 'horas_competencias',
+            moduloLabel: 'Apontamento de Horas',
+            severidade: isUrgente ? 'urgente' : 'atencao',
+            severidadeLabel: isUrgente ? 'Urgente' : 'Atenção',
+            dataLimiteLabel: isUrgente ? 'Vencido' : 'Até dia 05',
+            rotaDestino: `/horas-competencias?comp=${compAnterior}`,
+            origemRecordId: p.id,
+            metaExtra: { pessoaId: p.id, competencia: compAnterior },
+          })
+        } else {
+          // Se competência anterior já foi tratada, verificar competência atual se estiver perto do fim do mês (dia >= 25)
+          const fechAtual = fechsPessoa.find((f) => f.competencia === compAtual)
+          if (diaDoMes >= 25 && (!fechAtual || fechAtual.status_ciclo === 'Em apontamento')) {
+            itens.push({
+              id: `gestor-horas-fechar-${p.id}-${compAtual}`,
+              tituloAcao: `Apontar horas da competência ${compAtual}: ${p.nome}`,
+              contexto: `${p.nome} (PJ) · Fim do mês se aproximando · Base: ${p.horas_mensais_base || 160}h`,
+              detalhe: `Estamos nos dias finais de ${compAtual}. Mantenha os apontamentos em dia para fechamento da área.`,
+              modulo: 'horas_competencias',
+              moduloLabel: 'Apontamento de Horas',
+              severidade: 'atencao',
+              severidadeLabel: 'Atenção',
+              dataLimiteLabel: 'Esta semana',
+              rotaDestino: `/horas-competencias?comp=${compAtual}`,
+              origemRecordId: p.id,
+              metaExtra: { pessoaId: p.id, competencia: compAtual },
+            })
+          }
+        }
       }
     }
 
@@ -1121,51 +1172,77 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       }
     }
 
-    // 4.11 FECHAMENTO DE COMPETÊNCIA NÃO CONCLUÍDO (A partir do dia 5 do mês seguinte) E NOTAS FISCAIS EM ATRASO
+    // 4.11 VALIDAÇÃO DE HORAS PELO RH E NOTAS FISCAIS EM ATRASO
     if (isRhOuAdmin) {
-      // 4.11.1 Competência anterior não fechada a partir do dia 5
-      // Calcular mês anterior no formato AAAA-MM
+      // 4.11.1 Competências aguardando validação do RH (Gestor concluiu os apontamentos)
+      // O RH agora valida ou devolve com observações. Urgente se a competência já encerrou o mês ou >2 dias úteis.
+      const fechsParaValidarRh = fechamentosComp.filter(
+        (f) => f.status_ciclo === 'Aguardando validação do RH',
+      )
+
+      for (const f of fechsParaValidarRh) {
+        const pObj = f.expand?.pessoa || pessoas.find((p) => p.id === f.pessoa)
+        const pNome = pObj?.nome || 'Prestador PJ'
+        const vTot = f.valor_total_calculado || 0
+        const isCompPassada =
+          f.competencia < `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`
+
+        itens.push({
+          id: `rh-validar-horas-${f.id}`,
+          tituloAcao: `Validar competência ${f.competencia} de ${pNome} (${f.total_horas}h)`,
+          contexto: `Prestador PJ: ${pNome} · Gestor: ${f.gestor_nome || 'Gestor Contratante'} · R$ ${vTot.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+          detalhe: `O gestor concluiu os apontamentos de horas (${f.total_horas}h). Valide as entregas ou devolva com correções para liberar a solicitação de NF.`,
+          modulo: 'horas_competencias',
+          moduloLabel: 'Validação de Horas',
+          severidade: isCompPassada ? 'urgente' : 'atencao',
+          severidadeLabel: isCompPassada ? 'Urgente' : 'Atenção',
+          dataLimiteLabel: isCompPassada ? 'Prioritário' : 'Esta semana',
+          rotaDestino: `/horas-competencias?comp=${f.competencia}`,
+          origemRecordId: f.id,
+          metaExtra: { fechamentoId: f.id, competencia: f.competencia, pessoaId: f.pessoa },
+        })
+      }
+
+      // 4.11.2 Competências ainda em aberto / não submetidas pelos gestores após o dia 5
       const mesPassado = new Date(agora.getFullYear(), agora.getMonth() - 1, 1)
       const compAnterior = `${mesPassado.getFullYear()}-${String(mesPassado.getMonth() + 1).padStart(2, '0')}`
       const diaDoMes = agora.getDate()
 
-      // Se passou do dia 5, verificar prestadores PJ sem fechamento validado/fechado na competência anterior
       const prestadoresPjAtivos = pessoas.filter(
         (p) => p.modalidade === 'PJ' && p.situacao_contrato !== 'Encerrado',
       )
 
-      prestadoresPjAtivos.forEach((p) => {
-        const fechAnt = fechamentosComp.find(
-          (f) => f.pessoa === p.id && f.competencia === compAnterior,
-        )
+      if (diaDoMes >= 5) {
+        prestadoresPjAtivos.forEach((p) => {
+          const fechAnt = fechamentosComp.find(
+            (f) => f.pessoa === p.id && f.competencia === compAnterior,
+          )
 
-        const isNaoFechado =
-          !fechAnt ||
-          fechAnt.status_ciclo === 'Em apontamento' ||
-          fechAnt.status_ciclo === 'Devolvido para ajustes'
+          const isPendenteGestor =
+            !fechAnt ||
+            fechAnt.status_ciclo === 'Em apontamento' ||
+            fechAnt.status_ciclo === 'Devolvido para ajustes'
 
-        if (isNaoFechado) {
-          const isUrgente = diaDoMes >= 5
-          itens.push({
-            id: `rh-fechamento-pendente-${p.id}-${compAnterior}`,
-            tituloAcao: `Fechar competência de horas ${compAnterior} de ${p.nome}`,
-            contexto: `${p.nome} (PJ) · Vínculo ${p.departamento || 'Tecnologia'} · Base: ${p.horas_mensais_base || 160}h`,
-            detalhe: isUrgente
-              ? `A competência de ${compAnterior} ainda não foi fechada e já ultrapassou o dia 5. Conclua os apontamentos para liberar a solicitação de Nota Fiscal.`
-              : `Competência ${compAnterior} em aberto. Conclua os apontamentos de horas.`,
-            modulo: 'horas_competencias',
-            moduloLabel: 'Horas & Competências',
-            severidade: isUrgente ? 'urgente' : 'atencao',
-            severidadeLabel: isUrgente ? 'Urgente' : 'Atenção',
-            dataLimiteLabel: isUrgente ? 'Vencido' : 'Até dia 05',
-            rotaDestino: `/horas-competencias?comp=${compAnterior}`,
-            origemRecordId: p.id,
-            metaExtra: { pessoaId: p.id, competencia: compAnterior },
-          })
-        }
-      })
+          if (isPendenteGestor) {
+            itens.push({
+              id: `rh-cobrar-gestor-horas-${p.id}-${compAnterior}`,
+              tituloAcao: `Cobrar fechamento de horas de ${p.nome} com o gestor (${compAnterior})`,
+              contexto: `${p.nome} · Gestor: ${p.gestor_nome || 'Área solicitante'} · Ultrapassou dia 05`,
+              detalhe: `O gestor responsável ainda não concluiu o lançamento/fechamento das horas da competência ${compAnterior}. Faça uma cobrança ativa para viabilizar o ciclo fiscal.`,
+              modulo: 'horas_competencias',
+              moduloLabel: 'Horas & Competências',
+              severidade: 'urgente',
+              severidadeLabel: 'Urgente',
+              dataLimiteLabel: 'Cobrança Urgente',
+              rotaDestino: `/horas-competencias?comp=${compAnterior}`,
+              origemRecordId: p.id,
+              metaExtra: { pessoaId: p.id, competencia: compAnterior },
+            })
+          }
+        })
+      }
 
-      // 4.11.2 NOTAS FISCAIS EM ATRASO (Inadimplência de envio de NF pelo prestador PJ)
+      // 4.11.3 NOTAS FISCAIS EM ATRASO (Inadimplência de envio de NF pelo prestador PJ)
       const nfsAtrasadas = notasFiscais.filter((nf) => nf.status === 'Em atraso')
       for (const nf of nfsAtrasadas) {
         const pObj = nf.expand?.pessoa || pessoas.find((p) => p.id === nf.pessoa)

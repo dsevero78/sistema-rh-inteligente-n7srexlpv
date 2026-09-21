@@ -8,6 +8,8 @@ export type TipoNotificacaoRH =
   | 'aditivo_juridico'
   | 'sistema'
   | 'alerta_contrato'
+  | 'fechamento_horas_rh'
+  | 'fechamento_horas_gestor'
 
 export interface NotificacaoRH extends RecordModel {
   titulo: string

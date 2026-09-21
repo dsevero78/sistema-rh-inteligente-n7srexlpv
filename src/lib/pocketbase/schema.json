@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T16:48:12.843Z",
+  "generatedAt": "2026-09-21T17:09:20.549Z",
   "collections": [
     {
       "name": "users",
@@ -3272,7 +3272,9 @@
             "sistema",
             "candidato_agendamento",
             "candidato_reagendamento",
-            "candidato_feedback"
+            "candidato_feedback",
+            "fechamento_horas_rh",
+            "fechamento_horas_gestor"
           ]
         },
         {
@@ -4114,7 +4116,7 @@
           "system": false,
           "selectValues": [
             "Em apontamento",
-            "Aguardando validação do gestor",
+            "Aguardando validação do RH",
             "Devolvido para ajustes",
             "Validado",
             "NF solicitada",
