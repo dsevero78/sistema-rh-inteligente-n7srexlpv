@@ -23,6 +23,7 @@ import {
   Sparkles,
   BarChart3,
   Bell,
+  FileSpreadsheet,
   CheckCircle2,
   Trash2,
   ArrowRight,
@@ -205,6 +206,7 @@ export default function Layout() {
     if (path.startsWith('/alertas')) return 'Alertas Automáticos de Talentos'
     if (path.startsWith('/entrevistas')) return 'Gestão de Entrevistas & Calendário'
     if (path.startsWith('/chat')) return 'Chat com Gestor de Talentos (IA)'
+    if (path.startsWith('/importar')) return 'Assistente de Importação em Lote'
     if (path.startsWith('/financeiro')) return 'Painel Financeiro Consolidado'
     if (path.startsWith('/relatorios/')) return 'Relatório de Avaliação'
     if (path === '/relatorios') return 'Relatórios de Aderência e IA'
@@ -311,6 +313,12 @@ export default function Layout() {
               { title: 'Alertas', href: '/alertas', icon: Bell, countKey: 'alertas' as const },
               { title: 'Entrevistas', href: '/entrevistas', icon: Calendar },
               { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
+              {
+                title: 'Importar Dados',
+                href: '/importar',
+                icon: FileSpreadsheet,
+                badge: '10 min',
+              },
               { title: 'E-mails de Status', href: '/alertas?aba=emails_status', icon: Mail },
               {
                 title: 'Financeiro',

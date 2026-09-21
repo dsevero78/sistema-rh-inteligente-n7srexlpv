@@ -313,13 +313,24 @@ export default function Vagas() {
           </p>
         </div>
 
-        <Button
-          onClick={openCreateModal}
-          className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-display font-bold shadow-xs h-10 text-xs px-4"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Vaga
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => navigate('/importar?tipo=vagas')}
+            variant="outline"
+            className="border-[#FBDCC9] dark:border-[#E9530E]/30 text-[#E9530E] bg-[#FEF1EA] dark:bg-[#E9530E]/10 font-bold hover:bg-[#FBDCC9] h-10 text-xs px-3"
+          >
+            <Briefcase className="w-3.5 h-3.5 mr-1.5" />
+            Importar em Lote
+          </Button>
+
+          <Button
+            onClick={openCreateModal}
+            className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-display font-bold shadow-xs h-10 text-xs px-4"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Vaga
+          </Button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -389,21 +400,37 @@ export default function Vagas() {
           ))}
         </div>
       ) : filteredVagas.length === 0 ? (
-        <div className="bg-white dark:bg-[#1A2240] rounded-xl border border-dashed border-slate-300 dark:border-[#2E3A6E] p-12 text-center">
-          <Briefcase className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-          <h3 className="text-sm font-bold text-slate-800">Nenhuma vaga encontrada</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-            Não há registros correspondentes aos filtros aplicados. Crie uma nova vaga ou limpe a
-            busca.
+        <div className="bg-white dark:bg-[#1A2240] rounded-2xl border-2 border-dashed border-slate-300 dark:border-[#2E3A6E] p-10 sm:p-14 text-center max-w-2xl mx-auto shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-[#FEF1EA] dark:bg-[#E9530E]/20 text-[#E9530E] flex items-center justify-center mx-auto mb-4 shadow-xs">
+            <Briefcase className="w-8 h-8" />
+          </div>
+          <span className="font-display text-[10px] uppercase font-bold tracking-widest text-[#E9530E] bg-[#FEF1EA] dark:bg-[#E9530E]/20 px-2.5 py-0.5 rounded-full border border-[#FBDCC9] dark:border-[#E9530E]/30">
+            Comece em Minutos
+          </span>
+          <h3 className="text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB] mt-2 font-display">
+            Nenhuma vaga cadastrada ainda
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
+            Elimine a tela vazia importando suas vagas em lote por planilha ou cadastrando direto em
+            linha. Seus dados ativam imediatamente o ranking de talentos.
           </p>
-          <Button
-            onClick={openCreateModal}
-            variant="outline"
-            size="sm"
-            className="mt-4 text-xs font-semibold text-blue-600 border-blue-200 hover:bg-blue-50"
-          >
-            Cadastrar vaga agora
-          </Button>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Button
+              onClick={() => navigate('/importar?tipo=vagas')}
+              className="bg-[#E9530E] hover:bg-[#C5430A] text-white text-xs font-bold shadow-xs px-5 h-9"
+            >
+              <Briefcase className="w-3.5 h-3.5 mr-1.5" />
+              Importar Vagas em Lote
+            </Button>
+            <Button
+              onClick={openCreateModal}
+              variant="outline"
+              className="text-xs font-semibold border-slate-300 dark:border-[#2E3A6E] text-slate-700 dark:text-slate-300 h-9"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Criar Vaga Manual
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

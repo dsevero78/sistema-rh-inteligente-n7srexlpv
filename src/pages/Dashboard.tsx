@@ -17,6 +17,7 @@ import {
   Clock,
   ChevronRight,
   Bell,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -230,6 +231,41 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in-50 duration-300">
+      {/* Banner de Boas-Vindas & Onboarding de Valor SouYess */}
+      <div className="bg-gradient-to-r from-[#11162B] via-[#1A2240] to-[#212B55] text-white p-5 sm:p-6 rounded-2xl border border-[#2E3A6E] shadow-sm relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 relative z-10">
+          <div className="space-y-1 max-w-2xl">
+            <div className="flex items-center gap-2">
+              <span className="font-display text-[10px] uppercase font-bold tracking-widest text-[#F19763] bg-[#E9530E]/20 px-2.5 py-0.5 rounded-full border border-[#E9530E]/30">
+                Onboarding de Valor em 10 Minutos
+              </span>
+              <span className="text-xs text-[#A8B0C9]">
+                · Popule o sistema com seus próprios dados
+              </span>
+            </div>
+            <h3 className="font-display text-lg font-bold text-[#F7F8FB] mt-1">
+              {vagas.length === 0 && candidatos.length === 0
+                ? 'Comece importando suas vagas e talentos'
+                : 'Acelere seu recrutamento com importação em lote'}
+            </h3>
+            <p className="text-xs text-[#D3D7E5] leading-relaxed">
+              Carregue planilhas em CSV ou Excel para testar o ranking com IA, o pipeline Kanban e a
+              rotina do Meu Dia com dados da sua empresa em instantes.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            <Link to="/importar" className="w-full sm:w-auto">
+              <Button className="w-full sm:w-auto bg-[#E9530E] hover:bg-[#C5430A] text-white text-xs font-bold shadow-xs px-4 h-9">
+                <FileSpreadsheet className="w-4 h-4 mr-1.5" />
+                Assistente de Importação
+                <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* Top Banner & Quick Actions SouYess */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#E7EAF0] shadow-[0_1px_3px_rgba(11,18,48,0.06)] relative overflow-hidden">
         <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-[#E9530E]" />
@@ -247,6 +283,16 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto pl-2 sm:pl-0">
+          <Link to="/importar">
+            <Button className="h-9 text-xs bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold shadow-xs relative">
+              <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
+              Importar Dados
+              <span className="ml-1.5 px-1.5 py-0.2 text-[10px] bg-white/20 text-white rounded-full font-mono">
+                10 min
+              </span>
+            </Button>
+          </Link>
+
           <Link to="/alertas">
             <Button
               variant="outline"

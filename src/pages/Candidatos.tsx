@@ -22,6 +22,7 @@ import {
   X,
   Loader2,
   SlidersHorizontal,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -429,13 +430,24 @@ export default function Candidatos() {
             Gerencie perfis, analise o score inteligente e acompanhe o avanço nos processos
           </p>
         </div>
-        <Button
-          onClick={openCreateModal}
-          className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-display font-bold shadow-xs h-10 text-xs px-4"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Adicionar Candidato
-        </Button>{' '}
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => navigate('/importar?tipo=candidatos')}
+            variant="outline"
+            className="border-[#FBDCC9] dark:border-[#E9530E]/30 text-[#E9530E] bg-[#FEF1EA] dark:bg-[#E9530E]/10 font-bold hover:bg-[#FBDCC9] h-10 text-xs px-3"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
+            Importar Planilha
+          </Button>
+
+          <Button
+            onClick={openCreateModal}
+            className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-display font-bold shadow-xs h-10 text-xs px-4"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Adicionar Candidato
+          </Button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -549,21 +561,37 @@ export default function Candidatos() {
           ))}
         </div>
       ) : filteredCandidatos.length === 0 ? (
-        <div className="bg-white dark:bg-[#1A2240] rounded-xl border border-dashed border-slate-300 dark:border-[#2E3A6E] p-12 text-center">
-          <Users className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-          <h3 className="text-sm font-bold text-slate-800">Nenhum candidato encontrado</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-            Tente flexibilizar os filtros de busca ou o score de matching para visualizar mais
-            talentos.
+        <div className="bg-white dark:bg-[#1A2240] rounded-2xl border-2 border-dashed border-slate-300 dark:border-[#2E3A6E] p-10 sm:p-14 text-center max-w-2xl mx-auto shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-[#FEF1EA] dark:bg-[#E9530E]/20 text-[#E9530E] flex items-center justify-center mx-auto mb-4 shadow-xs">
+            <Users className="w-8 h-8" />
+          </div>
+          <span className="font-display text-[10px] uppercase font-bold tracking-widest text-[#E9530E] bg-[#FEF1EA] dark:bg-[#E9530E]/20 px-2.5 py-0.5 rounded-full border border-[#FBDCC9] dark:border-[#E9530E]/30">
+            Onboarding em 10 Minutos
+          </span>
+          <h3 className="text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB] mt-2 font-display">
+            Nenhum candidato cadastrado ainda
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
+            Popule seu banco de talentos em segundos com nossa importação de planilhas (CSV ou
+            Excel) e veja o ranking com IA e o funil de seleção funcionando.
           </p>
-          <Button
-            onClick={openCreateModal}
-            variant="outline"
-            size="sm"
-            className="mt-4 text-xs font-semibold text-blue-600 border-blue-200"
-          >
-            Cadastrar candidato
-          </Button>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Button
+              onClick={() => navigate('/importar?tipo=candidatos')}
+              className="bg-[#E9530E] hover:bg-[#C5430A] text-white text-xs font-bold shadow-xs px-5 h-9"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
+              Importar Candidatos via Planilha
+            </Button>
+            <Button
+              onClick={openCreateModal}
+              variant="outline"
+              className="text-xs font-semibold border-slate-300 dark:border-[#2E3A6E] text-slate-700 dark:text-slate-300 h-9"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Cadastrar Manualmente
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
