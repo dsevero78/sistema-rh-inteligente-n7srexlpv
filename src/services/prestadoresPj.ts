@@ -821,7 +821,7 @@ export const prestadoresService = {
     usuarioEmail = '',
     comentario = '',
   ): Promise<AditivoPJ> {
-    const agora = new Date().toISOString()
+    const agora = new Date().toISOString().replace('T', ' ').substring(0, 19) + 'Z'
     const novoHistorico: HistoricoEtapaAditivo[] = [
       ...(Array.isArray(aditivo.historico_aprovacao) ? aditivo.historico_aprovacao : []),
       {
@@ -871,7 +871,7 @@ export const prestadoresService = {
     usuarioNome = 'Jurídico Interno',
     usuarioEmail = '',
   ): Promise<AditivoPJ> {
-    const agora = new Date().toISOString()
+    const agora = new Date().toISOString().replace('T', ' ').substring(0, 19) + 'Z'
     const novoHistorico: HistoricoEtapaAditivo[] = [
       ...(Array.isArray(aditivo.historico_aprovacao) ? aditivo.historico_aprovacao : []),
       {
@@ -903,6 +903,107 @@ export const prestadoresService = {
           categoria: 'DOCUMENTOS',
           titulo: `Parecer Jurídico: ${decisao === 'Aprovado pelo jurídico' ? 'Minuta Aprovada' : 'Ajustes Solicitados'} (${aditivo.numero_aditivo})`,
           complemento: parecer,
+          autor: usuarioNome,
+          origem: 'usuario',
+          data_evento: agora,
+          referencia_tipo: 'aditivo',
+          referencia_id: aditivo.id,
+        })
+      } catch (errT) {
+        console.warn('Aviso ao registrar evento de timeline:', errT)
+      }
+    }
+
+    return atualizado
+  },
+
+  /**
+   * Avança aditivo para Pendente de Assinatura após aprovação jurídica
+   */
+  async avancarParaAssinatura(
+    aditivo: AditivoPJ,
+    usuarioNome = 'RH / People',
+    usuarioEmail = '',
+    comentario = 'Minuta aprovada e encaminhada para coleta de assinaturas digitais.',
+  ): Promise<AditivoPJ> {
+    const agora = new Date().toISOString().replace('T', ' ').substring(0, 19) + 'Z'
+    const novoHistorico: HistoricoEtapaAditivo[] = [
+      ...(Array.isArray(aditivo.historico_aprovacao) ? aditivo.historico_aprovacao : []),
+      {
+        etapa: 'Pendente de assinatura',
+        data: agora,
+        autor: usuarioNome,
+        autor_email: usuarioEmail,
+        comentario,
+      },
+    ]
+
+    const atualizado = await this.atualizarAditivo(aditivo.id, {
+      status: 'Pendente de assinatura',
+      historico_aprovacao: novoHistorico,
+    })
+
+    if (aditivo.prestador) {
+      try {
+        await this.criarEventoTimeline({
+          prestador: aditivo.prestador,
+          categoria: 'DOCUMENTOS',
+          titulo: `Encaminhado para Assinatura: ${aditivo.numero_aditivo}`,
+          complemento: comentario,
+          autor: usuarioNome,
+          origem: 'usuario',
+          data_evento: agora,
+          referencia_tipo: 'aditivo',
+          referencia_id: aditivo.id,
+        })
+      } catch (errT) {
+        console.warn('Aviso ao registrar evento de timeline:', errT)
+      }
+    }
+
+    return atualizado
+  },
+
+  /**
+   * Conclui o fluxo marcando o aditivo como Vigente e registrando no histórico de aprovação
+   */
+  async marcarAditivoVigente(
+    aditivo: AditivoPJ,
+    usuarioNome = 'RH / People',
+    usuarioEmail = '',
+    comentario = 'Assinaturas concluídas com sucesso. Aditivo formalizado e vigente.',
+    dataAssinatura?: string,
+  ): Promise<AditivoPJ> {
+    const agora = new Date().toISOString().replace('T', ' ').substring(0, 19) + 'Z'
+    const dataAssinaturaFinal =
+      dataAssinatura ||
+      aditivo.data_assinatura ||
+      new Date().toISOString().substring(0, 10) + ' 00:00:00.000Z'
+
+    const novoHistorico: HistoricoEtapaAditivo[] = [
+      ...(Array.isArray(aditivo.historico_aprovacao) ? aditivo.historico_aprovacao : []),
+      {
+        etapa: 'Vigente',
+        data: agora,
+        autor: usuarioNome,
+        autor_email: usuarioEmail,
+        comentario,
+      },
+    ]
+
+    const atualizado = await this.atualizarAditivo(aditivo.id, {
+      status: 'Vigente',
+      data_assinatura: dataAssinaturaFinal,
+      historico_aprovacao: novoHistorico,
+    })
+
+    if (aditivo.prestador) {
+      try {
+        await this.criarEventoTimeline({
+          prestador: aditivo.prestador,
+          categoria: 'DOCUMENTOS',
+          titulo: `Aditivo Vigente: ${aditivo.numero_aditivo}`,
+          complemento: comentario,
           autor: usuarioNome,
           origem: 'usuario',
           data_evento: agora,

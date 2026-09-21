@@ -12,7 +12,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
-import { Scale, Send, CheckCircle2, AlertCircle, Clock, User, MessageSquare } from 'lucide-react'
+import {
+  Scale,
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  User,
+  MessageSquare,
+  FileText,
+} from 'lucide-react'
 import {
   type AditivoPJ,
   type HistoricoEtapaAditivo,
@@ -34,7 +43,9 @@ export function ModalFluxoJuridicoAditivo({
   aditivo,
   onSuccess,
 }: ModalFluxoJuridicoAditivoProps) {
-  const [modoAcao, setModoAcao] = useState<'aprovar' | 'ajustes' | 'enviar' | null>(null)
+  const [modoAcao, setModoAcao] = useState<
+    'aprovar' | 'ajustes' | 'enviar' | 'assinatura' | 'vigente' | null
+  >(null)
   const [comentario, setComentario] = useState('')
   const [salvando, setSalvando] = useState(false)
 
@@ -152,6 +163,91 @@ export function ModalFluxoJuridicoAditivo({
     }
   }
 
+  const handleAvancarParaAssinatura = async () => {
+    setSalvando(true)
+    try {
+      const nomeAutor = usuarioAtual?.name || usuarioAtual?.email || 'RH / People'
+      const emailAutor = usuarioAtual?.email || ''
+      await prestadoresService.avancarParaAssinatura(
+        aditivo,
+        nomeAutor,
+        emailAutor,
+        comentario.trim() ||
+          'Minuta jurídica aprovada e liberada para coleta de assinaturas digitais.',
+      )
+
+      await notificacoesRhService.criarNotificacao({
+        titulo: `Aditivo liberado para Assinatura (${aditivo.numero_aditivo})`,
+        mensagem: `O aditivo ${aditivo.numero_aditivo} foi encaminhado para assinatura das partes.`,
+        tipo: 'aditivo_juridico',
+        link: '/prestadores-pj',
+        autor_nome: nomeAutor,
+        autor_email: emailAutor,
+        referencia_tipo: 'aditivo_pj',
+        referencia_id: aditivo.id,
+      })
+
+      toast({
+        title: 'Aditivo encaminhado para assinatura!',
+        description: 'Status atualizado para "Pendente de assinatura".',
+      })
+      setModoAcao(null)
+      setComentario('')
+      onSuccess()
+      onOpenChange(false)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao avançar etapa',
+        description: err?.message || 'Falha na comunicação com o banco.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const handleMarcarVigente = async () => {
+    setSalvando(true)
+    try {
+      const nomeAutor = usuarioAtual?.name || usuarioAtual?.email || 'RH / People'
+      const emailAutor = usuarioAtual?.email || ''
+      await prestadoresService.marcarAditivoVigente(
+        aditivo,
+        nomeAutor,
+        emailAutor,
+        comentario.trim() || 'Assinaturas concluídas com sucesso. Aditivo formalizado e em vigor.',
+      )
+
+      await notificacoesRhService.criarNotificacao({
+        titulo: `Aditivo Vigente (${aditivo.numero_aditivo})`,
+        mensagem: `O aditivo ${aditivo.numero_aditivo} está vigente e seus efeitos contratuais foram sincronizados.`,
+        tipo: 'aditivo_juridico',
+        link: '/prestadores-pj',
+        autor_nome: nomeAutor,
+        autor_email: emailAutor,
+        referencia_tipo: 'aditivo_pj',
+        referencia_id: aditivo.id,
+      })
+
+      toast({
+        title: 'Aditivo ativado com sucesso!',
+        description: 'Status atualizado para "Vigente" e contrato sincronizado.',
+      })
+      setModoAcao(null)
+      setComentario('')
+      onSuccess()
+      onOpenChange(false)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao marcar vigente',
+        description: err?.message || 'Falha ao ativar aditivo.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSalvando(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-white dark:bg-[#1A2240] border-slate-200 dark:border-[#2E3A6E] text-slate-900 dark:text-[#F7F8FB] max-h-[90vh] overflow-y-auto">
@@ -172,6 +268,86 @@ export function ModalFluxoJuridicoAditivo({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Barra de Progresso das Etapas do Fluxo */}
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#11162B] border border-slate-200 dark:border-[#2E3A6E]">
+            <span className="font-display text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2.5">
+              Etapas do Fluxo de Aprovação & Assinatura
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {[
+                {
+                  id: 'minuta',
+                  label: '1. Minuta',
+                  ativo: true,
+                  concluido: aditivo.status !== 'Rascunho',
+                  cor: 'indigo',
+                },
+                {
+                  id: 'juridico',
+                  label: '2. Em Análise',
+                  ativo:
+                    aditivo.status === 'Em análise pelo jurídico' ||
+                    aditivo.status === 'Aprovado pelo jurídico' ||
+                    aditivo.status === 'Ajustes solicitados' ||
+                    aditivo.status === 'Pendente de assinatura' ||
+                    aditivo.status === 'Vigente',
+                  concluido:
+                    aditivo.status === 'Aprovado pelo jurídico' ||
+                    aditivo.status === 'Pendente de assinatura' ||
+                    aditivo.status === 'Vigente',
+                  cor: 'purple',
+                },
+                {
+                  id: 'decisao',
+                  label: aditivo.status === 'Ajustes solicitados' ? '3. Ajustes' : '3. Aprovado',
+                  ativo:
+                    aditivo.status === 'Ajustes solicitados' ||
+                    aditivo.status === 'Aprovado pelo jurídico' ||
+                    aditivo.status === 'Pendente de assinatura' ||
+                    aditivo.status === 'Vigente',
+                  concluido:
+                    aditivo.status === 'Pendente de assinatura' || aditivo.status === 'Vigente',
+                  cor: aditivo.status === 'Ajustes solicitados' ? 'rose' : 'emerald',
+                },
+                {
+                  id: 'assinatura',
+                  label: '4. Assinatura',
+                  ativo:
+                    aditivo.status === 'Pendente de assinatura' || aditivo.status === 'Vigente',
+                  concluido: aditivo.status === 'Vigente',
+                  cor: 'amber',
+                },
+                {
+                  id: 'vigente',
+                  label: '5. Vigente',
+                  ativo: aditivo.status === 'Vigente',
+                  concluido: aditivo.status === 'Vigente',
+                  cor: 'emerald',
+                },
+              ].map((step, idx) => (
+                <div
+                  key={idx}
+                  className={`p-2 rounded-lg text-center text-[11px] font-bold border transition-colors ${
+                    step.concluido
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                      : step.ativo
+                        ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-400 dark:border-indigo-700 text-indigo-800 dark:text-indigo-200'
+                        : 'bg-white dark:bg-[#1A2240] border-slate-200 dark:border-[#2E3A6E] text-slate-400 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    {step.concluido ? (
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    ) : (
+                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                    )}
+                    <span>{step.label}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Card Resumo do Aditivo */}
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#11162B] border border-slate-200 dark:border-[#2E3A6E] text-xs space-y-2">
             <div className="flex items-center justify-between">
@@ -253,36 +429,67 @@ export function ModalFluxoJuridicoAditivo({
           <div className="pt-2 border-t border-slate-100 dark:border-[#2E3A6E] space-y-3">
             {modoAcao === null ? (
               <div className="flex flex-wrap items-center gap-2 justify-end">
-                {aditivo.status !== 'Em análise pelo jurídico' && (
+                {(aditivo.status === 'Rascunho' ||
+                  aditivo.status === 'Minuta gerada' ||
+                  aditivo.status === 'Ajustes solicitados') && (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setModoAcao('enviar')}
-                    className="text-xs border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40"
+                    className="text-xs border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 font-semibold"
                   >
                     <Send className="w-3.5 h-3.5 mr-1" />
                     Enviar Minuta ao Jurídico
                   </Button>
                 )}
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setModoAcao('ajustes')}
-                  className="text-xs border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                >
-                  <AlertCircle className="w-3.5 h-3.5 mr-1" />
-                  Solicitar Ajustes (Jurídico)
-                </Button>
+                {(aditivo.status === 'Em análise pelo jurídico' ||
+                  aditivo.status === 'Minuta gerada' ||
+                  aditivo.status === 'Rascunho') && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setModoAcao('ajustes')}
+                      className="text-xs border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-semibold"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5 mr-1" />
+                      Solicitar Ajustes
+                    </Button>
 
-                <Button
-                  size="sm"
-                  onClick={() => setModoAcao('aprovar')}
-                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                  Aprovar Minuta (Jurídico)
-                </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setModoAcao('aprovar')}
+                      className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                      Aprovar Minuta
+                    </Button>
+                  </>
+                )}
+
+                {(aditivo.status === 'Aprovado pelo jurídico' ||
+                  aditivo.status === 'Minuta gerada') && (
+                  <Button
+                    size="sm"
+                    onClick={() => setModoAcao('assinatura')}
+                    className="text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                  >
+                    <FileText className="w-3.5 h-3.5 mr-1" />
+                    Avançar para Assinatura
+                  </Button>
+                )}
+
+                {aditivo.status === 'Pendente de assinatura' && (
+                  <Button
+                    size="sm"
+                    onClick={() => setModoAcao('vigente')}
+                    className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                    Marcar como Vigente (Assinado)
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="space-y-3 p-3.5 rounded-xl border border-indigo-100 dark:border-[#2E3A6E] bg-slate-50/50 dark:bg-[#11162B]">
@@ -292,6 +499,8 @@ export function ModalFluxoJuridicoAditivo({
                     {modoAcao === 'enviar' && 'Observações para envio ao Jurídico'}
                     {modoAcao === 'aprovar' && 'Parecer de Aprovação Jurídica *'}
                     {modoAcao === 'ajustes' && 'Apontamentos e Ajustes Solicitados *'}
+                    {modoAcao === 'assinatura' && 'Instruções para Coleta de Assinatura'}
+                    {modoAcao === 'vigente' && 'Confirmação de Assinaturas e Ativação'}
                   </Label>
                   <Button
                     variant="ghost"
@@ -314,7 +523,11 @@ export function ModalFluxoJuridicoAditivo({
                       ? 'Descreva detalhes da minuta, cláusulas alteradas ou contexto para o advogado...'
                       : modoAcao === 'aprovar'
                         ? 'Registrar aprovação formal: ex. "Minuta em conformidade com as diretrizes contratuais vigentes, autorizada assinatura."'
-                        : 'Descreva quais cláusulas ou valores exigem correção antes da aprovação...'
+                        : modoAcao === 'ajustes'
+                          ? 'Descreva quais cláusulas ou valores exigem correção antes da aprovação...'
+                          : modoAcao === 'assinatura'
+                            ? 'Notas sobre a coleta de assinatura digital (ex: DocuSign/Clicksign disparado para as partes)...'
+                            : 'Registrar confirmação das assinaturas (ex: Todas as partes assinaram eletronicamente, aditivo plenamente eficaz)...'
                   }
                   rows={3}
                   className="text-xs bg-white dark:bg-[#1A2240] border-slate-200 dark:border-[#2E3A6E]"
@@ -352,6 +565,28 @@ export function ModalFluxoJuridicoAditivo({
                     >
                       <AlertCircle className="w-3.5 h-3.5 mr-1" />
                       {salvando ? 'Salvando...' : 'Confirmar Ajustes'}
+                    </Button>
+                  )}
+                  {modoAcao === 'assinatura' && (
+                    <Button
+                      size="sm"
+                      onClick={handleAvancarParaAssinatura}
+                      disabled={salvando}
+                      className="text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                    >
+                      <FileText className="w-3.5 h-3.5 mr-1" />
+                      {salvando ? 'Avançando...' : 'Confirmar Envio para Assinatura'}
+                    </Button>
+                  )}
+                  {modoAcao === 'vigente' && (
+                    <Button
+                      size="sm"
+                      onClick={handleMarcarVigente}
+                      disabled={salvando}
+                      className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                      {salvando ? 'Ativando...' : 'Confirmar Vigência'}
                     </Button>
                   )}
                 </div>

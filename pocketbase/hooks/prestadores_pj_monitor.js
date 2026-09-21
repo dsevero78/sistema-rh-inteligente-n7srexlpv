@@ -545,7 +545,7 @@ cronAdd('monitorar_prestadores_pj_cron', '0 3 * * *', () => {
       const aditivos = $app.findRecordsByFilter(
         'aditivos_pj',
         "status = 'Pendente de assinatura'",
-        '',
+        '-sequencia',
         200,
         0,
       )
@@ -575,7 +575,7 @@ cronAdd('monitorar_prestadores_pj_cron', '0 3 * * *', () => {
             const alRecentes = $app.findRecordsByFilter(
               'alertas',
               "tipo = 'aditivo_pj_pendente' && prestador = '" + prestId + "'",
-              '-created',
+              '-criado_em',
               1,
               0,
             )
@@ -587,7 +587,6 @@ cronAdd('monitorar_prestadores_pj_cron', '0 3 * * *', () => {
               if (diffHoras < 72) jaExisteAd = true
             }
           } catch (_) {}
-
           if (!jaExisteAd) {
             const numAdit = ad.getString('numero_aditivo')
             const tipoAdit = ad.getString('tipo')
@@ -1091,7 +1090,7 @@ routerAdd(
         const aditivos = $app.findRecordsByFilter(
           'aditivos_pj',
           "status = 'Pendente de assinatura'",
-          '',
+          '-sequencia',
           200,
           0,
         )
@@ -1118,13 +1117,12 @@ routerAdd(
               const alRec = $app.findRecordsByFilter(
                 'alertas',
                 "tipo = 'aditivo_pj_pendente' && prestador = '" + prestId + "'",
-                '',
+                '-criado_em',
                 1,
                 0,
               )
               if (alRec && alRec.length > 0) jaExiste = true
             } catch (_) {}
-
             if (!jaExiste) {
               const alAd = new Record(alertasCol)
               alAd.set('prestador', prestId)
