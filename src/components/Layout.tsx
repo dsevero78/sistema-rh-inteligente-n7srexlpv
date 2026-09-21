@@ -7,6 +7,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { notificacoesRhService, type NotificacaoRH } from '@/services/notificacoesRh'
 import {
   LayoutDashboard,
+  Sunrise,
   Briefcase,
   Users2,
   GitPullRequest,
@@ -35,6 +36,7 @@ import {
   Sun,
   Moon,
 } from 'lucide-react'
+import { carregarMeuDia } from '@/services/meuDia'
 import type { RecordModel } from 'pocketbase'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -71,7 +73,7 @@ interface NavItem {
   href: string
   icon: typeof LayoutDashboard
   badge?: string
-  countKey?: 'alertas'
+  countKey?: 'alertas' | 'meudia'
 }
 
 const navItems: NavItem[] = [
@@ -106,6 +108,16 @@ export default function Layout() {
   const [notificacoesRh, setNotificacoesRh] = useState<NotificacaoRH[]>([])
   const [alertasNovosCount, setAlertasNovosCount] = useState(0)
   const [loadingAlertas, setLoadingAlertas] = useState(true)
+  const [meuDiaCount, setMeuDiaCount] = useState(0)
+
+  const carregarPendenciasMeuDia = async () => {
+    try {
+      const dados = await carregarMeuDia(user)
+      setMeuDiaCount(dados.kpis.totalPendencias)
+    } catch (err) {
+      console.error('Erro ao calcular pendências de Meu Dia no Layout:', err)
+    }
+  }
 
   const carregarAlertas = async () => {
     try {
@@ -130,10 +142,28 @@ export default function Layout() {
 
   useEffect(() => {
     carregarAlertas()
-  }, [])
+    carregarPendenciasMeuDia()
 
-  useRealtime('alertas', () => carregarAlertas())
+    const handleAtualizacaoMeuDia = () => {
+      carregarPendenciasMeuDia()
+    }
+    window.addEventListener('souyess_meu_dia_updated', handleAtualizacaoMeuDia)
+    return () => {
+      window.removeEventListener('souyess_meu_dia_updated', handleAtualizacaoMeuDia)
+    }
+  }, [user])
+
+  useRealtime('alertas', () => {
+    carregarAlertas()
+    carregarPendenciasMeuDia()
+  })
   useRealtime('notificacoes_rh', () => carregarAlertas())
+  useRealtime('vagas', () => carregarPendenciasMeuDia())
+  useRealtime('candidatos', () => carregarPendenciasMeuDia())
+  useRealtime('entrevistas', () => carregarPendenciasMeuDia())
+  useRealtime('aditivos_pj', () => carregarPendenciasMeuDia())
+  useRealtime('onboardings', () => carregarPendenciasMeuDia())
+  useRealtime('feedbacks_gestor', () => carregarPendenciasMeuDia())
   const handleMarcarVisualizado = async (alertaId: string, e: React.MouseEvent) => {
     e.stopPropagation()
     try {
@@ -158,6 +188,7 @@ export default function Layout() {
 
   const getPageTitle = () => {
     const path = location.pathname
+    if (path.startsWith('/meu-dia')) return 'Meu Dia — Rotina & Pendências'
     if (path.startsWith('/gestor')) return 'Portal do Gestor Contratante (Minhas Vagas)'
     if (path.startsWith('/dashboard')) return 'Painel Geral de Recrutamento'
     if (path.startsWith('/vagas/')) return 'Detalhes da Vaga'
@@ -240,11 +271,13 @@ export default function Layout() {
       <div className="flex-1 py-5 px-3 space-y-1 overflow-y-auto font-sans">
         {(isGestorContratante
           ? [
+              { title: 'Meu Dia', href: '/meu-dia', icon: Sunrise, countKey: 'meudia' as const },
               { title: 'Minhas Vagas', href: '/gestor', icon: Briefcase },
               { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
             ]
           : [
               { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+              { title: 'Meu Dia', href: '/meu-dia', icon: Sunrise, countKey: 'meudia' as const },
               { title: 'Minhas Vagas (Gestor)', href: '/gestor', icon: UserCheck, badge: 'Portal' },
               { title: 'Vagas', href: '/vagas', icon: Briefcase },
               { title: 'Candidatos', href: '/candidatos', icon: Users2 },
@@ -330,6 +363,11 @@ export default function Layout() {
               {item.countKey === 'alertas' && alertasNovosCount > 0 && (
                 <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#E9530E] text-white min-w-[18px] text-center font-mono shadow-xs">
                   {alertasNovosCount}
+                </span>
+              )}
+              {item.countKey === 'meudia' && meuDiaCount > 0 && (
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#E9530E] text-white min-w-[18px] text-center font-mono shadow-xs animate-in zoom-in-50">
+                  {meuDiaCount}
                 </span>
               )}
             </NavLink>

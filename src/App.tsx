@@ -16,6 +16,7 @@ import CandidaturaPublica from '@/pages/CandidaturaPublica'
 
 // Authenticated App Pages
 import Dashboard from '@/pages/Dashboard'
+import MeuDia from '@/pages/MeuDia'
 import Vagas from '@/pages/Vagas'
 import VagaDetalhes from '@/pages/VagaDetalhes'
 import GestorPortal from '@/pages/GestorPortal'
@@ -101,6 +102,7 @@ export default function App() {
               >
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
+                <Route path="meu-dia" element={<MeuDia />} />
                 <Route path="gestor" element={<GestorPortal />} />
                 <Route path="vagas" element={<Vagas />} />
                 <Route path="vagas/:id" element={<VagaDetalhes />} />
