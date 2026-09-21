@@ -1,190 +1,117 @@
-export interface TemplateContrato {
-  id: string
-  titulo: string
-  modalidade: 'PJ' | 'CLT'
-  tipoModelo:
-    | 'PJ_PRESTACAO_SERVICOS'
-    | 'PJ_HORISTA'
-    | 'CLT_EXPERIENCIA'
-    | 'CLT_INDETERMINADO'
-    | 'CLT_TELETRABALHO'
-    | 'OUTRO'
-  descricaoBreve: string
-  tagsJuridicas: string[]
-  diasAlertaPadrao: number // 60 dias para PJ, 15 dias para CLT Experiência
-  prazoTipoSugerido: 'Indeterminado' | 'Determinado' | 'Experiencia 45+45' | 'Projeto Especifico'
-  conteudoPadrao: string
-  ehPadraoSistema?: boolean
-  ativo?: boolean
-  criadoPorNome?: string
-  dataAtualizacao?: string
-}
+migrate(
+  (app) => {
+    // 1. Atualizar o contrato da Vértice Mídia (CT-PJ-2025-089) para status 'Em assinatura'
+    // Pois a versão v2.0 (renovação e podcasts) foi emitida e está aguardando as assinaturas internas.
+    // Também ajustamos versao_atual para 2, alinhando com a versão v2.0 existente no seed.
+    try {
+      const contratoVertice = app.findFirstRecordByData(
+        'contratos',
+        'codigo_contrato',
+        'CT-PJ-2025-089',
+      )
+      contratoVertice.set('status', 'Em assinatura')
+      contratoVertice.set('versao_atual', 2)
+      app.save(contratoVertice)
+    } catch (e) {
+      console.log('Aviso ao atualizar status de CT-PJ-2025-089:', e)
+    }
 
-export interface PlaceholderInfo {
-  token: string
-  descricao: string
-  categoria: 'Geral' | 'Pessoa / PJ' | 'Financeiro & Prazo' | 'Especiais'
-  exemplo: string
-}
+    // 2. Criar coleção 'modelos_contrato' para permitir ao usuário cadastrar, editar, duplicar
+    // e gerenciar seus próprios modelos de contratos PJ e CLT interpoláveis com flexibilidade.
+    const usersColId = '_pb_users_auth_'
 
-export const PLACEHOLDERS_SUPORTADOS: PlaceholderInfo[] = [
-  {
-    token: '{{CODIGO_CONTRATO}}',
-    descricao: 'Código unificado gerado para o contrato (ex: CT-PJ-2026-102)',
-    categoria: 'Geral',
-    exemplo: 'CT-PJ-2026-102',
-  },
-  {
-    token: '{{PESSOA_NOME}}',
-    descricao: 'Nome completo da pessoa / contratado',
-    categoria: 'Pessoa / PJ',
-    exemplo: 'Juliana Mendes Castro',
-  },
-  {
-    token: '{{PESSOA_DOCUMENTO}}',
-    descricao: 'CPF ou documento de identificação da pessoa',
-    categoria: 'Pessoa / PJ',
-    exemplo: '412.890.318-72',
-  },
-  {
-    token: '{{PESSOA_EMAIL}}',
-    descricao: 'E-mail corporativo ou de contato da pessoa',
-    categoria: 'Pessoa / PJ',
-    exemplo: 'juliana.mendes@empresa.com',
-  },
-  {
-    token: '{{PESSOA_TELEFONE}}',
-    descricao: 'Telefone de contato da pessoa',
-    categoria: 'Pessoa / PJ',
-    exemplo: '(11) 98765-4321',
-  },
-  {
-    token: '{{PRESTADOR_RAZAO_SOCIAL}}',
-    descricao: 'Razão Social da empresa prestadora (PJ)',
-    categoria: 'Pessoa / PJ',
-    exemplo: 'Vértice Estratégia de Conteúdo e Mídia S/S',
-  },
-  {
-    token: '{{PRESTADOR_CNPJ}}',
-    descricao: 'CNPJ da empresa prestadora (PJ)',
-    categoria: 'Pessoa / PJ',
-    exemplo: '34.819.204/0001-95',
-  },
-  {
-    token: '{{PRESTADOR_ENDERECO}}',
-    descricao: 'Endereço da sede da empresa prestadora',
-    categoria: 'Pessoa / PJ',
-    exemplo: 'Rua Funchal, 418, São Paulo - SP',
-  },
-  {
-    token: '{{CARGO_FUNCAO}}',
-    descricao: 'Cargo ou função técnica contratada',
-    categoria: 'Geral',
-    exemplo: 'Head de Employer Branding',
-  },
-  {
-    token: '{{DEPARTAMENTO}}',
-    descricao: 'Área ou departamento organizacional',
-    categoria: 'Geral',
-    exemplo: 'Marketing & Talent Acquisition',
-  },
-  {
-    token: '{{CENTRO_CUSTO}}',
-    descricao: 'Código do centro de custo gerencial',
-    categoria: 'Geral',
-    exemplo: 'CC-MKT-BRAND',
-  },
-  {
-    token: '{{GESTOR_NOME}}',
-    descricao: 'Nome do gestor responsável pelo contrato / RH',
-    categoria: 'Geral',
-    exemplo: 'Douglas Severo',
-  },
-  {
-    token: '{{DATA_INICIO}}',
-    descricao: 'Data de início da vigência em formato pt-BR',
-    categoria: 'Financeiro & Prazo',
-    exemplo: '01/06/2025',
-  },
-  {
-    token: '{{DATA_FIM}}',
-    descricao: 'Data de término previsto (ou Indeterminado)',
-    categoria: 'Financeiro & Prazo',
-    exemplo: '10/10/2026',
-  },
-  {
-    token: '{{DATA_PRIMEIRO_PERIODO}}',
-    descricao: 'Data de término dos primeiros 45 dias no contrato de experiência CLT',
-    categoria: 'Financeiro & Prazo',
-    exemplo: '15/11/2026',
-  },
-  {
-    token: '{{PRAZO_TIPO}}',
-    descricao: 'Regime de prazo (Determinado, Indeterminado, Experiência 45+45 etc.)',
-    categoria: 'Financeiro & Prazo',
-    exemplo: 'Determinado',
-  },
-  {
-    token: '{{DIAS_ALERTA}}',
-    descricao: 'Dias de antecedência para aviso de renovação (60d PJ, 15d CLT)',
-    categoria: 'Financeiro & Prazo',
-    exemplo: '60',
-  },
-  {
-    token: '{{VALOR_MENSAL}}',
-    descricao: 'Valor mensal contratado em reais (ex: 14.000,00)',
-    categoria: 'Financeiro & Prazo',
-    exemplo: '14.000,00',
-  },
-  {
-    token: '{{VALOR_MENSAL_EXTENSO}}',
-    descricao: 'Valor monetário formatado com prefixo (R$ 14.000,00)',
-    categoria: 'Financeiro & Prazo',
-    exemplo: 'R$ 14.000,00',
-  },
-  {
-    token: '{{VALOR_HORA}}',
-    descricao: 'Valor unitário da hora calculado sobre a base',
-    categoria: 'Financeiro & Prazo',
-    exemplo: '87.50',
-  },
-  {
-    token: '{{HORAS_BASE}}',
-    descricao: 'Carga horária mensal base (ex: 160h)',
-    categoria: 'Financeiro & Prazo',
-    exemplo: '160',
-  },
-  {
-    token: '{{CLAUSULAS_ESPECIAIS}}',
-    descricao: 'Cláusulas especiais de SLA, entregas e condições particulares',
-    categoria: 'Especiais',
-    exemplo: 'SLA de 99.9% de disponibilidade e entregas quinzenais.',
-  },
-  {
-    token: '{{DATA_EXTENSO}}',
-    descricao: 'Data atual por extenso para a assinatura (ex: 21 de setembro de 2026)',
-    categoria: 'Geral',
-    exemplo: '21 de setembro de 2026',
-  },
-]
+    const modelosCollection = new Collection({
+      name: 'modelos_contrato',
+      type: 'base',
+      listRule: "@request.auth.id != ''",
+      viewRule: "@request.auth.id != ''",
+      createRule: "@request.auth.id != ''",
+      updateRule: "@request.auth.id != ''",
+      deleteRule: "@request.auth.id != ''",
+      fields: [
+        { name: 'nome', type: 'text', required: true, max: 200 },
+        {
+          name: 'modalidade',
+          type: 'select',
+          required: true,
+          values: ['PJ', 'CLT'],
+          maxSelect: 1,
+        },
+        {
+          name: 'tipo_modelo',
+          type: 'select',
+          required: true,
+          values: [
+            'PJ_PRESTACAO_SERVICOS',
+            'PJ_HORISTA',
+            'CLT_EXPERIENCIA',
+            'CLT_INDETERMINADO',
+            'CLT_TELETRABALHO',
+            'OUTRO',
+          ],
+          maxSelect: 1,
+        },
+        { name: 'descricao', type: 'text', required: false, max: 1000 },
+        { name: 'corpo_texto', type: 'text', required: true }, // Texto com placeholders {{...}}
+        { name: 'tags', type: 'json', required: false }, // array de strings/tags
+        { name: 'dias_alerta_padrao', type: 'number', required: false },
+        {
+          name: 'prazo_tipo_sugerido',
+          type: 'select',
+          values: ['Indeterminado', 'Determinado', 'Experiencia 45+45', 'Projeto Especifico'],
+          maxSelect: 1,
+          required: false,
+        },
+        { name: 'ativo', type: 'bool' }, // PocketBase rule: bool flags not required
+        { name: 'eh_padrao_sistema', type: 'bool' }, // Flag para identificar se veio do sistema ou criado pelo usuário
+        { name: 'criado_por_nome', type: 'text', required: false },
+        {
+          name: 'criado_por_usuario',
+          type: 'relation',
+          collectionId: usersColId,
+          cascadeDelete: false,
+          maxSelect: 1,
+          required: false,
+        },
+        { name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
+        { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
+      ],
+      indexes: [
+        'CREATE INDEX idx_mod_contrato_modalidade ON modelos_contrato (modalidade)',
+        'CREATE INDEX idx_mod_contrato_ativo ON modelos_contrato (ativo)',
+        'CREATE INDEX idx_mod_contrato_tipo ON modelos_contrato (tipo_modelo)',
+      ],
+    })
 
-export const TEMPLATES_CONTRATUAIS: TemplateContrato[] = [
-  {
-    id: 'pj_prestacao_padrao',
-    titulo: 'Contrato de Prestação de Serviços Técnicos Especializados (PJ)',
-    modalidade: 'PJ',
-    tipoModelo: 'PJ_PRESTACAO_SERVICOS',
-    descricaoBreve:
-      'Modelo padrão corporativo SouYess com escopo por entregas, SLA de atendimento, remuneração mensal fechada (160h base), não subordinação, sigilo e conformidade fiscal (CNDT/CRF).',
-    tagsJuridicas: [
-      'Lei 13.429/17',
-      'Sem Vínculo Empregatício',
-      'SLA & Entregas',
-      'CNDT Obrigatória',
-    ],
-    diasAlertaPadrao: 60,
-    prazoTipoSugerido: 'Determinado',
-    conteudoPadrao: `INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS TÉCNICOS ESPECIALIZADOS
+    app.save(modelosCollection)
+
+    // 3. Semear os 4 modelos homologados SouYess na coleção 'modelos_contrato'
+    try {
+      const modelosCol = app.findCollectionByNameOrId('modelos_contrato')
+
+      // Modelo 1: PJ Padrão Prestação de Serviços
+      const m1 = new Record(modelosCol)
+      m1.set('nome', 'Contrato de Prestação de Serviços Técnicos Especializados (PJ)')
+      m1.set('modalidade', 'PJ')
+      m1.set('tipo_modelo', 'PJ_PRESTACAO_SERVICOS')
+      m1.set(
+        'descricao',
+        'Modelo padrão corporativo SouYess com escopo por entregas, SLA de atendimento, remuneração mensal fechada (160h base), não subordinação, sigilo e conformidade fiscal (CNDT/CRF).',
+      )
+      m1.set('tags', [
+        'Lei 13.429/17',
+        'Sem Vínculo Empregatício',
+        'SLA & Entregas',
+        'CNDT Obrigatória',
+      ])
+      m1.set('dias_alerta_padrao', 60)
+      m1.set('prazo_tipo_sugerido', 'Determinado')
+      m1.set('ativo', true)
+      m1.set('eh_padrao_sistema', true)
+      m1.set('criado_por_nome', 'Sistema SouYess (Jurídico Corporativo)')
+      m1.set(
+        'corpo_texto',
+        `INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS TÉCNICOS ESPECIALIZADOS
 CONTRATO NÚMERO: {{CODIGO_CONTRATO}}
 
 Pelo presente instrumento particular, de um lado:
@@ -237,18 +164,27 @@ Gestor Responsável: {{GESTOR_NOME}}
 ______________________________________
 CONTRATADA: {{PRESTADOR_RAZAO_SOCIAL}}
 Representante Legal: {{PESSOA_NOME}} ({{PESSOA_DOCUMENTO}})`,
-  },
-  {
-    id: 'pj_horista_escopo',
-    titulo: 'Contrato de Prestação de Serviços por Demanda / Banco de Horas (PJ)',
-    modalidade: 'PJ',
-    tipoModelo: 'PJ_HORISTA',
-    descricaoBreve:
-      'Contrato sob demanda com valor por hora apurado através de apontamento mensal homologado de horas, limite máximo mensal e fechamento contábil integrado.',
-    tagsJuridicas: ['Apontamento de Horas', 'Valor/Hora Flexível', 'Fechamento Contábil'],
-    diasAlertaPadrao: 60,
-    prazoTipoSugerido: 'Projeto Especifico',
-    conteudoPadrao: `INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS POR DEMANDA E HORAS HOMOLOGADAS
+      )
+      app.save(m1)
+
+      // Modelo 2: PJ Horista / Por Demanda
+      const m2 = new Record(modelosCol)
+      m2.set('nome', 'Contrato de Prestação de Serviços por Demanda / Banco de Horas (PJ)')
+      m2.set('modalidade', 'PJ')
+      m2.set('tipo_modelo', 'PJ_HORISTA')
+      m2.set(
+        'descricao',
+        'Contrato sob demanda com valor por hora apurado através de apontamento mensal homologado de horas, limite máximo mensal e fechamento contábil integrado.',
+      )
+      m2.set('tags', ['Apontamento de Horas', 'Valor/Hora Flexível', 'Fechamento Contábil'])
+      m2.set('dias_alerta_padrao', 60)
+      m2.set('prazo_tipo_sugerido', 'Projeto Especifico')
+      m2.set('ativo', true)
+      m2.set('eh_padrao_sistema', true)
+      m2.set('criado_por_nome', 'Sistema SouYess (Jurídico Corporativo)')
+      m2.set(
+        'corpo_texto',
+        `INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS POR DEMANDA E HORAS HOMOLOGADAS
 CONTRATO NÚMERO: {{CODIGO_CONTRATO}}
 
 Pelo presente instrumento, de um lado SOUYESS TECNOLOGIA E SERVIÇOS S/A (CONTRATANTE), e de outro lado {{PRESTADOR_RAZAO_SOCIAL}} (CONTRATADA), representada por {{PESSOA_NOME}}:
@@ -267,18 +203,32 @@ CLÁUSULA QUARTA — CONDIÇÕES ESPECÍFICAS
 {{CLAUSULAS_ESPECIAIS}}
 
 Assinado eletronicamente via SouYess People Hub em {{DATA_EXTENSO}}.`,
-  },
-  {
-    id: 'clt_experiencia_45_45',
-    titulo: 'Contrato Individual de Trabalho a Título de Experiência (CLT — 45 + 45 dias)',
-    modalidade: 'CLT',
-    tipoModelo: 'CLT_EXPERIENCIA',
-    descricaoBreve:
-      'Contrato de experiência com prazo inicial de 45 dias prorrogável uma única vez por igual período (total 90 dias, art. 445 e 451 da CLT), vinculado à rotina de integração e avaliação 30-60-90.',
-    tagsJuridicas: ['Art. 443 CLT', 'Art. 445 e 451 CLT', 'Experiência 90d', 'Integração 30-60-90'],
-    diasAlertaPadrao: 15,
-    prazoTipoSugerido: 'Experiencia 45+45',
-    conteudoPadrao: `CONTRATO INDIVIDUAL DE TRABALHO A TÍTULO DE EXPERIÊNCIA
+      )
+      app.save(m2)
+
+      // Modelo 3: CLT Experiência 45+45 dias
+      const m3 = new Record(modelosCol)
+      m3.set('nome', 'Contrato Individual de Trabalho a Título de Experiência (CLT — 45 + 45 dias)')
+      m3.set('modalidade', 'CLT')
+      m3.set('tipo_modelo', 'CLT_EXPERIENCIA')
+      m3.set(
+        'descricao',
+        'Contrato de experiência com prazo inicial de 45 dias prorrogável uma única vez por igual período (total 90 dias, art. 445 e 451 da CLT), vinculado à rotina de integração e avaliação 30-60-90.',
+      )
+      m3.set('tags', [
+        'Art. 443 CLT',
+        'Art. 445 e 451 CLT',
+        'Experiência 90d',
+        'Integração 30-60-90',
+      ])
+      m3.set('dias_alerta_padrao', 15)
+      m3.set('prazo_tipo_sugerido', 'Experiencia 45+45')
+      m3.set('ativo', true)
+      m3.set('eh_padrao_sistema', true)
+      m3.set('criado_por_nome', 'Sistema SouYess (Gente & Gestão)')
+      m3.set(
+        'corpo_texto',
+        `CONTRATO INDIVIDUAL DE TRABALHO A TÍTULO DE EXPERIÊNCIA
 CÓDIGO INTERNO: {{CODIGO_CONTRATO}}
 
 Por este instrumento particular de contrato de trabalho, de um lado:
@@ -327,18 +277,27 @@ Representante Legal / RH: {{GESTOR_NOME}}
 ______________________________________
 EMPREGADO(A): {{PESSOA_NOME}}
 CPF: {{PESSOA_DOCUMENTO}}`,
-  },
-  {
-    id: 'clt_indeterminado_padrao',
-    titulo: 'Contrato de Trabalho por Prazo Indeterminado (CLT Padrão)',
-    modalidade: 'CLT',
-    tipoModelo: 'CLT_INDETERMINADO',
-    descricaoBreve:
-      'Contrato individual de trabalho padrão celetista, sem termo prefixado de término, com especificação de cargo, salário, jornada 40h semanais e cláusulas de sigilo.',
-    tagsJuridicas: ['CLT', 'Prazo Indeterminado', 'Jornada 40h', 'eSocial S-2200'],
-    diasAlertaPadrao: 30,
-    prazoTipoSugerido: 'Indeterminado',
-    conteudoPadrao: `CONTRATO INDIVIDUAL DE TRABALHO POR PRAZO INDETERMINADO
+      )
+      app.save(m3)
+
+      // Modelo 4: CLT Indeterminado Padrão
+      const m4 = new Record(modelosCol)
+      m4.set('nome', 'Contrato de Trabalho por Prazo Indeterminado (CLT Padrão)')
+      m4.set('modalidade', 'CLT')
+      m4.set('tipo_modelo', 'CLT_INDETERMINADO')
+      m4.set(
+        'descricao',
+        'Contrato individual de trabalho padrão celetista, sem termo prefixado de término, com especificação de cargo, salário, jornada 40h semanais e cláusulas de sigilo.',
+      )
+      m4.set('tags', ['CLT', 'Prazo Indeterminado', 'Jornada 40h', 'eSocial S-2200'])
+      m4.set('dias_alerta_padrao', 30)
+      m4.set('prazo_tipo_sugerido', 'Indeterminado')
+      m4.set('ativo', true)
+      m4.set('eh_padrao_sistema', true)
+      m4.set('criado_por_nome', 'Sistema SouYess (Gente & Gestão)')
+      m4.set(
+        'corpo_texto',
+        `CONTRATO INDIVIDUAL DE TRABALHO POR PRAZO INDETERMINADO
 REGISTRO: {{CODIGO_CONTRATO}}
 
 EMPREGADORA: SOUYESS TECNOLOGIA E SERVIÇOS S/A (CNPJ 12.345.678/0001-90)
@@ -357,5 +316,16 @@ CLÁUSULA 4 — CONDIÇÕES PARTICULARES
 {{CLAUSULAS_ESPECIAIS}}
 
 Assinado digitalmente via SouYess People Hub em {{DATA_EXTENSO}}.`,
+      )
+      app.save(m4)
+    } catch (eSeed) {
+      console.log('Aviso ao semear modelos homologados:', eSeed)
+    }
   },
-]
+  (app) => {
+    try {
+      const modCol = app.findCollectionByNameOrId('modelos_contrato')
+      app.delete(modCol)
+    } catch (_) {}
+  },
+)

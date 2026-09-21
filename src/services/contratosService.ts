@@ -265,6 +265,61 @@ export const contratosService = {
     return TEMPLATES_CONTRATUAIS
   },
 
+  async carregarTemplatesDinamicos(apenasAtivos = true): Promise<TemplateContrato[]> {
+    try {
+      const records = await pb.collection('modelos_contrato').getFullList({
+        filter: apenasAtivos ? 'ativo = true' : undefined,
+        sort: '-eh_padrao_sistema,-created',
+      })
+      if (records.length > 0) {
+        return records.map((r: any) => ({
+          id: r.id,
+          titulo: r.nome,
+          modalidade: r.modalidade,
+          tipoModelo: r.tipo_modelo,
+          descricaoBreve: r.descricao || '',
+          tagsJuridicas: Array.isArray(r.tags) ? r.tags : [],
+          diasAlertaPadrao: r.dias_alerta_padrao || (r.modalidade === 'PJ' ? 60 : 15),
+          prazoTipoSugerido: r.prazo_tipo_sugerido || 'Determinado',
+          conteudoPadrao: r.corpo_texto,
+          ehPadraoSistema: !!r.eh_padrao_sistema,
+          ativo: r.ativo !== false,
+          criadoPorNome: r.criado_por_nome,
+          dataAtualizacao: r.updated,
+        }))
+      }
+    } catch {
+      /* fallback em memória */
+    }
+    return TEMPLATES_CONTRATUAIS
+  },
+
+  async getTemplateByIdAsync(id: string): Promise<TemplateContrato | undefined> {
+    try {
+      const r: any = await pb.collection('modelos_contrato').getOne(id)
+      if (r) {
+        return {
+          id: r.id,
+          titulo: r.nome,
+          modalidade: r.modalidade,
+          tipoModelo: r.tipo_modelo,
+          descricaoBreve: r.descricao || '',
+          tagsJuridicas: Array.isArray(r.tags) ? r.tags : [],
+          diasAlertaPadrao: r.dias_alerta_padrao || (r.modalidade === 'PJ' ? 60 : 15),
+          prazoTipoSugerido: r.prazo_tipo_sugerido || 'Determinado',
+          conteudoPadrao: r.corpo_texto,
+          ehPadraoSistema: !!r.eh_padrao_sistema,
+          ativo: r.ativo !== false,
+          criadoPorNome: r.criado_por_nome,
+          dataAtualizacao: r.updated,
+        }
+      }
+    } catch {
+      /* fallback */
+    }
+    return TEMPLATES_CONTRATUAIS.find((t) => t.id === id)
+  },
+
   getTemplateById(id: string): TemplateContrato | undefined {
     return TEMPLATES_CONTRATUAIS.find((t) => t.id === id)
   },
@@ -351,7 +406,10 @@ export const contratosService = {
     versao: VersaoContrato
   } | null> {
     try {
-      const template = this.getTemplateById(input.templateId) || TEMPLATES_CONTRATUAIS[0]
+      const template =
+        (await this.getTemplateByIdAsync(input.templateId)) ||
+        this.getTemplateById(input.templateId) ||
+        TEMPLATES_CONTRATUAIS[0]
 
       // Buscar dados da pessoa e prestador
       const pessoaRecord = await pb

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T16:31:15.786Z",
+  "generatedAt": "2026-09-21T16:48:12.843Z",
   "collections": [
     {
       "name": "users",
@@ -4767,6 +4767,126 @@
         "CREATE INDEX idx_ass_contrato ON contrato_assinaturas (contrato)",
         "CREATE INDEX idx_ass_versao ON contrato_assinaturas (versao)",
         "CREATE INDEX idx_ass_status ON contrato_assinaturas (status_assinatura)"
+      ]
+    },
+    {
+      "name": "modelos_contrato",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "modalidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["PJ", "CLT"]
+        },
+        {
+          "name": "tipo_modelo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "PJ_PRESTACAO_SERVICOS",
+            "PJ_HORISTA",
+            "CLT_EXPERIENCIA",
+            "CLT_INDETERMINADO",
+            "CLT_TELETRABALHO",
+            "OUTRO"
+          ]
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "corpo_texto",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tags",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dias_alerta_padrao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_tipo_sugerido",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Indeterminado",
+            "Determinado",
+            "Experiencia 45+45",
+            "Projeto Especifico"
+          ]
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "eh_padrao_sistema",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por_usuario",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_mod_contrato_modalidade ON modelos_contrato (modalidade)",
+        "CREATE INDEX idx_mod_contrato_ativo ON modelos_contrato (ativo)",
+        "CREATE INDEX idx_mod_contrato_tipo ON modelos_contrato (tipo_modelo)"
       ]
     }
   ]

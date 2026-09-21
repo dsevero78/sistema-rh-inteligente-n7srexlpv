@@ -29,6 +29,7 @@ import {
   TrendingUp,
   Scale,
   RefreshCw,
+  Layers,
 } from 'lucide-react'
 import {
   contratosService,
@@ -39,6 +40,7 @@ import {
 import { pessoasService, PessoaUnificada } from '@/services/pessoasService'
 import { ModalDetalhesContratoVersionado } from '@/components/contratos/ModalDetalhesContratoVersionado'
 import { ModalNovoContratoTemplate } from '@/components/contratos/ModalNovoContratoTemplate'
+import { GerenciadorModelosContrato } from '@/components/contratos/GerenciadorModelosContrato'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 
@@ -64,6 +66,7 @@ export const ContratosDashboardPage: React.FC = () => {
   const [contratoSelecionado, setContratoSelecionado] = useState<ContratoUnificado | null>(null)
   const [modalDetalhesOpen, setModalDetalhesOpen] = useState(false)
   const [modalNovoContratoOpen, setModalNovoContratoOpen] = useState(false)
+  const [modalModelosOpen, setModalModelosOpen] = useState(false)
   const [pessoaParaNovoContrato, setPessoaParaNovoContrato] = useState<PessoaUnificada | null>(null)
 
   const carregarDados = async () => {
@@ -286,6 +289,16 @@ export const ContratosDashboardPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setModalModelosOpen(true)}
+            className="h-8 text-xs font-semibold gap-1.5 border-[#E9530E]/40 text-[#E9530E] hover:bg-[#FEF1EA] dark:hover:bg-[#212B55]"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            Modelos de Contrato
+          </Button>
+
           <Button
             size="sm"
             variant="outline"
@@ -698,9 +711,20 @@ export const ContratosDashboardPage: React.FC = () => {
           open={modalNovoContratoOpen}
           onOpenChange={setModalNovoContratoOpen}
           pessoa={pessoaParaNovoContrato}
+          onAbrirGerenciadorModelos={() => {
+            setModalNovoContratoOpen(false)
+            setModalModelosOpen(true)
+          }}
           onSuccess={carregarDados}
         />
       )}
+
+      {/* Modal Gerenciador de Modelos de Contrato do Usuário */}
+      <GerenciadorModelosContrato
+        open={modalModelosOpen}
+        onOpenChange={setModalModelosOpen}
+        onAtualizar={carregarDados}
+      />
     </div>
   )
 }

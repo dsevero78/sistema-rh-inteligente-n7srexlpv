@@ -383,11 +383,16 @@ export const ModalDetalhesContratoVersionado: React.FC<ModalDetalhesContratoVers
                           </Button>
                         )}
                         {(versaoAtiva.status_versao === 'Aguardando Assinaturas' ||
-                          versaoAtiva.status_versao === 'Minuta') && (
+                          versaoAtiva.status_versao === 'Minuta' ||
+                          contrato.status === 'Em assinatura') && (
                           <Button
                             size="sm"
                             onClick={() => {
-                              setAssinaturaSelecionada(null)
+                              // Se houver uma assinatura pendente, pré-seleciona ela
+                              const pendente = assinaturasDestaVersao.find(
+                                (a) => a.status_assinatura === 'Pendente',
+                              )
+                              setAssinaturaSelecionada(pendente || null)
                               setModalAssinaturaOpen(true)
                             }}
                             className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1"

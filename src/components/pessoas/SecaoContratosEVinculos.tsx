@@ -56,6 +56,7 @@ import { ModalNovoAditivo } from '@/components/prestadores/ModalNovoAditivo'
 import { ModalFluxoJuridicoAditivo } from '@/components/prestadores/ModalFluxoJuridicoAditivo'
 import { ModalNovoContratoTemplate } from '@/components/contratos/ModalNovoContratoTemplate'
 import { ModalDetalhesContratoVersionado } from '@/components/contratos/ModalDetalhesContratoVersionado'
+import { GerenciadorModelosContrato } from '@/components/contratos/GerenciadorModelosContrato'
 import { contratosService, ContratoUnificado } from '@/services/contratosService'
 import { useToast } from '@/hooks/use-toast'
 
@@ -90,6 +91,7 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
   const [contratoEmFoco, setContratoEmFoco] = useState<ContratoUnificado | null>(null)
   const [modalDetalhesContratoOpen, setModalDetalhesContratoOpen] = useState(false)
   const [modalNovoContratoTemplateOpen, setModalNovoContratoTemplateOpen] = useState(false)
+  const [modalModelosOpen, setModalModelosOpen] = useState(false)
 
   const carregarContratosDigitais = async () => {
     if (!pessoa.id) return
@@ -809,7 +811,21 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
         open={modalNovoContratoTemplateOpen}
         onOpenChange={setModalNovoContratoTemplateOpen}
         pessoa={pessoa}
+        onAbrirGerenciadorModelos={() => {
+          setModalNovoContratoTemplateOpen(false)
+          setModalModelosOpen(true)
+        }}
         onSuccess={() => {
+          carregarContratosDigitais()
+          onAtualizar()
+        }}
+      />
+
+      {/* Gerenciador de Modelos de Contrato */}
+      <GerenciadorModelosContrato
+        open={modalModelosOpen}
+        onOpenChange={setModalModelosOpen}
+        onAtualizar={() => {
           carregarContratosDigitais()
           onAtualizar()
         }}

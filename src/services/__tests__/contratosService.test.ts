@@ -1,8 +1,17 @@
 import { describe, it, expect } from 'vitest'
 import { preencherTemplate, gerarHashSha256 } from '@/services/contratosService'
-import { TEMPLATES_CONTRATUAIS } from '@/services/templatesContrato'
+import { TEMPLATES_CONTRATUAIS, PLACEHOLDERS_SUPORTADOS } from '@/services/templatesContrato'
+import { modelosContratoService } from '@/services/modelosContratoService'
 
 describe('Gestão de Contratos Unificada (PJ e CLT) - Regras de Negócio', () => {
+  it('deve disponibilizar tokens e placeholders suportados para o editor de modelos', () => {
+    const tokens = modelosContratoService.getPlaceholdersSuportados()
+    expect(tokens.length).toBeGreaterThanOrEqual(15)
+    expect(tokens.some((t) => t.token === '{{PESSOA_NOME}}')).toBe(true)
+    expect(tokens.some((t) => t.token === '{{VALOR_MENSAL}}')).toBe(true)
+    expect(tokens.some((t) => t.token === '{{CODIGO_CONTRATO}}')).toBe(true)
+    expect(tokens.some((t) => t.token === '{{PRESTADOR_RAZAO_SOCIAL}}')).toBe(true)
+  })
   it('deve possuir templates homologados para PJ e CLT', () => {
     const templatesPj = TEMPLATES_CONTRATUAIS.filter((t) => t.modalidade === 'PJ')
     const templatesClt = TEMPLATES_CONTRATUAIS.filter((t) => t.modalidade === 'CLT')

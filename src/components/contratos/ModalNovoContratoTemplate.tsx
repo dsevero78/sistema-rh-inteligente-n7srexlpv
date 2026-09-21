@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import {
   Building2,
   DollarSign,
   CheckCircle2,
+  Layers,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import {
@@ -28,6 +29,8 @@ import {
   CriarContratoInput,
   ModalidadeContrato,
 } from '@/services/contratosService'
+import { modelosContratoService } from '@/services/modelosContratoService'
+import { TemplateContrato } from '@/services/templatesContrato'
 import { PessoaUnificada } from '@/services/pessoasService'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -36,6 +39,7 @@ interface ModalNovoContratoTemplateProps {
   onOpenChange: (open: boolean) => void
   pessoa: PessoaUnificada
   onSuccess: () => void
+  onAbrirGerenciadorModelos?: () => void
 }
 
 export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps> = ({
@@ -43,22 +47,52 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
   onOpenChange,
   pessoa,
   onSuccess,
+  onAbrirGerenciadorModelos,
 }) => {
   const { user } = useAuth()
   const { toast } = useToast()
-  const templates = contratosService.getTemplates()
+
+  const [templates, setTemplates] = useState<TemplateContrato[]>([])
+  const [carregandoTemplates, setCarregandoTemplates] = useState(false)
 
   // Filtra templates compatíveis com a modalidade da pessoa por padrão
   const [modalidade, setModalidade] = useState<ModalidadeContrato>(
     pessoa.modalidade === 'CLT' ? 'CLT' : 'PJ',
   )
-  const templatesFiltrados = templates.filter((t) => t.modalidade === modalidade)
 
-  const [templateSelecionadoId, setTemplateSelecionadoId] = useState<string>(
-    templatesFiltrados[0]?.id || templates[0].id,
+  const templatesFiltrados = templates.filter(
+    (t) => t.modalidade === modalidade && t.ativo !== false,
   )
 
-  const templateAtual = templates.find((t) => t.id === templateSelecionadoId) || templates[0]
+  const [templateSelecionadoId, setTemplateSelecionadoId] = useState<string>('')
+
+  const templateAtual =
+    templates.find((t) => t.id === templateSelecionadoId) || templatesFiltrados[0] || templates[0]
+
+  useEffect(() => {
+    if (open) {
+      const carregar = async () => {
+        setCarregandoTemplates(true)
+        try {
+          const lista = await modelosContratoService.listarTodos(true)
+          setTemplates(lista)
+          const comp = lista.filter(
+            (t) => t.modalidade === (pessoa.modalidade === 'CLT' ? 'CLT' : 'PJ'),
+          )
+          if (comp.length > 0) {
+            setTemplateSelecionadoId(comp[0].id)
+            setTitulo(comp[0].titulo)
+            setPrazoTipo(comp[0].prazoTipoSugerido || 'Determinado')
+          }
+        } catch {
+          setTemplates(contratosService.getTemplates())
+        } finally {
+          setCarregandoTemplates(false)
+        }
+      }
+      carregar()
+    }
+  }, [open, pessoa.id, pessoa.modalidade])
 
   const [titulo, setTitulo] = useState(templateAtual.titulo)
   const [dataInicio, setDataInicio] = useState(
@@ -79,11 +113,11 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
   // Ao mudar de modalidade, atualiza o template padrão
   const handleTrocaModalidade = (novaMod: ModalidadeContrato) => {
     setModalidade(novaMod)
-    const novos = templates.filter((t) => t.modalidade === novaMod)
+    const novos = templates.filter((t) => t.modalidade === novaMod && t.ativo !== false)
     if (novos.length > 0) {
       setTemplateSelecionadoId(novos[0].id)
       setTitulo(novos[0].titulo)
-      setPrazoTipo(novos[0].prazoTipoSugerido)
+      setPrazoTipo(novos[0].prazoTipoSugerido || 'Determinado')
     }
   }
 
@@ -159,12 +193,27 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
             <div className="w-8 h-8 rounded-lg bg-[#E9530E]/10 text-[#E9530E] flex items-center justify-center">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div>
-              <DialogTitle className="text-lg font-bold font-display text-[#212B55] dark:text-[#F7F8FB]">
-                Gerar Contrato a partir de Modelo Jurídico
-              </DialogTitle>
+            <div className="flex-1">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <DialogTitle className="text-lg font-bold font-display text-[#212B55] dark:text-[#F7F8FB]">
+                  Gerar Contrato a partir de Modelo
+                </DialogTitle>
+                {onAbrirGerenciadorModelos && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    type="button"
+                    onClick={onAbrirGerenciadorModelos}
+                    className="h-7 text-xs border-[#E9530E]/30 text-[#E9530E] hover:bg-[#FEF1EA] gap-1 font-semibold"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    Gerenciar Biblioteca
+                  </Button>
+                )}
+              </div>
               <DialogDescription className="text-xs">
-                Selecione um template pronto e validado para {pessoa.nome} ({modalidade}).
+                Selecione qual modelo melhor se adequa para {pessoa.nome} ({modalidade}) ou adicione
+                novos modelos à sua biblioteca.
               </DialogDescription>
             </div>
           </div>
@@ -199,48 +248,93 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
 
           {/* Cards de Modelos Disponíveis */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-foreground">
-              Selecione o Modelo Jurídico Homologado
-            </Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {templatesFiltrados.map((temp) => {
-                const isSelected = temp.id === templateSelecionadoId
-                return (
-                  <div
-                    key={temp.id}
-                    onClick={() => handleTrocaTemplate(temp.id)}
-                    className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-[#E9530E] bg-[#FEF1EA]/60 dark:bg-[#212B55] ring-1 ring-[#E9530E]'
-                        : 'border-border/80 bg-card hover:border-border'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-xs text-[#212B55] dark:text-[#F7F8FB] line-clamp-1">
-                        {temp.titulo}
-                      </span>
-                      {isSelected && (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#E9530E] shrink-0" />
-                      )}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-                      {temp.descricaoBreve}
-                    </p>
-                    <div className="flex items-center gap-1 mt-2 flex-wrap">
-                      {temp.tagsJuridicas.map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="secondary"
-                          className="text-[9px] px-1.5 py-0 font-medium"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-foreground">
+                Selecione o Modelo Contratual ({templatesFiltrados.length} disponível(is))
+              </Label>
+              {onAbrirGerenciadorModelos && (
+                <button
+                  type="button"
+                  onClick={onAbrirGerenciadorModelos}
+                  className="text-[11px] text-[#E9530E] hover:underline font-semibold"
+                >
+                  + Inserir novo modelo próprio
+                </button>
+              )}
             </div>
+
+            {carregandoTemplates ? (
+              <div className="py-6 text-center text-xs text-muted-foreground">
+                Carregando modelos disponíveis...
+              </div>
+            ) : templatesFiltrados.length === 0 ? (
+              <div className="p-4 rounded-xl border border-dashed text-center text-xs text-muted-foreground space-y-2">
+                <p>Nenhum modelo ativo encontrado para a modalidade {modalidade}.</p>
+                {onAbrirGerenciadorModelos && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    type="button"
+                    onClick={onAbrirGerenciadorModelos}
+                    className="h-7 text-xs"
+                  >
+                    Adicionar modelo na biblioteca
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-1">
+                {templatesFiltrados.map((temp) => {
+                  const isSelected = temp.id === templateSelecionadoId
+                  return (
+                    <div
+                      key={temp.id}
+                      onClick={() => handleTrocaTemplate(temp.id)}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-[#E9530E] bg-[#FEF1EA]/60 dark:bg-[#212B55] ring-1 ring-[#E9530E]'
+                          : 'border-border/80 bg-card hover:border-border'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-xs text-[#212B55] dark:text-[#F7F8FB] line-clamp-1">
+                          {temp.titulo}
+                        </span>
+                        {isSelected && (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#E9530E] shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                        {temp.descricaoBreve || 'Modelo pronto para geração.'}
+                      </p>
+                      <div className="flex items-center gap-1 mt-2 flex-wrap">
+                        {temp.ehPadraoSistema ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1 py-0 font-mono text-muted-foreground"
+                          >
+                            Sistema
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[9px] px-1 py-0">
+                            Próprio
+                          </Badge>
+                        )}
+                        {temp.tagsJuridicas.slice(0, 3).map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="secondary"
+                            className="text-[9px] px-1.5 py-0 font-medium"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Dados do Contrato e Parâmetros */}
