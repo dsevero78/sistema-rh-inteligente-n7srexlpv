@@ -46,14 +46,14 @@
     --radius: 0.5rem; /* 8px standard SouYess */
 
     /* Sidebar e superfícies de menu SouYess — paleta escura do guia:
-       Base Dark Surface #1A2240 e Deep Ink #11162B */
-    --sidebar-background: 228 42% 18%; /* #1A2240 Dark Surface */
+       Base Deep Ink #11162B (--navy-900) no topo com gradiente sutil até Dark Surface #1A2240 (--navy-800) na base */
+    --sidebar-background: 228 43% 12%; /* #11162B Deep Ink near-black base */
     --sidebar-foreground: 220 20% 98%; /* #F7F8FB */
     --sidebar-primary: 19 89% 48%; /* #E9530E */
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 228 39% 30%; /* #2E3A6E Hover navy */
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 228 44% 12%; /* #11162B Deep Ink */
+    --sidebar-border: 228 39% 30%; /* #2E3A6E com opacidade / divisor legível */
     --sidebar-ring: 19 89% 48%;
 
     /* Charts mapped to SouYess palette */

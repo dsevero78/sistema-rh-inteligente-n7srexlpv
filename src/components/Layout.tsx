@@ -202,9 +202,9 @@ export default function Layout() {
     .toUpperCase()
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#1A2240] text-[#F7F8FB]">
+    <div className="flex flex-col h-full bg-gradient-to-b from-[#11162B] via-[#141B34] to-[#1A2240] text-[#F7F8FB] border-r border-[#2E3A6E]/40">
       {/* Brand Header SouYess */}
-      <div className="h-16 px-5 flex items-center justify-between border-b border-[#11162B]/80 bg-[#11162B]/35">
+      <div className="h-16 px-5 flex items-center justify-between border-b border-[#2E3A6E]/45 bg-[#11162B]/60 backdrop-blur-xs">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[#E9530E] flex items-center justify-center text-white shadow-[0_2px_8px_rgba(233,83,14,0.35)] shrink-0 font-extrabold text-sm tracking-wider">
             SY
@@ -326,12 +326,12 @@ export default function Layout() {
         })}
       </div>
 
-      {/* User Footer Card - Deep Ink #11162B para máxima profundidade */}
-      <div className="p-3 border-t border-[#11162B] bg-[#11162B]">
+      {/* User Footer Card - Superfície elevada em #1A2240 com borda em #2E3A6E sobre o gradiente até #1A2240 */}
+      <div className="p-3 border-t border-[#2E3A6E]/40 bg-[#11162B]/40 backdrop-blur-xs">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#2E3A6E] transition-colors text-left focus:outline-none focus:ring-2 focus:ring-[#E9530E]">
-              <Avatar className="h-8 w-8 border border-[#4A567E] bg-[#1A2240] text-white font-bold text-xs shrink-0">
+            <button className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-[#1A2240]/80 hover:bg-[#2E3A6E]/90 border border-[#2E3A6E] transition-all text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E9530E]">
+              <Avatar className="h-8 w-8 border border-[#4A567E] bg-[#212B55] text-white font-bold text-xs shrink-0 shadow-xs">
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
@@ -353,7 +353,7 @@ export default function Layout() {
           </DropdownMenuTrigger>{' '}
           <DropdownMenuContent
             align="end"
-            className="w-56 mb-2 bg-[#11162B] border-[#2E3A6E] text-[#F7F8FB] shadow-xl"
+            className="w-56 mb-2 bg-[#1A2240] border-[#2E3A6E] text-[#F7F8FB] shadow-2xl rounded-xl"
           >
             <DropdownMenuLabel className="text-xs text-[#A8B0C9]">Minha Conta</DropdownMenuLabel>
             <DropdownMenuItem
@@ -366,7 +366,7 @@ export default function Layout() {
               <User className="w-3.5 h-3.5 mr-2 text-[#F19763]" />
               Editar perfil
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-white/10" />
+            <DropdownMenuSeparator className="bg-[#2E3A6E]/80" />
             <DropdownMenuItem
               onClick={() => {
                 logout()
@@ -386,7 +386,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex bg-[#F7F8FB]">
       {/* Desktop Sidebar (260px fixed) */}
-      <aside className="hidden md:flex flex-col w-[260px] fixed inset-y-0 left-0 z-30 shadow-[0_4px_20px_rgba(17,22,43,0.12)]">
+      <aside className="hidden md:flex flex-col w-[260px] fixed inset-y-0 left-0 z-30 shadow-[0_4px_24px_rgba(17,22,43,0.22)]">
         {sidebarContent}
       </aside>
 
@@ -394,7 +394,7 @@ export default function Layout() {
       {mobileOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
           <div
-            className="fixed inset-0 bg-[#11162B]/70 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-[#11162B]/80 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileOpen(false)}
           />
           <div className="relative w-[280px] max-w-[80vw] h-full shadow-2xl z-10 animate-in slide-in-from-left duration-250">
@@ -487,7 +487,7 @@ export default function Layout() {
                 className="w-84 sm:w-96 p-0 bg-white border border-[#E7EAF0] shadow-[0_16px_32px_rgba(11,18,48,0.12)] rounded-xl overflow-hidden"
               >
                 {/* Header do Dropdown */}
-                <div className="p-3.5 bg-[#1A2240] text-[#F7F8FB] flex items-center justify-between border-b border-[#11162B]">
+                <div className="p-3.5 bg-gradient-to-r from-[#11162B] to-[#1A2240] text-[#F7F8FB] flex items-center justify-between border-b border-[#2E3A6E]/40">
                   <div className="flex items-center gap-2">
                     <Bell className="w-4 h-4 text-[#F19763]" />
                     <span className="text-xs font-bold tracking-wide uppercase">
