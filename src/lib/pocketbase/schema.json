@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T02:52:28.213Z",
+  "generatedAt": "2026-09-21T03:05:06.295Z",
   "collections": [
     {
       "name": "users",
@@ -426,13 +426,20 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "token_portal",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX idx_candidatos_email ON candidatos (email)",
         "CREATE INDEX idx_candidatos_status ON candidatos (status)",
         "CREATE INDEX idx_candidatos_vaga ON candidatos (vaga)",
-        "CREATE INDEX `idx_candidatos_banco_talentos` ON `candidatos` (banco_talentos)"
+        "CREATE INDEX `idx_candidatos_banco_talentos` ON `candidatos` (banco_talentos)",
+        "CREATE INDEX `idx_candidatos_token_portal` ON `candidatos` (token_portal)"
       ]
     },
     {
@@ -3238,7 +3245,10 @@
             "vaga_ajustes",
             "parecer_candidato",
             "aditivo_juridico",
-            "sistema"
+            "sistema",
+            "candidato_agendamento",
+            "candidato_reagendamento",
+            "candidato_feedback"
           ]
         },
         {
@@ -3287,6 +3297,121 @@
       "indexes": [
         "CREATE INDEX idx_notif_rh_lida ON notificacoes_rh (lida)",
         "CREATE INDEX idx_notif_rh_tipo ON notificacoes_rh (tipo)"
+      ]
+    },
+    {
+      "name": "janelas_entrevista_candidato",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "entrevista_existente",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "entrevistas"
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Aguardando escolha",
+            "Confirmado",
+            "Reagendamento solicitado",
+            "Cancelado",
+            "Expirado"
+          ]
+        },
+        {
+          "name": "janelas_propostas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "janela_escolhida",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_reagendamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes_rh",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "formato",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Online", "Presencial", "Telefonema"]
+        },
+        {
+          "name": "duracao_minutos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link_reuniao",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_janelas_cand ON janelas_entrevista_candidato (candidato)",
+        "CREATE INDEX idx_janelas_vaga ON janelas_entrevista_candidato (vaga)",
+        "CREATE INDEX idx_janelas_status ON janelas_entrevista_candidato (status)"
       ]
     }
   ]

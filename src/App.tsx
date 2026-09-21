@@ -13,6 +13,7 @@ import VerifyEmail from '@/pages/auth/VerifyEmail'
 
 // Public Candidate Portal (sem login)
 import CandidaturaPublica from '@/pages/CandidaturaPublica'
+import CandidatoPortalPublico from '@/pages/CandidatoPortalPublico'
 
 // Authenticated App Pages
 import Dashboard from '@/pages/Dashboard'
@@ -87,6 +88,7 @@ export default function App() {
               {/* Public Candidate Routes (Página de Carreira, Admissão e Pesquisa de Experiência) */}
               <Route path="/candidatar" element={<CandidaturaPublica />} />
               <Route path="/candidatar/:vagaId" element={<CandidaturaPublica />} />
+              <Route path="/candidato/:token" element={<CandidatoPortalPublico />} />
               <Route path="/admissao/:token" element={<AdmissaoPublica />} />
               <Route path="/experiencia/:token" element={<ExperienciaPublica />} />
               <Route path="/indicar/:token" element={<IndicarPublica />} />

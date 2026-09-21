@@ -179,6 +179,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       alertas,
       feedbacksGestor,
       analisesVideoIa,
+      janelasEntrevista,
     ] = await Promise.all([
       pb.collection('vagas').getFullList({ sort: '-created', expand: 'gestor_responsavel' }),
       pb.collection('entrevistas').getFullList({
@@ -221,6 +222,10 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       }),
       pb.collection('analises_video_ia').getFullList({
         sort: '-created',
+      }),
+      pb.collection('janelas_entrevista_candidato').getFullList({
+        sort: '-updated',
+        expand: 'candidato,vaga',
       }),
     ])
 
@@ -759,6 +764,45 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
           dataLimiteLabel: 'Oportunidade',
           rotaDestino: `/alertas`,
           origemRecordId: primeiro.id,
+        })
+      }
+    }
+
+    // 4.9 Agendamentos de Entrevistas Confirmados ou Reagendamentos pelo Candidato (Portal Self-Service)
+    for (const jan of janelasEntrevista || []) {
+      const cand = jan.expand?.candidato
+      const vaga = jan.expand?.vaga
+      const candNome = cand?.nome || 'Candidato'
+      const vagaNome = vaga?.titulo || 'Vaga ativa'
+
+      if (jan.status === 'Confirmado' && jan.janela_escolhida) {
+        const slot = jan.janela_escolhida
+        itens.push({
+          id: `rh-cand-entrevista-confirmada-${jan.id}`,
+          tituloAcao: `Entrevista confirmada pelo candidato: ${candNome}`,
+          contexto: `Vaga: ${vagaNome} · Horário escolhido: ${slot.label || slot.data_inicio}`,
+          detalhe: `O candidato confirmou a entrevista via portal self-service para ${slot.label || slot.data_inicio}. Formato: ${jan.formato || 'Online'}. Entrevistador: ${jan.responsavel_nome}.`,
+          modulo: 'entrevistas',
+          moduloLabel: 'Experiência do Candidato',
+          severidade: 'urgente',
+          severidadeLabel: 'Urgente',
+          dataLimiteLabel: 'Agendada',
+          rotaDestino: `/candidatos/${cand?.id || jan.candidato}`,
+          origemRecordId: jan.id,
+        })
+      } else if (jan.status === 'Reagendamento solicitado') {
+        itens.push({
+          id: `rh-cand-reagendamento-solicitado-${jan.id}`,
+          tituloAcao: `Propor novos horários para ${candNome} (Reagendamento solicitado)`,
+          contexto: `Vaga: ${vagaNome} · Candidato solicitou nova janela`,
+          detalhe: `Motivo informado pelo candidato: "${jan.motivo_reagendamento || 'Conflito de agenda'}". Acesse a ficha do candidato e cadastre novas janelas disponíveis.`,
+          modulo: 'entrevistas',
+          moduloLabel: 'Experiência do Candidato',
+          severidade: 'urgente',
+          severidadeLabel: 'Urgente',
+          dataLimiteLabel: 'Hoje',
+          rotaDestino: `/candidatos/${cand?.id || jan.candidato}`,
+          origemRecordId: jan.id,
         })
       }
     }

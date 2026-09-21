@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Heart,
   Star,
@@ -253,6 +254,16 @@ export default function ExperienciaCandidato() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link to="/candidato/cand-lucas-ferreira-seed" target="_blank">
+            <Button
+              variant="outline"
+              className="text-xs font-semibold h-10 border-[#E9530E]/30 text-[#E9530E] hover:bg-[#FEF1EA] shadow-xs"
+            >
+              <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+              Demo Portal (Lucas Ferreira)
+            </Button>
+          </Link>
+
           <Button
             onClick={() => setModalDisparoOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-10 shadow-xs"
@@ -260,6 +271,52 @@ export default function ExperienciaCandidato() {
             <Send className="w-3.5 h-3.5 mr-1.5" />
             Enviar Nova Pesquisa
           </Button>
+        </div>
+      </div>
+
+      {/* Banner de Demonstração de Links de Acesso Rápido */}
+      <div className="p-4 rounded-xl bg-gradient-to-r from-[#11162B] to-[#1A2240] text-white border border-[#2E3A6E] shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#E9530E] animate-pulse" />
+            <span className="font-display text-xs font-bold uppercase tracking-wider text-[#E9530E]">
+              Demonstração Interativa SouYess
+            </span>
+          </div>
+          <p className="text-xs text-slate-300">
+            Acesse o novo <strong>Portal Público do Candidato</strong> sem login e experimente a
+            linha do tempo em tempo real, agendamento self-service e avaliação NPS:
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <a
+            href="/candidato/cand-lucas-ferreira-seed"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#E9530E] hover:bg-[#d04609] text-white text-xs font-bold transition-all shadow-xs"
+          >
+            <span>Lucas Ferreira (Agendamento Ativo)</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+          <a
+            href="/candidato/cand-juliana-mendes-seed"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs"
+          >
+            <span>Juliana Mendes (Contratada)</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+          <a
+            href="/candidato/cand-leonardo-bastos-seed"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold transition-all shadow-xs"
+          >
+            <span>Leonardo Bastos (NPS Concluído)</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
       </div>
 

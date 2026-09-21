@@ -27,7 +27,8 @@ import {
 } from 'lucide-react'
 import { VideoEPercepcaoSection } from '@/components/VideoEPercepcaoSection'
 import { LinhaDoTempoCandidato } from '@/components/LinhaDoTempoCandidato'
-import { Activity } from 'lucide-react'
+import { Activity, Link2, Copy, Plus, Trash2 } from 'lucide-react'
+import { candidatePortalService, type JanelaHorario } from '@/services/candidatePortal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -84,6 +85,22 @@ export default function CandidatoDetalhes() {
   const [tagsBanco, setTagsBanco] = useState<string[]>([])
   const [savingBanco, setSavingBanco] = useState(false)
 
+  // Experiência do Candidato & Agendamento de Entrevista
+  const [modalJanelasOpen, setModalJanelasOpen] = useState(false)
+  const [janelasExistentes, setJanelasExistentes] = useState<any | null>(null)
+  const [formatoJanelas, setFormatoJanelas] = useState<'Online' | 'Presencial' | 'Telefonema'>(
+    'Online',
+  )
+  const [duracaoJanelas, setDuracaoJanelas] = useState<number>(60)
+  const [responsavelJanelas, setResponsavelJanelas] = useState<string>('')
+  const [linkReuniaoJanelas, setLinkReuniaoJanelas] = useState<string>('')
+  const [obsJanelas, setObsJanelas] = useState<string>('')
+  const [listaSlots, setListaSlots] = useState<JanelaHorario[]>([])
+  const [novoSlotData, setNovoSlotData] = useState<string>('')
+  const [novoSlotHora, setNovoSlotHora] = useState<string>('10:00')
+  const [salvandoJanelas, setSalvandoJanelas] = useState(false)
+  const [copiandoLink, setCopiandoLink] = useState(false)
+
   const fetchCandidato = async () => {
     if (!id) return
     try {
@@ -128,6 +145,28 @@ export default function CandidatoDetalhes() {
       } catch (eErr) {
         console.warn('Erro ao carregar entrevistas do candidato:', eErr)
       }
+
+      // Fetch registro de janelas de entrevista do candidato
+      try {
+        const jList = await pb.collection('janelas_entrevista_candidato').getFullList({
+          filter: `candidato = '${id}'`,
+          sort: '-updated',
+          limit: 1,
+        })
+        if (jList.length > 0) {
+          setJanelasExistentes(jList[0])
+          if (Array.isArray(jList[0].janelas_propostas)) {
+            setListaSlots(jList[0].janelas_propostas)
+          }
+          if (jList[0].formato) setFormatoJanelas(jList[0].formato)
+          if (jList[0].duracao_minutos) setDuracaoJanelas(jList[0].duracao_minutos)
+          if (jList[0].responsavel_nome) setResponsavelJanelas(jList[0].responsavel_nome)
+          if (jList[0].link_reuniao) setLinkReuniaoJanelas(jList[0].link_reuniao)
+          if (jList[0].observacoes_rh) setObsJanelas(jList[0].observacoes_rh)
+        }
+      } catch (jErr) {
+        console.warn('Erro ao carregar janelas do candidato:', jErr)
+      }
     } catch (err) {
       console.error(err)
       toast({
@@ -169,6 +208,7 @@ export default function CandidatoDetalhes() {
   useRealtime('pipeline', () => fetchCandidato())
   useRealtime('entrevistas', () => fetchCandidato())
   useRealtime('ofertas', () => fetchCandidato())
+  useRealtime('janelas_entrevista_candidato', () => fetchCandidato())
 
   const handleGenerateReport = async () => {
     if (!candidato || !candidato.vaga) {
@@ -340,6 +380,98 @@ export default function CandidatoDetalhes() {
     'Recusado',
   ]
 
+  const handleCopiarLinkCandidato = async () => {
+    if (!candidato) return
+    setCopiandoLink(true)
+    try {
+      let token = candidato.token_portal
+      if (!token) {
+        const res = await candidatePortalService.gerarOuRecuperarToken(candidato.id)
+        token = res.token
+      }
+      const fullUrl = `${window.location.origin}/candidato/${token}`
+      await navigator.clipboard.writeText(fullUrl)
+      toast({
+        title: 'Link copiado para a área de transferência! 📋',
+        description: `Link do Portal do Candidato: ${fullUrl}`,
+      })
+      fetchCandidato()
+    } catch (err: unknown) {
+      toast({
+        title: 'Erro ao obter link',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setCopiandoLink(false)
+    }
+  }
+
+  const handleAdicionarSlot = () => {
+    if (!novoSlotData) {
+      toast({ title: 'Selecione uma data para o horário', variant: 'destructive' })
+      return
+    }
+    const dt = new Date(`${novoSlotData}T${novoSlotHora}:00`)
+    const label =
+      dt.toLocaleDateString('pt-BR', {
+        weekday: 'short',
+        day: '2-digit',
+        month: '2-digit',
+      }) + ` às ${novoSlotHora}`
+
+    const novoSlot: JanelaHorario = {
+      id: `slot-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      data_inicio: dt.toISOString(),
+      label: label,
+      disponivel: true,
+    }
+    setListaSlots([...listaSlots, novoSlot])
+    setNovoSlotData('')
+  }
+
+  const handleRemoverSlot = (slotId: string) => {
+    setListaSlots(listaSlots.filter((s) => s.id !== slotId))
+  }
+
+  const handleSalvarJanelas = async () => {
+    if (!candidato) return
+    if (listaSlots.length === 0) {
+      toast({
+        title: 'Nenhuma janela adicionada',
+        description: 'Adicione ao menos 1 opção de horário para o candidato escolher.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setSalvandoJanelas(true)
+    try {
+      const res = await candidatePortalService.proporJanelas({
+        candidatoId: candidato.id,
+        janelas: listaSlots,
+        formato: formatoJanelas,
+        duracaoMinutos: duracaoJanelas,
+        responsavelNome: responsavelJanelas || pb.authStore.record?.name || 'Gente & Gestão',
+        linkReuniao: linkReuniaoJanelas,
+        observacoes: obsJanelas,
+      })
+      toast({
+        title: 'Janelas disponibilizadas com sucesso!',
+        description: 'O candidato já pode escolher o horário no portal.',
+      })
+      setModalJanelasOpen(false)
+      fetchCandidato()
+    } catch (err: unknown) {
+      toast({
+        title: 'Erro ao propor horários',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSalvandoJanelas(false)
+    }
+  }
+
   const handleToggleBancoTalentos = async () => {
     if (!candidato) return
     const isBanco = !!candidato.banco_talentos
@@ -416,6 +548,86 @@ export default function CandidatoDetalhes() {
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-300">
+      {/* Banner de Agendamento Confirmado / Reagendamento Solicitado pelo Candidato */}
+      {janelasExistentes && (
+        <div
+          className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs ${
+            janelasExistentes.status === 'Confirmado'
+              ? 'bg-emerald-50 dark:bg-emerald-950/25 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+              : janelasExistentes.status === 'Reagendamento solicitado'
+                ? 'bg-amber-50 dark:bg-amber-950/25 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                : 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900 text-blue-900 dark:text-blue-200'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                janelasExistentes.status === 'Confirmado'
+                  ? 'bg-emerald-600 text-white'
+                  : janelasExistentes.status === 'Reagendamento solicitado'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-blue-600 text-white'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+            </div>
+            <div className="space-y-0.5">
+              <span className="font-bold text-sm block">
+                {janelasExistentes.status === 'Confirmado'
+                  ? `Entrevista Confirmada pelo Candidato (Self-Service)`
+                  : janelasExistentes.status === 'Reagendamento solicitado'
+                    ? `Candidato Solicitou Reagendamento de Horário`
+                    : `Horários Propostos pelo RH (Aguardando Escolha)`}
+              </span>
+              <p className="leading-relaxed">
+                {janelasExistentes.status === 'Confirmado' && janelasExistentes.janela_escolhida ? (
+                  <>
+                    Horário escolhido: <strong>{janelasExistentes.janela_escolhida.label}</strong> (
+                    {janelasExistentes.formato || 'Online'} · {janelasExistentes.responsavel_nome})
+                  </>
+                ) : janelasExistentes.status === 'Reagendamento solicitado' ? (
+                  <>
+                    Motivo alegado:{' '}
+                    <em>"{janelasExistentes.motivo_reagendamento || 'Conflito de agenda'}"</em>.
+                    Cadastre novas janelas para o candidato.
+                  </>
+                ) : (
+                  <>
+                    {Array.isArray(janelasExistentes.janelas_propostas)
+                      ? janelasExistentes.janelas_propostas.length
+                      : 0}{' '}
+                    janela(s) disponibilizada(s) no link do candidato.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setModalJanelasOpen(true)}
+              className="text-xs bg-white dark:bg-[#1A2240]"
+            >
+              {janelasExistentes.status === 'Reagendamento solicitado'
+                ? 'Propor Novas Janelas'
+                : 'Gerenciar Janelas'}
+            </Button>
+            {candidato.token_portal && (
+              <a
+                href={`/candidato/${candidato.token_portal}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline px-2"
+              >
+                Abrir Portal <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Alerta de Reprovação na Triagem Automática */}
       {candidato.reprovado_triagem_auto && (
         <div className="p-4 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-950 flex items-start gap-3 shadow-xs">
@@ -531,6 +743,36 @@ export default function CandidatoDetalhes() {
 
         {/* Action buttons */}
         <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
+          {/* Botão Copiar Link do Portal do Candidato */}
+          <Button
+            variant="outline"
+            onClick={handleCopiarLinkCandidato}
+            disabled={copiandoLink}
+            className="text-xs font-semibold h-10 border-[#E9530E]/40 text-[#E9530E] hover:bg-[#FEF1EA] dark:hover:bg-[#212B55] shadow-xs"
+          >
+            {copiandoLink ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Link2 className="w-3.5 h-3.5 mr-1.5 text-[#E9530E]" />
+            )}
+            Copiar Link do Candidato
+          </Button>
+
+          {/* Botão Propor Horários de Entrevista */}
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (!responsavelJanelas) {
+                setResponsavelJanelas(pb.authStore.record?.name || 'Gente & Gestão')
+              }
+              setModalJanelasOpen(true)
+            }}
+            className="text-xs font-semibold h-10 border-blue-300 text-blue-700 hover:bg-blue-50 dark:hover:bg-[#212B55] shadow-xs"
+          >
+            <Calendar className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
+            Propor Horários de Entrevista
+          </Button>
+
           {/* Botão Banco de Talentos */}
           <Button
             variant="outline"

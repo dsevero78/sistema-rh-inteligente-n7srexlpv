@@ -16,6 +16,9 @@ import {
   Archive,
   ChevronRight,
   ExternalLink,
+  Heart,
+  Star,
+  Link2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -33,6 +36,7 @@ export default function VagaDetalhes() {
 
   const [vaga, setVaga] = useState<RecordModel | null>(null)
   const [candidatos, setCandidatos] = useState<RecordModel[]>([])
+  const [feedbacksNps, setFeedbacksNps] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchVagaData = async () => {
@@ -46,6 +50,18 @@ export default function VagaDetalhes() {
         sort: '-score_semantico',
       })
       setCandidatos(cList)
+
+      // Fetch feedbacks NPS desta vaga
+      try {
+        const fList = await pb.collection('avaliacoes_experiencia').getFullList({
+          filter: `vaga = '${id}' && respondido = true`,
+          sort: '-created',
+          expand: 'candidato',
+        })
+        setFeedbacksNps(fList)
+      } catch (fErr) {
+        console.warn('Erro ao carregar feedbacks da vaga:', fErr)
+      }
     } catch (err) {
       console.error(err)
       toast({
@@ -64,6 +80,7 @@ export default function VagaDetalhes() {
 
   useRealtime('vagas', () => fetchVagaData())
   useRealtime('candidatos', () => fetchVagaData())
+  useRealtime('avaliacoes_experiencia', () => fetchVagaData())
 
   const handleStatusChange = async (newStatus: 'Ativa' | 'Pausada' | 'Arquivada') => {
     if (!vaga) return
@@ -249,6 +266,13 @@ export default function VagaDetalhes() {
           </TabsTrigger>
           <TabsTrigger value="metricas" className="text-xs font-semibold px-4 py-2">
             Métricas de Funil
+          </TabsTrigger>
+          <TabsTrigger
+            value="experiencia"
+            className="text-xs font-semibold px-4 py-2 flex items-center gap-1.5 text-purple-700 data-[state=active]:text-purple-800"
+          >
+            <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+            Experiência do Candidato ({feedbacksNps.length})
           </TabsTrigger>
         </TabsList>
 
@@ -474,6 +498,188 @@ export default function VagaDetalhes() {
                 ))
               )}
             </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Aba Experiência do Candidato (NPS e Avaliações por Vaga) */}
+        <TabsContent value="experiencia" className="space-y-6">
+          <Card className="border-purple-200 dark:border-purple-900/50 shadow-xs bg-white dark:bg-[#1A2240] p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-[#2E3A6E]">
+              <div>
+                <div className="font-display text-[11px] uppercase font-bold tracking-widest text-purple-600 dark:text-purple-400">
+                  Candidate Experience (NPS)
+                </div>
+                <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB]">
+                  Satisfação dos Candidatos com o Processo Desta Vaga
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Métricas agregadas a partir das avaliações pós-processo submetidas diretamente
+                  pelos talentos no portal público.
+                </CardDescription>
+              </div>
+
+              <Link to="/experiencia">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs font-semibold border-purple-200 text-purple-700 hover:bg-purple-50 dark:hover:bg-[#212B55]"
+                >
+                  Ver Dashboard Geral de Experiência →
+                </Button>
+              </Link>
+            </div>
+
+            {feedbacksNps.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 dark:text-slate-400 space-y-2">
+                <Heart className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+                <p className="font-medium text-slate-600 dark:text-slate-300">
+                  Nenhuma avaliação pós-processo respondida ainda para esta vaga
+                </p>
+                <p className="text-xs max-w-md mx-auto text-slate-400">
+                  Quando os candidatos concluírem o processo (aprovados ou recusados), eles
+                  receberão a solicitação de NPS em seus portais exclusivos.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6 pt-4">
+                {/* Métricas Agregadas da Vaga */}
+                {(() => {
+                  const mediaNps = (
+                    feedbacksNps.reduce((acc, f) => acc + (f.nps_score || f.nota_geral || 0), 0) /
+                    feedbacksNps.length
+                  ).toFixed(1)
+                  const mediaClareza = (
+                    feedbacksNps.reduce((acc, f) => acc + (f.clareza_processo || 10), 0) /
+                    feedbacksNps.length
+                  ).toFixed(1)
+                  const mediaTempo = (
+                    feedbacksNps.reduce((acc, f) => acc + (f.tempo_resposta || 10), 0) /
+                    feedbacksNps.length
+                  ).toFixed(1)
+                  const mediaTratamento = (
+                    feedbacksNps.reduce((acc, f) => acc + (f.tratamento_rh || 10), 0) /
+                    feedbacksNps.length
+                  ).toFixed(1)
+
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div className="p-4 rounded-xl bg-purple-50/70 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/40 space-y-1">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300 block">
+                          NPS Médio da Vaga
+                        </span>
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-mono text-3xl font-extrabold text-purple-900 dark:text-white">
+                            {mediaNps}
+                          </span>
+                          <span className="text-xs text-slate-500 font-semibold">/10</span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#141B34] border border-slate-200 dark:border-[#2E3A6E] space-y-1">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                          Clareza do Processo
+                        </span>
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-mono text-2xl font-extrabold text-slate-900 dark:text-white">
+                            {mediaClareza}
+                          </span>
+                          <span className="text-xs text-slate-400">/10</span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#141B34] border border-slate-200 dark:border-[#2E3A6E] space-y-1">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                          Tempo de Resposta
+                        </span>
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-mono text-2xl font-extrabold text-slate-900 dark:text-white">
+                            {mediaTempo}
+                          </span>
+                          <span className="text-xs text-slate-400">/10</span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#141B34] border border-slate-200 dark:border-[#2E3A6E] space-y-1">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                          Acolhimento & Respeito
+                        </span>
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-mono text-2xl font-extrabold text-slate-900 dark:text-white">
+                            {mediaTratamento}
+                          </span>
+                          <span className="text-xs text-slate-400">/10</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Lista de Feedbacks e Comentários dos Candidatos */}
+                <div className="space-y-3">
+                  <h4 className="font-display text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                    Comentários & Notas Recentes
+                  </h4>
+                  <div className="divide-y divide-slate-100 dark:divide-[#2E3A6E] border border-slate-200 dark:border-[#2E3A6E] rounded-xl overflow-hidden bg-slate-50/40 dark:bg-[#141B34]">
+                    {feedbacksNps.map((fb) => {
+                      const candNome = fb.expand?.candidato?.nome || 'Candidato'
+                      const isPromotor = (fb.nps_score || fb.nota_geral || 0) >= 9
+                      const isDetrator = (fb.nps_score || fb.nota_geral || 0) <= 6
+
+                      return (
+                        <div key={fb.id} className="p-4 bg-white dark:bg-[#1A2240] space-y-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-display font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+                                {candNome}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] font-bold ${
+                                  fb.status_processo === 'Contratado'
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                                }`}
+                              >
+                                {fb.status_processo || 'Participante'}
+                              </Badge>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-500">
+                                NPS:{' '}
+                                <strong
+                                  className={
+                                    isPromotor
+                                      ? 'text-emerald-600 font-mono text-sm'
+                                      : isDetrator
+                                        ? 'text-rose-600 font-mono text-sm'
+                                        : 'text-amber-600 font-mono text-sm'
+                                  }
+                                >
+                                  {fb.nps_score || fb.nota_geral}/10
+                                </strong>
+                              </span>
+                              <span className="text-slate-300">·</span>
+                              <span className="text-[11px] text-slate-400 font-mono">
+                                {fb.data_resposta
+                                  ? new Date(fb.data_resposta).toLocaleDateString('pt-BR')
+                                  : '-'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {fb.comentario && (
+                            <p className="text-xs text-slate-700 dark:text-slate-300 italic bg-slate-50 dark:bg-[#141B34] p-3 rounded-lg border border-slate-200 dark:border-[#2E3A6E] leading-relaxed">
+                              "{fb.comentario}"
+                            </p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </Card>
         </TabsContent>
 
