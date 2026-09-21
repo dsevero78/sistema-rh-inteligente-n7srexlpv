@@ -17,6 +17,7 @@ import {
   XCircle,
   UserCheck,
   TrendingUp,
+  BarChart3,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -120,35 +121,47 @@ export default function Relatorios() {
           </p>
         </div>
 
-        {/* Tab switcher no topo de Relatórios */}
-        <div className="flex items-center gap-2 bg-slate-100 dark:bg-[#1A2240] p-1 rounded-lg border border-slate-200 dark:border-[#2E3A6E]">
+        {/* Tab switcher no topo de Relatórios + Link para Indicadores */}
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
-            variant={abaAtiva === 'dossies' ? 'default' : 'ghost'}
-            onClick={() => setAbaAtiva('dossies')}
-            className={`text-xs h-8 ${
-              abaAtiva === 'dossies'
-                ? 'bg-white dark:bg-[#212B55] text-slate-900 dark:text-[#F7F8FB] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400'
-            }`}
+            variant="outline"
+            onClick={() => navigate('/indicadores')}
+            className="text-xs h-8 border-[#E9530E]/30 text-[#E9530E] hover:bg-[#E9530E]/10"
           >
-            <FileText className="w-3.5 h-3.5 mr-1.5" />
-            Dossiês Individuais ({relatorios.length})
+            <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
+            Painel de Indicadores Estratégicos
           </Button>
 
-          <Button
-            size="sm"
-            variant={abaAtiva === 'sintese-finalistas' ? 'default' : 'ghost'}
-            onClick={() => setAbaAtiva('sintese-finalistas')}
-            className={`text-xs h-8 ${
-              abaAtiva === 'sintese-finalistas'
-                ? 'bg-[#E9530E] text-white shadow-xs hover:bg-[#C5430A]'
-                : 'text-[#E9530E] hover:text-[#C5430A]'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-            Síntese Executiva de Finalistas
-          </Button>
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-[#1A2240] p-1 rounded-lg border border-slate-200 dark:border-[#2E3A6E]">
+            <Button
+              size="sm"
+              variant={abaAtiva === 'dossies' ? 'default' : 'ghost'}
+              onClick={() => setAbaAtiva('dossies')}
+              className={`text-xs h-8 ${
+                abaAtiva === 'dossies'
+                  ? 'bg-white dark:bg-[#212B55] text-slate-900 dark:text-[#F7F8FB] shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5 mr-1.5" />
+              Dossiês Individuais ({relatorios.length})
+            </Button>
+
+            <Button
+              size="sm"
+              variant={abaAtiva === 'sintese-finalistas' ? 'default' : 'ghost'}
+              onClick={() => setAbaAtiva('sintese-finalistas')}
+              className={`text-xs h-8 ${
+                abaAtiva === 'sintese-finalistas'
+                  ? 'bg-[#E9530E] text-white shadow-xs hover:bg-[#C5430A]'
+                  : 'text-[#E9530E] hover:text-[#C5430A]'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+              Síntese Executiva de Finalistas
+            </Button>
+          </div>
         </div>
       </div>
 

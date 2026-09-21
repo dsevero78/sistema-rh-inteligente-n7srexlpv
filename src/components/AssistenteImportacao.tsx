@@ -294,6 +294,36 @@ export default function AssistenteImportacao({
     setEtapa(1)
   }
 
+  // Executar teste E2E com auto-limpeza (Validação de ponta a ponta)
+  const [executandoTesteE2E, setExecutandoTesteE2E] = useState(false)
+  const handleExecutarTesteE2E = async () => {
+    setExecutandoTesteE2E(true)
+    try {
+      const { executarTesteSimulacaoImportador } = await import('@/lib/testeImportadorE2E')
+      const res = await executarTesteSimulacaoImportador()
+      if (res.sucesso) {
+        toast({
+          title: 'Teste E2E aprovado com sucesso!',
+          description: `5 candidatos criados com score real, pipeline, timeline e removidos sem deixar lixo.`,
+        })
+      } else {
+        toast({
+          title: 'Falha no teste E2E',
+          description: res.logs[res.logs.length - 1] || 'Verifique o console.',
+          variant: 'destructive',
+        })
+      }
+    } catch (e: any) {
+      toast({
+        title: 'Erro ao rodar teste E2E',
+        description: e?.message || 'Falha na execução',
+        variant: 'destructive',
+      })
+    } finally {
+      setExecutandoTesteE2E(false)
+    }
+  }
+
   return (
     <div className="w-full mx-auto space-y-6 font-sans">
       {/* Header do Assistente SouYess */}
@@ -538,15 +568,33 @@ export default function AssistenteImportacao({
                   </p>
                 </div>
                 <div className="mt-3">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCarregarExemploRapido}
-                    className="text-xs bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold shadow-xs w-full sm:w-auto"
-                  >
-                    Carregar Dados de Exemplo
-                    <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleCarregarExemploRapido}
+                      className="text-xs bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold shadow-xs"
+                    >
+                      Carregar Dados de Exemplo
+                      <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleExecutarTesteE2E}
+                      disabled={executandoTesteE2E}
+                      className="text-xs border-[#E9530E]/30 text-[#E9530E] hover:bg-[#E9530E]/10"
+                      title="Testa a importação completa no banco e limpa automaticamente"
+                    >
+                      {executandoTesteE2E ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                      ) : (
+                        <Check className="w-3.5 h-3.5 mr-1" />
+                      )}
+                      Testar E2E + Auto Limpeza
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

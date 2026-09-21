@@ -34,6 +34,7 @@ import {
   Gift,
   Handshake,
   CircleDollarSign,
+  Compass,
   Sun,
   Moon,
 } from 'lucide-react'
@@ -208,6 +209,7 @@ export default function Layout() {
     if (path.startsWith('/chat')) return 'Chat com Gestor de Talentos (IA)'
     if (path.startsWith('/importar')) return 'Assistente de Importação em Lote'
     if (path.startsWith('/financeiro')) return 'Painel Financeiro Consolidado'
+    if (path.startsWith('/indicadores')) return 'Indicadores Estratégicos de Recrutamento'
     if (path.startsWith('/relatorios/')) return 'Relatório de Avaliação'
     if (path === '/relatorios') return 'Relatórios de Aderência e IA'
     if (path.startsWith('/relatorio-executivo')) return 'Relatório Executivo Mensal'
@@ -275,6 +277,7 @@ export default function Layout() {
           ? [
               { title: 'Meu Dia', href: '/meu-dia', icon: Sunrise, countKey: 'meudia' as const },
               { title: 'Minhas Vagas', href: '/gestor', icon: Briefcase },
+              { title: 'Indicadores', href: '/indicadores', icon: Compass, badge: 'KPIs' },
               { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
             ]
           : [
@@ -325,6 +328,12 @@ export default function Layout() {
                 href: '/financeiro',
                 icon: CircleDollarSign,
                 badge: 'NFs & PJ',
+              },
+              {
+                title: 'Indicadores',
+                href: '/indicadores',
+                icon: Compass,
+                badge: 'KPIs',
               },
               { title: 'Relatórios', href: '/relatorios', icon: FileText },
               {

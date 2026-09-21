@@ -32,6 +32,7 @@ import RelatorioDetalhes from '@/pages/RelatorioDetalhes'
 import ImportarDados from '@/pages/ImportarDados'
 import BancoTalentos from '@/pages/BancoTalentos'
 import RelatorioExecutivo from '@/pages/RelatorioExecutivo'
+import Indicadores from '@/pages/Indicadores'
 import Financeiro from '@/pages/Financeiro'
 import Alertas from '@/pages/Alertas'
 import Onboarding from '@/pages/Onboarding'
@@ -123,6 +124,7 @@ export default function App() {
                 <Route path="chat" element={<Chat />} />
                 <Route path="financeiro" element={<Financeiro />} />
                 <Route path="importar" element={<ImportarDados />} />
+                <Route path="indicadores" element={<Indicadores />} />
                 <Route path="relatorios" element={<Relatorios />} />
                 <Route path="relatorio-executivo" element={<RelatorioExecutivo />} />
                 <Route path="relatorios/:id" element={<RelatorioDetalhes />} />

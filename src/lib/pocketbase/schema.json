@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T03:24:02.451Z",
+  "generatedAt": "2026-09-21T13:48:43.742Z",
   "collections": [
     {
       "name": "users",
@@ -448,6 +448,12 @@
         {
           "name": "token_portal",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_contratacao",
+          "type": "date",
           "required": false,
           "system": false
         }
