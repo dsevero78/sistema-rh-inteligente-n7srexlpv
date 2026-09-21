@@ -119,48 +119,125 @@
   }
 
   .dark {
-    --background: 228 43% 10%; /* #0D1122 */
-    --foreground: 220 20% 96%;
+    /* Paleta profunda do guia institucional SouYess:
+       Base Deep Ink #11162B (--navy-900: 228 43% 12%)
+       Superfícies elevadas Dark Surface #1A2240 (--navy-800: 227 42% 18%)
+       Divisores e bordas #2E3A6E (--navy-600: 229 41% 31%)
+       Texto claro principal #F7F8FB (225 33% 98%) / secundário #D3D7E5 (226 23% 86%)
+       Ação primária Laranja SouYess #E9530E (19 89% 48%) com alto contraste AA
+    */
+    --background: 228 43% 12%; /* #11162B Deep Ink */
+    --foreground: 225 33% 98%; /* #F7F8FB */
 
-    --card: 228 43% 14%;
-    --card-foreground: 220 20% 96%;
+    --card: 227 42% 18%; /* #1A2240 Dark Surface */
+    --card-foreground: 225 33% 98%;
 
-    --popover: 228 43% 14%;
-    --popover-foreground: 220 20% 96%;
+    --popover: 227 42% 18%; /* #1A2240 Dark Surface */
+    --popover-foreground: 225 33% 98%;
 
-    --primary: 19 89% 52%;
+    --primary: 19 89% 48%; /* #E9530E Laranja SouYess mantido */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 228 35% 20%;
-    --secondary-foreground: 220 20% 96%;
+    --secondary: 229 41% 25%; /* #212B55 Navy 700 para superfícies secundárias */
+    --secondary-foreground: 225 33% 98%;
 
-    --muted: 228 35% 18%;
-    --muted-foreground: 220 15% 65%;
+    --muted: 229 41% 22%;
+    --muted-foreground: 226 20% 70%; /* #A8B0C9 tom legível */
 
-    --accent: 228 35% 24%;
-    --accent-foreground: 220 20% 96%;
+    --accent: 229 41% 31%; /* #2E3A6E */
+    --accent-foreground: 225 33% 98%;
 
-    --destructive: 5 66% 50%;
+    --destructive: 5 66% 54%; /* #D5392C legível sobre fundo escuro */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 228 35% 22%;
-    --input: 228 35% 22%;
-    --ring: 19 89% 52%;
+    --border: 229 41% 31%; /* #2E3A6E divisor institucional */
+    --input: 229 41% 31%;
+    --ring: 19 89% 48%;
 
+    /* Sidebar permanece coerente nos dois modos (gradiente #11162B → #1A2240) */
     --sidebar-background: 228 43% 12%;
-    --sidebar-foreground: 220 20% 96%;
-    --sidebar-primary: 19 89% 52%;
+    --sidebar-foreground: 225 33% 98%;
+    --sidebar-primary: 19 89% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 228 35% 20%;
-    --sidebar-accent-foreground: 220 20% 96%;
-    --sidebar-border: 228 35% 20%;
-    --sidebar-ring: 19 89% 52%;
+    --sidebar-accent: 229 41% 31%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 229 41% 31%;
+    --sidebar-ring: 19 89% 48%;
 
     --chart-1: 19 89% 52%;
-    --chart-2: 218 53% 54%;
-    --chart-3: 156 67% 45%;
-    --chart-4: 44 100% 50%;
-    --chart-5: 228 44% 35%;
+    --chart-2: 218 60% 58%;
+    --chart-3: 156 67% 48%;
+    --chart-4: 44 100% 52%;
+    --chart-5: 226 50% 65%;
+  }
+
+  /* Ajustes globais de elementos para modo escuro sem depender de inversão mecânica */
+  .dark input,
+  .dark textarea,
+  .dark select {
+    color-scheme: dark;
+  }
+
+  /* Coesão de componentes padrão no Dark Mode SouYess */
+  .dark .bg-white {
+    background-color: #1a2240 !important;
+  }
+  .dark .bg-slate-50,
+  .dark .bg-slate-50\/50,
+  .dark .bg-slate-50\/70,
+  .dark .bg-slate-50\/80 {
+    background-color: #141b34 !important;
+  }
+  .dark .bg-slate-100,
+  .dark .bg-slate-100\/60,
+  .dark .bg-slate-100\/70,
+  .dark .bg-slate-100\/80 {
+    background-color: #212b55 !important;
+  }
+  .dark .text-slate-900 {
+    color: #f7f8fb !important;
+  }
+  .dark .text-slate-800 {
+    color: #eceef4 !important;
+  }
+  .dark .text-slate-700 {
+    color: #d3d7e5 !important;
+  }
+  .dark .text-slate-600 {
+    color: #a8b0c9 !important;
+  }
+  .dark .text-slate-500 {
+    color: #8c96b3 !important;
+  }
+  .dark .text-slate-400 {
+    color: #7480a6 !important;
+  }
+  .dark .border-slate-100,
+  .dark .border-slate-200,
+  .dark .border-slate-200\/80,
+  .dark .border-slate-200\/90,
+  .dark .border-slate-300 {
+    border-color: #2e3a6e !important;
+  }
+  .dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+  .dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #2e3a6e !important;
+  }
+  .dark .hover\:bg-slate-50:hover,
+  .dark .hover\:bg-slate-50\/70:hover,
+  .dark .hover\:bg-slate-50\/80:hover {
+    background-color: #242e54 !important;
+  }
+  .dark .hover\:bg-slate-100:hover {
+    background-color: #2e3a6e !important;
+  }
+  .dark .shadow-xs,
+  .dark .shadow-sm,
+  .dark .shadow-md,
+  .dark .shadow-lg,
+  .dark .shadow-xl,
+  .dark .shadow-2xl {
+    box-shadow: 0 4px 20px -2px rgba(11, 16, 36, 0.65) !important;
   }
 
   body {

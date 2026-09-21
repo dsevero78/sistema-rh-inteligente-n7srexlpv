@@ -356,18 +356,23 @@ export default function Pipeline() {
       {/* Header Toolbar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Pipeline de Seleção</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] mb-1">
+            Fluxo de Seleção · Kanban Interativo
+          </div>
+          <h1 className="font-display text-2xl sm:text-[26px] font-bold text-[#212B55] dark:text-[#F7F8FB] tracking-tight">
+            Pipeline de Seleção
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Arraste os cards entre as colunas para atualizar a fase do candidato em tempo real
           </p>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           <Select value={selectedVaga} onValueChange={handleVagaFilterChange}>
-            <SelectTrigger className="w-[200px] h-10 text-xs bg-white border-slate-200">
+            <SelectTrigger className="w-[200px] h-10 text-xs bg-white dark:bg-[#1A2240] border-slate-200 dark:border-[#2E3A6E] text-[#212B55] dark:text-[#F7F8FB]">
               <SelectValue placeholder="Todas as vagas" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
               <SelectItem value="all" className="text-xs">
                 Todas as vagas
               </SelectItem>
@@ -380,10 +385,10 @@ export default function Pipeline() {
           </Select>
 
           <Select value={origemFilter} onValueChange={setOrigemFilter}>
-            <SelectTrigger className="w-[180px] h-10 text-xs bg-white border-slate-200">
+            <SelectTrigger className="w-[180px] h-10 text-xs bg-white dark:bg-[#1A2240] border-slate-200 dark:border-[#2E3A6E] text-[#212B55] dark:text-[#F7F8FB]">
               <SelectValue placeholder="Origem / Canal" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
               <SelectItem value="all" className="text-xs">
                 Todos os canais
               </SelectItem>
@@ -405,18 +410,18 @@ export default function Pipeline() {
       </div>
 
       {/* Filter search */}
-      <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+      <div className="bg-white dark:bg-[#1A2240] p-3.5 rounded-xl border border-slate-200/80 dark:border-[#2E3A6E] shadow-xs flex items-center gap-3">
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <Input
             placeholder="Filtrar candidatos no Kanban..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 text-xs bg-slate-50 border-slate-200"
+            className="pl-9 h-10 text-xs bg-slate-50 dark:bg-[#141B34] border-slate-200 dark:border-[#2E3A6E]"
           />
         </div>
 
-        <span className="text-xs font-semibold text-slate-500 tabular-nums shrink-0">
+        <span className="font-mono text-xs font-bold text-[#212B55] dark:text-[#F7F8FB] tabular-nums shrink-0">
           {filteredItems.length} candidatos no funil
         </span>
       </div>
@@ -452,11 +457,11 @@ export default function Pipeline() {
                 <div className="flex items-center justify-between pb-3 px-1">
                   <div className="flex items-center gap-2">
                     <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`} />
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    <h3 className="font-display text-xs font-bold text-[#212B55] dark:text-[#F7F8FB] uppercase tracking-wider">
                       {col.label}
                     </h3>
                   </div>
-                  <span className="text-xs font-bold text-slate-500 bg-white px-2 py-0.5 rounded-full shadow-2xs tabular-nums">
+                  <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-[#1A2240] border border-slate-200 dark:border-[#2E3A6E] px-2.5 py-0.5 rounded-full shadow-2xs tabular-nums">
                     {itemsInCol.length}
                   </span>
                 </div>
@@ -491,16 +496,16 @@ export default function Pipeline() {
                             <div className="min-w-0">
                               <h4
                                 onClick={() => navigate(`/candidatos/${cand.id}`)}
-                                className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate cursor-pointer"
+                                className="font-display text-sm font-bold text-[#212B55] dark:text-[#F7F8FB] group-hover:text-[#E9530E] transition-colors truncate cursor-pointer"
                               >
                                 {cand.nome}
                               </h4>
-                              <p className="text-[11px] text-slate-500 truncate">
+                              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                                 {cand.cargo_atual}
                               </p>
                               {((cand as any).canal_origem === 'Indicação' ||
                                 (cand as any).canal_origem === 'Indicação interna') && (
-                                <span className="inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 border border-purple-200">
+                                <span className="inline-block mt-0.5 font-display text-[11px] font-bold px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                                   🎁 Indicação
                                 </span>
                               )}
@@ -509,13 +514,14 @@ export default function Pipeline() {
 
                           {/* Score pill */}
                           <div
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 tabular-nums ${
+                            className={`font-mono text-xs font-bold px-2 py-0.5 rounded border shrink-0 tabular-nums ${
                               score >= 75
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                                 : score >= 50
-                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                  : 'bg-rose-50 text-rose-700 border-rose-200'
+                                  ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                  : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
                             }`}
+                            title="Score Matching IA"
                           >
                             {score}%
                           </div>
@@ -626,12 +632,15 @@ export default function Pipeline() {
       <Dialog open={recusaModalOpen} onOpenChange={setRecusaModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900">
+            <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E]">
+              Auditoria de Seleção · Compliance RH
+            </div>
+            <DialogTitle className="font-display text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB]">
               Registrar Motivo de Recusa
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
+            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
               Ao mover o candidato para "Recusado", é obrigatório registrar a justificativa para
-              conformidade e histórico de Gente & Gestão.
+              conformidade e histórico de Gente &amp; Gestão.
             </DialogDescription>
           </DialogHeader>
 

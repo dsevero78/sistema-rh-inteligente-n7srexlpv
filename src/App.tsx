@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { PeriodProvider } from '@/contexts/PeriodContext'
 import { ProtectedRoute, PublicRoute } from '@/components/auth/AuthGuards'
@@ -44,88 +45,90 @@ import { Toaster } from '@/components/ui/toaster'
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <PeriodProvider>
-          <Routes>
-            {/* Public Routes with Guard */}
-            <Route
-              path="/login"
-              element={
-                <PublicRoute>
-                  <Login />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/forgot-password"
-              element={
-                <PublicRoute>
-                  <ForgotPassword />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/reset-password"
-              element={
-                <PublicRoute>
-                  <ResetPassword />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/verify-email"
-              element={
-                <PublicRoute>
-                  <VerifyEmail />
-                </PublicRoute>
-              }
-            />
+      <ThemeProvider>
+        <AuthProvider>
+          <PeriodProvider>
+            <Routes>
+              {/* Public Routes with Guard */}
+              <Route
+                path="/login"
+                element={
+                  <PublicRoute>
+                    <Login />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/forgot-password"
+                element={
+                  <PublicRoute>
+                    <ForgotPassword />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/reset-password"
+                element={
+                  <PublicRoute>
+                    <ResetPassword />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/verify-email"
+                element={
+                  <PublicRoute>
+                    <VerifyEmail />
+                  </PublicRoute>
+                }
+              />
 
-            {/* Public Candidate Routes (Página de Carreira, Admissão e Pesquisa de Experiência) */}
-            <Route path="/candidatar" element={<CandidaturaPublica />} />
-            <Route path="/candidatar/:vagaId" element={<CandidaturaPublica />} />
-            <Route path="/admissao/:token" element={<AdmissaoPublica />} />
-            <Route path="/experiencia/:token" element={<ExperienciaPublica />} />
-            <Route path="/indicar/:token" element={<IndicarPublica />} />
+              {/* Public Candidate Routes (Página de Carreira, Admissão e Pesquisa de Experiência) */}
+              <Route path="/candidatar" element={<CandidaturaPublica />} />
+              <Route path="/candidatar/:vagaId" element={<CandidaturaPublica />} />
+              <Route path="/admissao/:token" element={<AdmissaoPublica />} />
+              <Route path="/experiencia/:token" element={<ExperienciaPublica />} />
+              <Route path="/indicar/:token" element={<IndicarPublica />} />
 
-            {/* Authenticated Global Layout Routes */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Layout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="gestor" element={<GestorPortal />} />
-              <Route path="vagas" element={<Vagas />} />
-              <Route path="vagas/:id" element={<VagaDetalhes />} />
-              <Route path="candidatos" element={<Candidatos />} />
-              <Route path="candidatos/:id" element={<CandidatoDetalhes />} />
-              <Route path="pipeline" element={<Pipeline />} />
-              <Route path="ofertas" element={<Ofertas />} />
-              <Route path="onboarding" element={<Onboarding />} />
-              <Route path="experiencia" element={<ExperienciaCandidato />} />
-              <Route path="indicacoes" element={<Indicacoes />} />
-              <Route path="prestadores-pj" element={<PrestadoresPJ />} />
-              <Route path="banco-talentos" element={<BancoTalentos />} />{' '}
-              <Route path="alertas" element={<Alertas />} />{' '}
-              <Route path="entrevistas" element={<Entrevistas />} />
-              <Route path="chat" element={<Chat />} />
-              <Route path="financeiro" element={<Financeiro />} />
-              <Route path="relatorios" element={<Relatorios />} />
-              <Route path="relatorio-executivo" element={<RelatorioExecutivo />} />
-              <Route path="relatorios/:id" element={<RelatorioDetalhes />} />
-            </Route>
+              {/* Authenticated Global Layout Routes */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="gestor" element={<GestorPortal />} />
+                <Route path="vagas" element={<Vagas />} />
+                <Route path="vagas/:id" element={<VagaDetalhes />} />
+                <Route path="candidatos" element={<Candidatos />} />
+                <Route path="candidatos/:id" element={<CandidatoDetalhes />} />
+                <Route path="pipeline" element={<Pipeline />} />
+                <Route path="ofertas" element={<Ofertas />} />
+                <Route path="onboarding" element={<Onboarding />} />
+                <Route path="experiencia" element={<ExperienciaCandidato />} />
+                <Route path="indicacoes" element={<Indicacoes />} />
+                <Route path="prestadores-pj" element={<PrestadoresPJ />} />
+                <Route path="banco-talentos" element={<BancoTalentos />} />{' '}
+                <Route path="alertas" element={<Alertas />} />{' '}
+                <Route path="entrevistas" element={<Entrevistas />} />
+                <Route path="chat" element={<Chat />} />
+                <Route path="financeiro" element={<Financeiro />} />
+                <Route path="relatorios" element={<Relatorios />} />
+                <Route path="relatorio-executivo" element={<RelatorioExecutivo />} />
+                <Route path="relatorios/:id" element={<RelatorioDetalhes />} />
+              </Route>
 
-            {/* Catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Toaster />
-        </PeriodProvider>
-      </AuthProvider>
+              {/* Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <Toaster />
+          </PeriodProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   )
 }

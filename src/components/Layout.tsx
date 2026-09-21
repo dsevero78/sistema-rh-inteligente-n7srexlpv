@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePeriod } from '@/contexts/PeriodContext'
+import { useTheme } from '@/contexts/ThemeContext'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
   LayoutDashboard,
@@ -30,6 +31,8 @@ import {
   Gift,
   Handshake,
   CircleDollarSign,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import type { RecordModel } from 'pocketbase'
 import { Button } from '@/components/ui/button'
@@ -87,6 +90,7 @@ const navItems: NavItem[] = [
 export default function Layout() {
   const { user, logout, refreshUser, isGestorContratante } = useAuth()
   const { period, setPeriod } = usePeriod()
+  const { theme, toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -386,7 +390,7 @@ export default function Layout() {
   )
 
   return (
-    <div className="min-h-screen flex bg-[#F7F8FB]">
+    <div className="min-h-screen flex bg-[#F7F8FB] dark:bg-[#11162B] text-foreground transition-colors duration-200">
       {/* Desktop Sidebar (260px fixed) */}
       <aside className="hidden md:flex flex-col w-[260px] fixed inset-y-0 left-0 z-30 shadow-[0_4px_24px_rgba(17,22,43,0.22)]">
         {sidebarContent}
@@ -415,32 +419,32 @@ export default function Layout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col md:pl-[260px] min-h-screen">
         {/* TopBar SouYess (64px) */}
-        <header className="h-16 sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-[#E7EAF0] px-4 sm:px-8 flex items-center justify-between shadow-[0_1px_3px_rgba(11,18,48,0.03)]">
+        <header className="h-16 sticky top-0 z-20 bg-white/95 dark:bg-[#1A2240]/95 backdrop-blur-md border-b border-[#E7EAF0] dark:border-[#2E3A6E] px-4 sm:px-8 flex items-center justify-between shadow-[0_1px_3px_rgba(11,18,48,0.03)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)] transition-colors duration-200">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileOpen(true)}
-              className="p-2 -ml-2 rounded-lg text-[#4D5566] hover:bg-[#F2F4F8] hover:text-[#212B55] md:hidden"
+              className="p-2 -ml-2 rounded-lg text-[#4D5566] dark:text-[#D3D7E5] hover:bg-[#F2F4F8] dark:hover:bg-[#2E3A6E] hover:text-[#212B55] dark:hover:text-[#F7F8FB] md:hidden"
               aria-label="Abrir menu"
             >
               <Menu className="w-5 h-5" />
             </button>
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#E9530E] font-display">
+              <div className="text-[11px] font-bold uppercase tracking-widest text-[#E9530E] font-display">
                 SouYess People Hub
               </div>
-              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-[#212B55] truncate font-display">
+              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-[#212B55] dark:text-[#F7F8FB] truncate font-display">
                 {getPageTitle()}
               </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Link Direto para Página Pública de Candidatura */}
             <a
               href="/candidatar"
               target="_blank"
               rel="noreferrer"
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#FEF1EA] text-[#C5430A] hover:bg-[#FBDCC9] transition-colors border border-[#FBDCC9]"
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#FEF1EA] dark:bg-[#212B55] text-[#C5430A] dark:text-[#F19763] hover:bg-[#FBDCC9] dark:hover:bg-[#2E3A6E] transition-colors border border-[#FBDCC9] dark:border-[#2E3A6E]"
             >
               <Sparkles className="w-3.5 h-3.5 text-[#E9530E]" />
               Ver Página Pública de Candidatura
@@ -452,10 +456,10 @@ export default function Layout() {
                 value={period}
                 onValueChange={(val) => setPeriod(val as '7d' | '30d' | '90d')}
               >
-                <SelectTrigger className="w-[155px] h-9 text-xs font-semibold border-[#D7DCE6] bg-[#F7F8FB] text-[#212B55] rounded-lg">
+                <SelectTrigger className="w-[155px] h-9 text-xs font-semibold border-[#D7DCE6] dark:border-[#2E3A6E] bg-[#F7F8FB] dark:bg-[#11162B] text-[#212B55] dark:text-[#F7F8FB] rounded-lg">
                   <SelectValue placeholder="Período" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
                   <SelectItem value="7d" className="text-xs font-medium">
                     Últimos 7 dias
                   </SelectItem>
@@ -468,6 +472,24 @@ export default function Layout() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Alternância de Modo Claro / Escuro SouYess */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="h-9 w-9 p-0 rounded-lg text-[#4D5566] dark:text-[#D3D7E5] hover:text-[#E9530E] dark:hover:text-[#F19763] hover:bg-[#FEF1EA] dark:hover:bg-[#2E3A6E] transition-colors"
+              aria-label={
+                theme === 'dark' ? 'Alternar para modo claro' : 'Alternar para modo escuro'
+              }
+              title={theme === 'dark' ? 'Alternar para modo claro' : 'Alternar para modo escuro'}
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-4 h-4 text-[#F19763]" />
+              ) : (
+                <Moon className="w-4 h-4 text-[#212B55]" />
+              )}
+            </Button>
 
             {/* SINO DE NOTIFICAÇÕES (Alertas Automáticos) */}
             <DropdownMenu>

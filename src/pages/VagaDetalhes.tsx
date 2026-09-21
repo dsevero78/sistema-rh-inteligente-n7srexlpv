@@ -131,26 +131,31 @@ export default function VagaDetalhes() {
       </div>
 
       {/* Hero Header */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-white dark:bg-[#1A2240] p-6 rounded-xl border border-slate-200/80 dark:border-[#2E3A6E] shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider bg-blue-50 px-2.5 py-0.5 rounded">
+            <span className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E]">
+              Posição Estratégica
+            </span>
+            <span className="font-display text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
               {vaga.departamento || 'Tecnologia'}
             </span>
             <Badge
               variant="outline"
-              className={`text-xs font-semibold ${
+              className={`font-display text-xs font-bold px-2.5 py-0.5 rounded-full ${
                 vaga.status === 'Ativa'
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                  : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
               }`}
             >
               {vaga.status}
             </Badge>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">{vaga.titulo}</h1>
+          <h1 className="font-display text-2xl sm:text-[26px] font-bold text-[#212B55] dark:text-[#F7F8FB] tracking-tight">
+            {vaga.titulo}
+          </h1>
 
-          <div className="flex items-center gap-4 text-xs text-slate-600 flex-wrap pt-1">
+          <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-300 flex-wrap pt-1">
             <div className="flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-slate-400" />
               <span>{vaga.localizacao || 'Brasil'}</span>
@@ -160,22 +165,26 @@ export default function VagaDetalhes() {
               <span>{vaga.modalidade}</span>
             </div>
             {vaga.faixa_salarial && (
-              <span className="font-semibold text-slate-800">{vaga.faixa_salarial}</span>
+              <span className="font-mono font-bold text-[#212B55] dark:text-[#F7F8FB] tabular-nums">
+                {vaga.faixa_salarial}
+              </span>
             )}
             {vaga.expand?.gestor_responsavel && (
-              <div className="flex items-center gap-1.5 font-semibold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+              <div className="flex items-center gap-1.5 font-semibold text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+                <span className="font-display text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
+                  Gestor:
+                </span>
                 <span>
-                  Gestor:{' '}
                   {vaga.expand.gestor_responsavel.name || vaga.expand.gestor_responsavel.email}
                 </span>
                 {vaga.status_aprovacao_gestor && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.2 bg-white rounded">
+                  <span className="font-display text-[10px] font-bold px-1.5 py-0.2 bg-white dark:bg-[#1A2240] rounded">
                     {vaga.status_aprovacao_gestor}
                   </span>
                 )}
               </div>
             )}
-            <div className="flex items-center gap-1.5 text-slate-400">
+            <div className="flex items-center gap-1.5 text-slate-400 font-mono text-xs tabular-nums">
               <Clock className="w-3.5 h-3.5" />
               <span>Criada em {new Date(vaga.created).toLocaleDateString('pt-BR')}</span>
             </div>
@@ -186,7 +195,7 @@ export default function VagaDetalhes() {
         <div className="flex items-center gap-2.5 w-full md:w-auto">
           <Button
             onClick={() => navigate(`/pipeline?vaga=${vaga.id}`)}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold h-10 shadow-xs flex-1 md:flex-initial"
+            className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-display text-xs font-bold h-10 shadow-xs flex-1 md:flex-initial"
           >
             <GitPullRequest className="w-4 h-4 mr-2" />
             Ver no Pipeline
@@ -248,32 +257,41 @@ export default function VagaDetalhes() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               {/* Descrição */}
-              <Card className="border-slate-200 shadow-xs bg-white p-6">
-                <CardTitle className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100">
+              <Card className="border-slate-200 dark:border-[#2E3A6E] shadow-xs bg-white dark:bg-[#1A2240] p-6">
+                <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] mb-1">
+                  Escopo Funcional
+                </div>
+                <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB] pb-3 border-b border-slate-100 dark:border-[#2E3A6E]">
                   Descrição e Escopo de Atuação
                 </CardTitle>
-                <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line pt-4">
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line pt-4 font-sans">
                   {vaga.descricao || 'Nenhuma descrição detalhada informada.'}
                 </p>
               </Card>
 
               {/* Requisitos Obrigatórios e Desejáveis */}
-              <Card className="border-slate-200 shadow-xs bg-white p-6">
-                <CardTitle className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100">
+              <Card className="border-slate-200 dark:border-[#2E3A6E] shadow-xs bg-white dark:bg-[#1A2240] p-6">
+                <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] mb-1">
+                  Matriz de Seleção
+                </div>
+                <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB] pb-3 border-b border-slate-100 dark:border-[#2E3A6E]">
                   Critérios de Avaliação
                 </CardTitle>
 
                 <div className="space-y-4 pt-4">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
+                    <h4 className="font-display text-[11px] font-bold text-[#6B7384] dark:text-slate-400 uppercase tracking-wider mb-2">
                       Requisitos Obrigatórios (Eliminatórios)
                     </h4>
                     {Array.isArray(vaga.requisitos_obrigatorios) &&
                     vaga.requisitos_obrigatorios.length > 0 ? (
                       <ul className="space-y-1.5">
                         {vaga.requisitos_obrigatorios.map((req: string, i: number) => (
-                          <li key={i} className="text-xs text-slate-700 flex items-start gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
+                          <li
+                            key={i}
+                            className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#E9530E] mt-2 shrink-0" />
                             <span>{req}</span>
                           </li>
                         ))}
@@ -285,16 +303,19 @@ export default function VagaDetalhes() {
                     )}
                   </div>
 
-                  <div className="pt-3 border-t border-slate-100">
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
+                  <div className="pt-3 border-t border-slate-100 dark:border-[#2E3A6E]">
+                    <h4 className="font-display text-[11px] font-bold text-[#6B7384] dark:text-slate-400 uppercase tracking-wider mb-2">
                       Diferenciais & Requisitos Desejáveis
                     </h4>
                     {Array.isArray(vaga.requisitos_desejaveis) &&
                     vaga.requisitos_desejaveis.length > 0 ? (
                       <ul className="space-y-1.5">
                         {vaga.requisitos_desejaveis.map((des: string, i: number) => (
-                          <li key={i} className="text-xs text-slate-700 flex items-start gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0" />
+                          <li
+                            key={i}
+                            className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-2 shrink-0" />
                             <span>{des}</span>
                           </li>
                         ))}
@@ -309,12 +330,17 @@ export default function VagaDetalhes() {
 
             {/* Matriz de Habilidades e Competências */}
             <div className="space-y-6">
-              <Card className="border-slate-200 shadow-xs bg-white p-6">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <CardTitle className="text-sm font-bold text-slate-900">
-                    Habilidades Técnicas
-                  </CardTitle>
-                  <Sparkles className="w-4 h-4 text-blue-600" />
+              <Card className="border-slate-200 dark:border-[#2E3A6E] shadow-xs bg-white dark:bg-[#1A2240] p-6">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#2E3A6E]">
+                  <div>
+                    <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E]">
+                      Matriz Técnica
+                    </div>
+                    <CardTitle className="font-display text-base font-bold text-[#212B55] dark:text-[#F7F8FB]">
+                      Habilidades Técnicas
+                    </CardTitle>
+                  </div>
+                  <Sparkles className="w-4 h-4 text-[#E9530E]" />
                 </div>
                 <div className="pt-4 space-y-2.5">
                   {Array.isArray(vaga.habilidades_tecnicas) &&
@@ -323,12 +349,14 @@ export default function VagaDetalhes() {
                       (h: { nome: string; peso: number }, i: number) => (
                         <div
                           key={i}
-                          className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100"
+                          className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-[#141B34] border border-slate-100 dark:border-[#2E3A6E]"
                         >
-                          <span className="text-xs font-semibold text-slate-800">{h.nome}</span>
+                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                            {h.nome}
+                          </span>
                           <Badge
                             variant="secondary"
-                            className="text-[10px] font-bold bg-blue-100 text-blue-800"
+                            className="font-mono text-[10px] font-bold tabular-nums bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
                           >
                             Peso {h.peso}
                           </Badge>
@@ -341,8 +369,11 @@ export default function VagaDetalhes() {
                 </div>
               </Card>
 
-              <Card className="border-slate-200 shadow-xs bg-white p-6">
-                <CardTitle className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100">
+              <Card className="border-slate-200 dark:border-[#2E3A6E] shadow-xs bg-white dark:bg-[#1A2240] p-6">
+                <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] mb-1">
+                  Soft Skills
+                </div>
+                <CardTitle className="font-display text-base font-bold text-[#212B55] dark:text-[#F7F8FB] pb-3 border-b border-slate-100 dark:border-[#2E3A6E]">
                   Competências Comportamentais
                 </CardTitle>
                 <div className="pt-4 flex flex-wrap gap-1.5">
@@ -352,7 +383,7 @@ export default function VagaDetalhes() {
                       <Badge
                         key={i}
                         variant="outline"
-                        className="text-xs bg-purple-50 text-purple-700 border-purple-200 py-1"
+                        className="font-display text-xs font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 py-1"
                       >
                         {comp}
                       </Badge>
@@ -448,20 +479,28 @@ export default function VagaDetalhes() {
 
         {/* Aba Métricas de Funil */}
         <TabsContent value="metricas">
-          <Card className="border-slate-200 shadow-xs bg-white p-6">
-            <CardTitle className="text-base font-bold text-slate-900 pb-4 border-b border-slate-100">
+          <Card className="border-slate-200 dark:border-[#2E3A6E] shadow-xs bg-white dark:bg-[#1A2240] p-6">
+            <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] mb-1">
+              Indicadores de Funil
+            </div>
+            <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB] pb-4 border-b border-slate-100 dark:border-[#2E3A6E]">
               Taxa de Conversão por Etapa
             </CardTitle>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
               {estagios.map((est) => (
-                <div key={est} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50">
-                  <span className="text-xs font-medium text-slate-500">{est}</span>
+                <div
+                  key={est}
+                  className="p-4 rounded-xl border border-slate-100 dark:border-[#2E3A6E] bg-slate-50/50 dark:bg-[#141B34]"
+                >
+                  <span className="font-display text-[11px] font-bold uppercase tracking-wider text-[#6B7384] dark:text-slate-400 block truncate">
+                    {est}
+                  </span>
                   <div className="mt-2 flex items-baseline justify-between">
-                    <span className="text-2xl font-extrabold text-slate-900 tabular-nums">
+                    <span className="text-2xl sm:text-3xl font-bold font-mono text-[#212B55] dark:text-[#F7F8FB] tabular-nums">
                       {stageCounts[est]}
                     </span>
-                    <span className="text-xs font-semibold text-slate-400">
+                    <span className="text-xs font-bold font-mono text-[#6B7384] tabular-nums">
                       {candidatos.length > 0
                         ? Math.round((stageCounts[est] / candidatos.length) * 100)
                         : 0}

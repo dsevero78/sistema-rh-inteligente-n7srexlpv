@@ -419,14 +419,19 @@ export default function Candidatos() {
       {/* Header Toolbar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Banco de Talentos</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] mb-1">
+            Gestão de Candidatos · SouYess People
+          </div>
+          <h1 className="font-display text-2xl sm:text-[26px] font-bold text-[#212B55] dark:text-[#F7F8FB] tracking-tight">
+            Banco de Talentos
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Gerencie perfis, analise o score inteligente e acompanhe o avanço nos processos
           </p>
         </div>
         <Button
           onClick={openCreateModal}
-          className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold shadow-xs h-10 text-xs px-4"
+          className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-display font-bold shadow-xs h-10 text-xs px-4"
         >
           <Plus className="w-4 h-4 mr-2" />
           Adicionar Candidato
@@ -518,16 +523,16 @@ export default function Candidatos() {
         </div>
 
         {/* Semantic search toggle banner */}
-        <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 text-slate-500">
+        <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-[#2E3A6E] text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+            <Sparkles className="w-3.5 h-3.5 text-[#E9530E]" />
             <span>
               Matching Inteligente ativo: vetor semântico gerado automaticamente a partir do resumo
               e histórico.
             </span>
           </div>
 
-          <span className="font-semibold text-slate-800 tabular-nums">
+          <span className="font-mono font-bold text-[#212B55] dark:text-[#F7F8FB] tabular-nums text-xs">
             {filteredCandidatos.length}{' '}
             {filteredCandidatos.length === 1 ? 'candidato encontrado' : 'candidatos encontrados'}
           </span>
@@ -582,18 +587,18 @@ export default function Candidatos() {
                     onClick={() => navigate(`/candidatos/${cand.id}`)}
                     className="flex items-center gap-3.5 min-w-0 cursor-pointer flex-1"
                   >
-                    <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-sm shrink-0 border border-blue-200 shadow-xs">
+                    <div className="w-12 h-12 rounded-full bg-[#FEF1EA] dark:bg-[#212B55] text-[#E9530E] dark:text-[#F19763] font-display font-bold flex items-center justify-center text-sm shrink-0 border border-[#FBDCC9] dark:border-[#2E3A6E] shadow-xs">
                       {initials}
                     </div>
 
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                        <h3 className="font-display text-base font-bold text-[#212B55] dark:text-[#F7F8FB] group-hover:text-[#E9530E] transition-colors truncate">
                           {cand.nome}
                         </h3>
                         <Badge
                           variant="outline"
-                          className="text-[10px] bg-slate-100 text-slate-700"
+                          className="font-display text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-[#141B34] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-[#2E3A6E]"
                         >
                           {cand.status}
                         </Badge>
@@ -601,7 +606,7 @@ export default function Candidatos() {
                         {cand.reprovado_triagem_auto && (
                           <Badge
                             variant="outline"
-                            className="text-[10px] bg-rose-50 text-rose-700 border-rose-300 font-bold"
+                            className="font-display text-xs bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700 font-bold px-2 py-0.5 rounded-full"
                           >
                             Reprovado na Triagem
                           </Badge>
@@ -610,24 +615,27 @@ export default function Candidatos() {
                         {(cand.video_link || cand.video_apresentacao) && (
                           <Badge
                             variant="outline"
-                            className="text-[10px] bg-blue-50 text-blue-700 border-blue-200 font-medium"
+                            className="font-display text-xs bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 font-bold px-2 py-0.5 rounded-full"
                           >
                             Vídeo Disponível
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-slate-600 truncate">
-                        <span className="font-medium text-slate-800">
+                      <p className="text-xs text-slate-600 dark:text-slate-300 truncate">
+                        <span className="font-semibold text-slate-800 dark:text-slate-100">
                           {cand.cargo_atual || 'Profissional'}
                         </span>
                         {cand.empresa_atual && <span> em {cand.empresa_atual}</span>}
                         {cand.localizacao && <span> · {cand.localizacao}</span>}
                         {cand.canal_origem && (
-                          <span className="text-slate-400"> · Origem: {cand.canal_origem}</span>
+                          <span className="text-slate-400 dark:text-slate-400">
+                            {' '}
+                            · Origem: {cand.canal_origem}
+                          </span>
                         )}
                       </p>
 
-                      <p className="text-[11px] text-blue-600 font-medium truncate flex items-center gap-1">
+                      <p className="text-[11px] text-blue-600 dark:text-blue-400 font-medium truncate flex items-center gap-1">
                         <Briefcase className="w-3 h-3" />
                         <span>{cand.expand?.vaga?.titulo || 'Sem vaga associada'}</span>
                       </p>
@@ -635,36 +643,42 @@ export default function Candidatos() {
                   </div>
 
                   {/* Right: Score + Actions */}
-                  <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                  <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-[#2E3A6E]">
                     {/* Matching Progress Ring */}
                     <div className="flex items-center gap-2.5">
                       <ScoreProgressRing score={score} size={44} />
                       <div className="flex flex-col text-left">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                          <span className="font-display text-[11px] uppercase font-bold text-[#6B7384] dark:text-slate-400 tracking-wider">
                             Match IA
                           </span>
                           {entrevistasRealizadasCandIds.has(cand.id) && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-700">
+                            <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
                               Ajustado
                             </span>
                           )}
                         </div>
-                        <span
-                          className={`text-xs font-semibold ${
-                            score >= 75
-                              ? 'text-emerald-600'
+                        <div className="flex items-center gap-1">
+                          <span className="font-mono font-bold text-xs text-slate-900 dark:text-white tabular-nums">
+                            {score}%
+                          </span>
+                          <span
+                            className={`text-xs font-semibold ${
+                              score >= 75
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : score >= 50
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-rose-600 dark:text-rose-400'
+                            }`}
+                          >
+                            ·{' '}
+                            {score >= 75
+                              ? 'Alta aderência'
                               : score >= 50
-                                ? 'text-amber-600'
-                                : 'text-rose-600'
-                          }`}
-                        >
-                          {score >= 75
-                            ? 'Alta aderência'
-                            : score >= 50
-                              ? 'Média aderência'
-                              : 'Baixa aderência'}
-                        </span>
+                                ? 'Média aderência'
+                                : 'Baixa aderência'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -771,10 +785,13 @@ export default function Candidatos() {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-900">
+            <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E]">
+              {editingCand ? 'Dossiê do Profissional' : 'Novo Perfil Profissional'}
+            </div>
+            <DialogTitle className="font-display text-lg sm:text-xl font-bold text-[#212B55] dark:text-[#F7F8FB]">
               {editingCand ? 'Editar Candidato' : 'Cadastrar Novo Candidato'}
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
+            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
               Preencha os dados profissionais para alimentar o perfil e o cálculo de matching
               inteligente.
             </DialogDescription>

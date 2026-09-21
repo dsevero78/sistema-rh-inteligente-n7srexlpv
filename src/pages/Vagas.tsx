@@ -302,15 +302,20 @@ export default function Vagas() {
       {/* Header Toolbar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Posições Estratégicas</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] mb-1">
+            Gestão de Vagas · SouYess People
+          </div>
+          <h1 className="font-display text-2xl sm:text-[26px] font-bold text-[#212B55] dark:text-[#F7F8FB] tracking-tight">
+            Posições Estratégicas
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Cadastre posições, defina matriz de competências e gerencie o fluxo de atração
           </p>
         </div>
 
         <Button
           onClick={openCreateModal}
-          className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold shadow-xs h-10 text-xs px-4"
+          className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-display font-bold shadow-xs h-10 text-xs px-4"
         >
           <Plus className="w-4 h-4 mr-2" />
           Nova Vaga
@@ -423,38 +428,40 @@ export default function Vagas() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded">
+                          <span className="font-display text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
                             {vaga.departamento || 'Geral'}
                           </span>
                           <Badge
                             variant="outline"
-                            className={`text-[10px] font-semibold px-2 py-0.5 ${statusColor}`}
+                            className={`font-display text-xs font-bold px-2.5 py-0.5 rounded-full ${statusColor}`}
                           >
                             {vaga.status}
                           </Badge>
                         </div>
                         <CardTitle
                           onClick={() => navigate(`/vagas/${vaga.id}`)}
-                          className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors cursor-pointer line-clamp-1 pt-1"
+                          className="font-display text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB] group-hover:text-[#E9530E] transition-colors cursor-pointer line-clamp-1 pt-1 tracking-tight"
                         >
                           {vaga.titulo}
                         </CardTitle>
 
                         {vaga.expand?.gestor_responsavel && (
-                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium pt-0.5">
-                            <span className="font-semibold text-slate-700">Gestor:</span>
-                            <span className="text-blue-700 font-semibold truncate">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium pt-0.5">
+                            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
+                              Gestor:
+                            </span>
+                            <span className="text-[#345EA9] dark:text-blue-300 font-semibold truncate">
                               {vaga.expand.gestor_responsavel.name ||
                                 vaga.expand.gestor_responsavel.email}
                             </span>
                             {vaga.status_aprovacao_gestor && (
                               <span
-                                className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                                className={`font-display text-[11px] px-2 py-0.5 rounded font-bold ${
                                   vaga.status_aprovacao_gestor === 'Aprovada pelo gestor'
-                                    ? 'bg-emerald-100 text-emerald-800'
+                                    ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
                                     : vaga.status_aprovacao_gestor === 'Ajustes solicitados'
-                                      ? 'bg-rose-100 text-rose-800'
-                                      : 'bg-amber-100 text-amber-800'
+                                      ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700'
+                                      : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
                                 }`}
                               >
                                 {vaga.status_aprovacao_gestor === 'Aprovada pelo gestor'
@@ -562,10 +569,13 @@ export default function Vagas() {
                 </div>
 
                 <CardFooter className="p-5 pt-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-b-xl">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                    <Users className="w-3.5 h-3.5 text-blue-600" />
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                     <span>
-                      {numCandidatos} {numCandidatos === 1 ? 'candidato' : 'candidatos'}
+                      <strong className="font-mono tabular-nums font-bold text-slate-900 dark:text-white mr-1">
+                        {numCandidatos}
+                      </strong>
+                      {numCandidatos === 1 ? 'candidato' : 'candidatos'}
                     </span>
                   </div>
 
@@ -573,7 +583,7 @@ export default function Vagas() {
                     variant="ghost"
                     size="sm"
                     onClick={() => navigate(`/vagas/${vaga.id}`)}
-                    className="h-8 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50/80 p-0"
+                    className="h-8 text-xs font-display font-bold text-blue-600 dark:text-blue-400 hover:text-[#E9530E] hover:bg-transparent p-0"
                   >
                     Gerenciar vaga
                     <ArrowRight className="w-3.5 h-3.5 ml-1" />
@@ -589,10 +599,13 @@ export default function Vagas() {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-900">
+            <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E]">
+              {editingVaga ? 'Edição de Posição' : 'Nova Posição Estratégica'}
+            </div>
+            <DialogTitle className="font-display text-lg sm:text-xl font-bold text-[#212B55] dark:text-[#F7F8FB]">
               {editingVaga ? 'Editar Posição' : 'Cadastrar Nova Posição'}
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
+            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
               Defina as atribuições e as competências para alimentar o matching inteligente com IA.
             </DialogDescription>
           </DialogHeader>

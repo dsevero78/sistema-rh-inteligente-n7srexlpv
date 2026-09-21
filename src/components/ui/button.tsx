@@ -14,13 +14,15 @@ const buttonVariants = cva(
           'bg-[#E9530E] text-white hover:bg-[#C5430A] shadow-xs hover:shadow-md active:bg-[#9B340A]',
         destructive: 'bg-[#D5392C] text-white hover:bg-[#b52a1e] shadow-xs',
         outline:
-          'border border-[#D7DCE6] bg-white text-[#212B55] hover:bg-[#F2F4F8] hover:border-[#BFC5D2] shadow-xs',
+          'border border-[#D7DCE6] dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240] text-[#212B55] dark:text-[#F7F8FB] hover:bg-[#F2F4F8] dark:hover:bg-[#2E3A6E] hover:border-[#BFC5D2] dark:hover:border-[#425292] shadow-xs',
         secondary: 'bg-[#212B55] text-white hover:bg-[#2E3A6E] shadow-xs',
-        ghost: 'text-[#212B55] hover:bg-[#FEF1EA] hover:text-[#E9530E]',
-        link: 'text-[#212B55] underline-offset-4 hover:underline hover:text-[#E9530E] p-0 h-auto',
+        ghost:
+          'text-[#212B55] dark:text-[#D3D7E5] hover:bg-[#FEF1EA] dark:hover:bg-[#2E3A6E] hover:text-[#E9530E] dark:hover:text-[#F19763]',
+        link: 'text-[#212B55] dark:text-[#F19763] underline-offset-4 hover:underline hover:text-[#E9530E] p-0 h-auto',
         brand: 'bg-[#E9530E] text-white hover:bg-[#C5430A] shadow-xs',
         navy: 'bg-[#212B55] text-white hover:bg-[#2E3A6E] shadow-xs',
-        quiet: 'text-[#6B7384] hover:text-[#212B55] hover:bg-[#F2F4F8]',
+        quiet:
+          'text-[#6B7384] dark:text-[#A8B0C9] hover:text-[#212B55] dark:hover:text-[#F7F8FB] hover:bg-[#F2F4F8] dark:hover:bg-[#2E3A6E]',
       },
       size: {
         default: 'h-10 px-4 py-2 rounded-lg text-sm',

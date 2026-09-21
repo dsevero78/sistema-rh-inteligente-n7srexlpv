@@ -447,9 +447,9 @@ export default function CandidatoDetalhes() {
       </div>
 
       {/* Header Profile Card */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-white dark:bg-[#1A2240] p-6 rounded-xl border border-slate-200/80 dark:border-[#2E3A6E] shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-start sm:items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-blue-600 text-white font-extrabold flex items-center justify-center text-xl shrink-0 shadow-sm shadow-blue-500/20">
+          <div className="w-16 h-16 rounded-full bg-[#E9530E] text-white font-display font-extrabold flex items-center justify-center text-xl shrink-0 shadow-sm shadow-[#E9530E]/20">
             {candidato.nome
               .split(' ')
               .map((n: string) => n[0])
@@ -460,12 +460,15 @@ export default function CandidatoDetalhes() {
 
           <div className="space-y-1">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+              <span className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E]">
+                Dossiê do Profissional
+              </span>
+              <h1 className="font-display text-2xl sm:text-[26px] font-bold text-[#212B55] dark:text-[#F7F8FB] tracking-tight">
                 {candidato.nome}
               </h1>
               <Badge
                 variant="outline"
-                className="text-xs font-semibold bg-slate-100 text-slate-700"
+                className="font-display text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-[#141B34] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-[#2E3A6E]"
               >
                 {candidato.status}
               </Badge>
@@ -671,18 +674,24 @@ export default function CandidatoDetalhes() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               {/* Resumo Profissional */}
-              <Card className="border-slate-200 shadow-xs bg-white p-6">
-                <CardTitle className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100">
+              <Card className="border-slate-200 dark:border-[#2E3A6E] shadow-xs bg-white dark:bg-[#1A2240] p-6">
+                <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] mb-1">
+                  Apresentação Executiva
+                </div>
+                <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB] pb-3 border-b border-slate-100 dark:border-[#2E3A6E]">
                   Resumo Profissional
                 </CardTitle>
-                <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line pt-4">
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line pt-4 font-sans">
                   {candidato.resumo || 'Nenhum resumo profissional cadastrado.'}
                 </p>
               </Card>
 
               {/* Experiências Anteriores */}
-              <Card className="border-slate-200 shadow-xs bg-white p-6">
-                <CardTitle className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100">
+              <Card className="border-slate-200 dark:border-[#2E3A6E] shadow-xs bg-white dark:bg-[#1A2240] p-6">
+                <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] mb-1">
+                  Histórico Profissional
+                </div>
+                <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB] pb-3 border-b border-slate-100 dark:border-[#2E3A6E]">
                   Trajetória e Experiências
                 </CardTitle>
 
@@ -691,17 +700,21 @@ export default function CandidatoDetalhes() {
                     candidato.experiencias.map((exp: any, i: number) => (
                       <div
                         key={i}
-                        className="space-y-1 pb-3 border-b border-slate-100 last:border-0 last:pb-0"
+                        className="space-y-1 pb-3 border-b border-slate-100 dark:border-[#2E3A6E] last:border-0 last:pb-0"
                       >
                         <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold text-slate-900">{exp.cargo}</h4>
-                          <span className="text-[11px] font-semibold text-slate-400">
+                          <h4 className="font-display text-sm font-bold text-[#212B55] dark:text-[#F7F8FB]">
+                            {exp.cargo}
+                          </h4>
+                          <span className="font-mono text-xs font-semibold text-slate-400 dark:text-slate-400 tabular-nums">
                             {exp.periodo}
                           </span>
                         </div>
-                        <p className="text-xs font-medium text-blue-600">{exp.empresa}</p>
+                        <p className="text-xs font-semibold text-[#345EA9] dark:text-blue-300">
+                          {exp.empresa}
+                        </p>
                         {exp.descricao && (
-                          <p className="text-xs text-slate-600 leading-relaxed pt-1">
+                          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed pt-1 font-sans">
                             {exp.descricao}
                           </p>
                         )}
@@ -714,8 +727,11 @@ export default function CandidatoDetalhes() {
               </Card>
 
               {/* Educação */}
-              <Card className="border-slate-200 shadow-xs bg-white p-6">
-                <CardTitle className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100">
+              <Card className="border-slate-200 dark:border-[#2E3A6E] shadow-xs bg-white dark:bg-[#1A2240] p-6">
+                <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] mb-1">
+                  Qualificação Formal
+                </div>
+                <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB] pb-3 border-b border-slate-100 dark:border-[#2E3A6E]">
                   Formação Acadêmica
                 </CardTitle>
                 <div className="space-y-3 pt-4">
@@ -723,10 +739,14 @@ export default function CandidatoDetalhes() {
                     candidato.educacao.map((edu: any, i: number) => (
                       <div key={i} className="flex items-start justify-between text-xs">
                         <div>
-                          <p className="font-bold text-slate-900">{edu.curso}</p>
-                          <p className="text-slate-600">{edu.instituicao}</p>
+                          <p className="font-display font-bold text-sm text-[#212B55] dark:text-[#F7F8FB]">
+                            {edu.curso}
+                          </p>
+                          <p className="text-slate-600 dark:text-slate-300">{edu.instituicao}</p>
                         </div>
-                        <span className="text-slate-400 font-medium">{edu.periodo}</span>
+                        <span className="font-mono text-slate-400 dark:text-slate-400 font-semibold tabular-nums">
+                          {edu.periodo}
+                        </span>
                       </div>
                     ))
                   ) : (
@@ -739,15 +759,15 @@ export default function CandidatoDetalhes() {
             {/* Coluna Lateral: Tags & Idiomas */}
             <div className="space-y-6">
               {/* Vaga Associada */}
-              <Card className="border-slate-200 shadow-xs bg-white p-6">
-                <CardTitle className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-3 border-b border-slate-100">
+              <Card className="border-slate-200 dark:border-[#2E3A6E] shadow-xs bg-white dark:bg-[#1A2240] p-6">
+                <CardTitle className="font-display text-[11px] font-bold text-[#6B7384] dark:text-slate-400 uppercase tracking-wider pb-3 border-b border-slate-100 dark:border-[#2E3A6E]">
                   Vaga Alvo
                 </CardTitle>
                 <div className="pt-3 space-y-2">
-                  <p className="text-sm font-bold text-slate-900">
+                  <p className="font-display text-sm font-bold text-[#212B55] dark:text-[#F7F8FB]">
                     {candidato.expand?.vaga?.titulo || 'Sem vaga associada'}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {candidato.expand?.vaga?.departamento || ''} ·{' '}
                     {candidato.expand?.vaga?.modalidade || ''}
                   </p>
@@ -756,7 +776,7 @@ export default function CandidatoDetalhes() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full text-xs mt-2 border-slate-200 text-blue-600"
+                        className="w-full font-display text-xs font-bold mt-2 border-[#E9530E]/30 text-[#E9530E] hover:bg-[#FEF1EA] dark:hover:bg-[#212B55]"
                       >
                         Ver detalhes da vaga
                       </Button>

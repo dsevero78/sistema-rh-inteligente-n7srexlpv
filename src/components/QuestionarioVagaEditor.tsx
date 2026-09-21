@@ -205,26 +205,28 @@ export function QuestionarioVagaEditor({ vagaId, vagaTitulo }: QuestionarioVagaE
     <div className="space-y-6">
       {/* Editor do Questionário */}
       <Card className="border-slate-200 shadow-xs bg-white">
-        <CardHeader className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <CardHeader className="p-5 border-b border-slate-100 dark:border-[#2E3A6E] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200">
-                Módulo de Triagem Estruturada
+              <span className="font-display text-[11px] font-bold uppercase tracking-widest text-[#E9530E]">
+                Módulo 2 · Triagem Estruturada
               </span>
               <Badge
                 variant="outline"
-                className={`text-[10px] font-bold ${
-                  ativo ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-500'
+                className={`font-display text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                  ativo
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                 }`}
               >
                 {ativo ? 'Questionário Ativo' : 'Pausado'}
               </Badge>
             </div>
-            <CardTitle className="text-base font-bold text-slate-900 mt-1 flex items-center gap-2">
-              <ListChecks className="w-4 h-4 text-blue-600" />
-              Perguntas de Triagem & Reprovação Automática
+            <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB] mt-1 flex items-center gap-2">
+              <ListChecks className="w-4 h-4 text-[#E9530E]" />
+              Perguntas de Triagem &amp; Reprovação Automática
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
+            <CardDescription className="text-xs text-slate-500 dark:text-slate-400">
               Configure as questões que o candidato responderá. Perguntas eliminatórias com resposta
               insatisfatória reprovam automaticamente o candidato com registro do motivo.
             </CardDescription>
@@ -277,21 +279,24 @@ export function QuestionarioVagaEditor({ vagaId, vagaTitulo }: QuestionarioVagaE
 
           {/* Lista de Perguntas */}
           <div className="space-y-4 pt-2">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h4 className="font-bold text-slate-900 flex items-center gap-2">
-                <span>Perguntas Configuradas ({perguntas.length})</span>
-                <span className="text-[11px] font-normal text-slate-400">
-                  {perguntas.filter((p) => p.eliminatoria).length} eliminatória(s)
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#2E3A6E] pb-2">
+              <h4 className="font-display text-sm font-bold text-[#212B55] dark:text-[#F7F8FB] flex items-center gap-2">
+                <span>Perguntas Configuradas</span>
+                <span className="font-mono text-xs font-bold text-[#E9530E] tabular-nums">
+                  ({perguntas.length})
+                </span>
+                <span className="font-mono text-xs font-medium text-slate-400 dark:text-slate-400 tabular-nums">
+                  · {perguntas.filter((p) => p.eliminatoria).length} eliminatória(s)
                 </span>
               </h4>
               <Button
                 onClick={handleAddPergunta}
                 variant="outline"
                 size="sm"
-                className="text-xs text-blue-600 border-blue-200 hover:bg-blue-50 h-8"
+                className="font-display text-xs font-bold text-[#E9530E] border-[#E9530E]/40 hover:bg-[#FEF1EA] dark:hover:bg-[#212B55] h-8"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" />
-                Adicionar Pergunta
+                Nova Pergunta
               </Button>
             </div>
 
