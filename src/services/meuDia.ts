@@ -475,7 +475,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
         )
         const rotaFicha = pessoaDestePrest
           ? `/pessoas/${pessoaDestePrest.id}`
-          : `/prestadores-pj?id=${a.prestador}`
+          : `/pessoas/${a.prestador}`
 
         itens.push({
           id: `juridico-aditivo-${a.id}`,
@@ -506,7 +506,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
         )
         const rotaFicha = pessoaDestePrest
           ? `/pessoas/${pessoaDestePrest.id}`
-          : `/prestadores-pj?id=${a.prestador}`
+          : `/pessoas/${a.prestador}`
 
         itens.push({
           id: `juridico-ajustes-${a.id}`,
@@ -705,7 +705,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
         )
         const rotaFicha = pessoaDestePrest
           ? `/pessoas/${pessoaDestePrest.id}`
-          : `/prestadores-pj?id=${a.prestador}`
+          : `/pessoas/${a.prestador}`
 
         if (a.status === 'Ajustes solicitados') {
           itens.push({
@@ -802,7 +802,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
           )
           const rotaFicha = pessoaDestePrest
             ? `/pessoas/${pessoaDestePrest.id}`
-            : `/prestadores-pj?id=${p.id}`
+            : `/pessoas/${p.id}`
 
           itens.push({
             id: `rh-renovacao-pj-${p.id}`,

@@ -203,7 +203,7 @@ export default function Layout() {
     if (path.startsWith('/onboarding')) return 'Onboarding do Contratado (Dia 1)'
     if (path.startsWith('/experiencia')) return 'Experiência do Candidato (Candidate Experience)'
     if (path.startsWith('/indicacoes')) return 'Programa de Indicação de Talentos'
-    if (path.startsWith('/prestadores-pj')) return 'Gestão de Prestadores de Serviços PJ'
+    if (path.startsWith('/prestadores')) return 'Pessoas — Gestão de Pessoas e Vínculos'
     if (path.startsWith('/banco-talentos')) return 'Banco de Talentos & Reaproveitamento'
     if (path.startsWith('/alertas')) return 'Alertas Automáticos de Talentos'
     if (path.startsWith('/entrevistas')) return 'Gestão de Entrevistas & Calendário'
@@ -718,7 +718,7 @@ export default function Layout() {
                           navigate('/financeiro')
                         } else if (isRenovacaoPj || isAlertaPj) {
                           if (prest?.id) {
-                            navigate(`/prestadores-pj?id=${prest.id}`)
+                            navigate(`/pessoas/${prest.id}`)
                           } else {
                             navigate('/pessoas')
                           }

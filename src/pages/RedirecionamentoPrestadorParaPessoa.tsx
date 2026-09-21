@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
-import { pb } from '@/lib/pocketbase/client'
+import pb from '@/lib/pocketbase/client'
 import { Clock } from 'lucide-react'
 
 /**
@@ -27,6 +27,17 @@ export const RedirecionamentoPrestadorParaPessoa: React.FC = () => {
       }
 
       try {
+        // 0. Se o próprio ID já for o ID de uma pessoa na coleção `pessoas`, redirecionar direto
+        const pessoaDireta = await pb
+          .collection('pessoas')
+          .getOne(prestadorId)
+          .catch(() => null)
+
+        if (!cancelado && pessoaDireta) {
+          navigate(`/pessoas/${pessoaDireta.id}`, { replace: true })
+          return
+        }
+
         // 1. Tentar encontrar diretamente uma pessoa cujo `prestador_origem` seja este ID
         const pessoaPorOrigem = await pb
           .collection('pessoas')

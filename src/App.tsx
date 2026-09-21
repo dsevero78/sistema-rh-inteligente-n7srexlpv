@@ -44,7 +44,6 @@ import AdmissaoPublica from '@/pages/AdmissaoPublica'
 import ExperienciaPublica from '@/pages/ExperienciaPublica'
 import IndicarPublica from '@/pages/IndicarPublica'
 import Indicacoes from '@/pages/Indicacoes'
-import PrestadoresPJ from '@/pages/PrestadoresPJ'
 import RedirecionamentoPrestadorParaPessoa from '@/pages/RedirecionamentoPrestadorParaPessoa'
 import NotFound from '@/pages/NotFound'
 

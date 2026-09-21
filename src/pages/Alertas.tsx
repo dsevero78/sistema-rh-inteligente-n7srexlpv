@@ -889,7 +889,7 @@ export function Alertas() {
                               <Link
                                 to={
                                   alerta.expand?.prestador?.id
-                                    ? `/prestadores-pj?id=${alerta.expand.prestador.id}`
+                                    ? `/pessoas/${alerta.expand.prestador.id}`
                                     : '/pessoas'
                                 }
                                 className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors flex items-center gap-1.5"
@@ -947,7 +947,7 @@ export function Alertas() {
                             <Link
                               to={
                                 alerta.expand?.prestador?.id
-                                  ? `/prestadores-pj?id=${alerta.expand.prestador.id}`
+                                  ? `/pessoas/${alerta.expand.prestador.id}`
                                   : '/pessoas'
                               }
                             >
@@ -973,7 +973,7 @@ export function Alertas() {
                           <Link
                             to={
                               alerta.expand?.prestador?.id
-                                ? `/prestadores-pj?id=${alerta.expand.prestador.id}`
+                                ? `/pessoas/${alerta.expand.prestador.id}`
                                 : '/pessoas'
                             }
                           >

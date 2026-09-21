@@ -651,7 +651,7 @@ export function SecaoComparativoCusto({
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <a
-                                href={`/prestadores-pj?id=${p.id}`}
+                                href={`/pessoas/${p.id}`}
                                 className="font-bold text-slate-900 text-xs hover:text-blue-600 hover:underline transition-colors flex items-center gap-1"
                                 title="Ver ficha unificada da pessoa"
                               >
