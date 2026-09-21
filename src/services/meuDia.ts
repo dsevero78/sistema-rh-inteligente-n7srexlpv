@@ -61,6 +61,8 @@ export type ModuloOrigemMeuDia =
   | 'indicacoes'
   | 'alertas'
   | 'documentos_pessoa'
+  | 'horas_competencias'
+  | 'notas_fiscais'
 
 export interface ItemMeuDia {
   id: string
@@ -284,6 +286,22 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             sort: 'nome',
           }),
       },
+      {
+        nome: 'fechamentos_competencia',
+        fn: () =>
+          pb.collection('fechamentos_competencia').getFullList({
+            sort: '-competencia',
+            expand: 'pessoa,gestor_validador',
+          }),
+      },
+      {
+        nome: 'notas_fiscais',
+        fn: () =>
+          pb.collection('notas_fiscais').getFullList({
+            sort: '-created',
+            expand: 'pessoa,fechamento',
+          }),
+      },
     ]
 
     const resultadosSettled = await Promise.allSettled(queries.map((q) => q.fn()))
@@ -317,6 +335,8 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
     const janelasEntrevista = dadosMapeados['janelas_entrevista_candidato']
     const documentosPessoas = dadosMapeados['documentos_pessoa']
     const pessoas = dadosMapeados['pessoas']
+    const fechamentosComp = dadosMapeados['fechamentos_competencia'] || []
+    const notasFiscais = dadosMapeados['notas_fiscais'] || []
 
     // =========================================================================
     // 2. REGRAS PARA O GESTOR CONTRATANTE (gestor@empresa.com)
@@ -451,6 +471,45 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
           rotaDestino: `/entrevistas`,
           origemRecordId: e.id,
+        })
+      }
+
+      // 2.4 VALIDAÇÃO DE HORAS / FECHAMENTO DE COMPETÊNCIA PELO GESTOR
+      // Quando a competência de um prestador entra em "Aguardando validação do gestor"
+      const fechsParaValidarGestor = fechamentosComp.filter((f) => {
+        if (f.status_ciclo !== 'Aguardando validação do gestor') return false
+        // Se estiver atribuído diretamente ao gestor logado ou for do time dele
+        if (f.gestor_validador === usuario.id) return true
+        const pObj = pessoas.find((p) => p.id === f.pessoa)
+        if (pObj && pObj.gestor_responsavel === usuario.id) return true
+        // Se gestor_nome coincidir ou se for demonstração
+        if (
+          f.gestor_nome &&
+          usuario.name &&
+          f.gestor_nome.toLowerCase().includes(usuario.name.toLowerCase().split(' ')[0])
+        )
+          return true
+        return false
+      })
+
+      for (const f of fechsParaValidarGestor) {
+        const pObj = f.expand?.pessoa || pessoas.find((p) => p.id === f.pessoa)
+        const pNome = pObj?.nome || 'Prestador PJ'
+        const vTot = f.valor_total_calculado || 0
+
+        itens.push({
+          id: `gestor-validar-horas-${f.id}`,
+          tituloAcao: `Validar horas da competência ${f.competencia}: ${pNome} (${f.total_horas}h)`,
+          contexto: `Prestador PJ: ${pNome} · Total: R$ ${vTot.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+          detalhe: `O RH submeteu o fechamento de ${f.total_horas}h normais/extras para sua conferência e validação técnica de entregas.`,
+          modulo: 'horas_competencias',
+          moduloLabel: 'Validação de Horas',
+          severidade: 'urgente',
+          severidadeLabel: 'Urgente',
+          dataLimiteLabel: 'Hoje',
+          rotaDestino: `/horas-competencias?comp=${f.competencia}`,
+          origemRecordId: f.id,
+          metaExtra: { fechamentoId: f.id, competencia: f.competencia, pessoaId: f.pessoa },
         })
       }
     }
@@ -981,6 +1040,77 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
           dataLimiteLabel: 'Hoje',
           rotaDestino: `/candidatos/${cand?.id || jan.candidato}`,
           origemRecordId: jan.id,
+        })
+      }
+    }
+
+    // 4.11 FECHAMENTO DE COMPETÊNCIA NÃO CONCLUÍDO (A partir do dia 5 do mês seguinte) E NOTAS FISCAIS EM ATRASO
+    if (isRhOuAdmin) {
+      // 4.11.1 Competência anterior não fechada a partir do dia 5
+      // Calcular mês anterior no formato AAAA-MM
+      const mesPassado = new Date(agora.getFullYear(), agora.getMonth() - 1, 1)
+      const compAnterior = `${mesPassado.getFullYear()}-${String(mesPassado.getMonth() + 1).padStart(2, '0')}`
+      const diaDoMes = agora.getDate()
+
+      // Se passou do dia 5, verificar prestadores PJ sem fechamento validado/fechado na competência anterior
+      const prestadoresPjAtivos = pessoas.filter(
+        (p) => p.modalidade === 'PJ' && p.situacao_contrato !== 'Encerrado',
+      )
+
+      prestadoresPjAtivos.forEach((p) => {
+        const fechAnt = fechamentosComp.find(
+          (f) => f.pessoa === p.id && f.competencia === compAnterior,
+        )
+
+        const isNaoFechado =
+          !fechAnt ||
+          fechAnt.status_ciclo === 'Em apontamento' ||
+          fechAnt.status_ciclo === 'Devolvido para ajustes'
+
+        if (isNaoFechado) {
+          const isUrgente = diaDoMes >= 5
+          itens.push({
+            id: `rh-fechamento-pendente-${p.id}-${compAnterior}`,
+            tituloAcao: `Fechar competência de horas ${compAnterior} de ${p.nome}`,
+            contexto: `${p.nome} (PJ) · Vínculo ${p.departamento || 'Tecnologia'} · Base: ${p.horas_mensais_base || 160}h`,
+            detalhe: isUrgente
+              ? `A competência de ${compAnterior} ainda não foi fechada e já ultrapassou o dia 5. Conclua os apontamentos para liberar a solicitação de Nota Fiscal.`
+              : `Competência ${compAnterior} em aberto. Conclua os apontamentos de horas.`,
+            modulo: 'horas_competencias',
+            moduloLabel: 'Horas & Competências',
+            severidade: isUrgente ? 'urgente' : 'atencao',
+            severidadeLabel: isUrgente ? 'Urgente' : 'Atenção',
+            dataLimiteLabel: isUrgente ? 'Vencido' : 'Até dia 05',
+            rotaDestino: `/horas-competencias?comp=${compAnterior}`,
+            origemRecordId: p.id,
+            metaExtra: { pessoaId: p.id, competencia: compAnterior },
+          })
+        }
+      })
+
+      // 4.11.2 NOTAS FISCAIS EM ATRASO (Inadimplência de envio de NF pelo prestador PJ)
+      const nfsAtrasadas = notasFiscais.filter((nf) => nf.status === 'Em atraso')
+      for (const nf of nfsAtrasadas) {
+        const pObj = nf.expand?.pessoa || pessoas.find((p) => p.id === nf.pessoa)
+        const pNome = pObj?.nome || 'Prestador PJ'
+        const vTot = nf.valor || 0
+        const limiteStr = nf.data_limite_envio
+          ? new Date(nf.data_limite_envio).toLocaleDateString('pt-BR')
+          : 'Prazo expirado'
+
+        itens.push({
+          id: `rh-nf-em-atraso-${nf.id}`,
+          tituloAcao: `Cobrar envio de Nota Fiscal de ${pNome} (${nf.competencia})`,
+          contexto: `${pNome} · Valor: R$ ${vTot.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} · Limite: ${limiteStr}`,
+          detalhe: `O prazo de envio da Nota Fiscal referente à competência ${nf.competencia} expirou. Registre cobrança ativa ou anexe o documento recebido.`,
+          modulo: 'notas_fiscais',
+          moduloLabel: 'Notas Fiscais em Lote',
+          severidade: 'urgente',
+          severidadeLabel: 'Urgente',
+          dataLimiteLabel: 'Cobrança Urgente',
+          rotaDestino: `/horas-competencias?comp=${nf.competencia}`,
+          origemRecordId: nf.id,
+          metaExtra: { nfId: nf.id, competencia: nf.competencia, valor: vTot },
         })
       }
     }

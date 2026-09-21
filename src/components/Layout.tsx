@@ -10,6 +10,7 @@ import {
   Sunrise,
   Briefcase,
   Users,
+  Clock,
   Users2,
   GitPullRequest,
   FileCheck2,
@@ -286,6 +287,12 @@ export default function Layout() {
           : [
               { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
               { title: 'Meu Dia', href: '/meu-dia', icon: Sunrise, countKey: 'meudia' as const },
+              {
+                title: 'Horas & Competências',
+                href: '/horas-competencias',
+                icon: Clock,
+                badge: 'NFs Lote',
+              },
               {
                 title: 'Pessoas (Unificado)',
                 href: '/pessoas',

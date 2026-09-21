@@ -76,6 +76,7 @@ import {
   prestadoresService,
 } from '@/services/prestadoresPj'
 import { SecaoContratosEVinculos } from '@/components/pessoas/SecaoContratosEVinculos'
+import { AbaHorasPessoa } from '@/components/pessoas/AbaHorasPessoa'
 
 export default function PessoaDetalhesPage() {
   const { id } = useParams<{ id: string }>()
@@ -559,6 +560,13 @@ export default function PessoaDetalhesPage() {
             Contratos & Vínculos ({vinculos.length})
           </TabsTrigger>
           <TabsTrigger
+            value="horas"
+            className="text-xs font-bold font-sans gap-1.5 data-[state=active]:bg-[#FEF1EA] data-[state=active]:text-[#E9530E] dark:data-[state=active]:bg-[#212B55]"
+          >
+            <Clock className="w-3.5 h-3.5" />
+            Horas & Competências
+          </TabsTrigger>
+          <TabsTrigger
             value="timeline"
             className="text-xs font-bold font-sans gap-1.5 data-[state=active]:bg-[#FEF1EA] data-[state=active]:text-[#E9530E] dark:data-[state=active]:bg-[#212B55]"
           >
@@ -573,6 +581,11 @@ export default function PessoaDetalhesPage() {
             Cofre de Documentos ({documentos.length})
           </TabsTrigger>
         </TabsList>
+
+        {/* ABA NOVA: HORAS E FECHAMENTO DE COMPETÊNCIA */}
+        <TabsContent value="horas" className="space-y-4">
+          <AbaHorasPessoa pessoa={pessoa} onAtualizar={carregarFicha} />
+        </TabsContent>
 
         {/* ABA NOVA: CONTRATOS & VÍNCULOS UNIFICADOS */}
         <TabsContent value="vinculos" className="space-y-4">

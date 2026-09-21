@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T15:50:24.252Z",
+  "generatedAt": "2026-09-21T16:11:49.620Z",
   "collections": [
     {
       "name": "users",
@@ -3942,6 +3942,375 @@
         "CREATE INDEX idx_docspessoa_tipo ON documentos_pessoa (tipo)",
         "CREATE INDEX idx_docspessoa_vencimento ON documentos_pessoa (data_vencimento)"
       ]
+    },
+    {
+      "name": "apontamentos_horas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "pessoa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pessoas"
+        },
+        {
+          "name": "competencia",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "horas",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Normal", "Extra", "Sobreaviso", "Compensação"]
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Pendente", "Aprovado", "Rejeitado"]
+        },
+        {
+          "name": "vinculo_referencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "atualizado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "contrato",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "contratos_pj"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "fechamentos_competencia",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "pessoa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pessoas"
+        },
+        {
+          "name": "competencia",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "total_horas",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "horas_normais",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "horas_extras",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "horas_sobreaviso",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "horas_base_contrato",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_hora_congelado",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_total_calculado",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status_ciclo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Em apontamento",
+            "Aguardando validação do gestor",
+            "Devolvido para ajustes",
+            "Validado",
+            "NF solicitada",
+            "NF recebida",
+            "Fechado"
+          ]
+        },
+        {
+          "name": "gestor_validador",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "gestor_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_validacao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parecer_gestor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historico_eventos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vinculo_referencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "contrato",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "contratos_pj"
+        },
+        {
+          "name": "prestador",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "prestadores_pj"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "notas_fiscais",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "fechamento",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "fechamentos_competencia"
+        },
+        {
+          "name": "pessoa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pessoas"
+        },
+        {
+          "name": "competencia",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "numero_nf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_emissao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_limite_envio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Solicitada", "Recebida", "Em atraso", "Conciliada"]
+        },
+        {
+          "name": "arquivo_nf",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historico_cobrancas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_recebimento",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_conciliacao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conciliado_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "prestador",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "prestadores_pj"
+        }
+      ],
+      "indexes": []
     }
   ]
 }

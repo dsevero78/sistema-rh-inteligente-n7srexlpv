@@ -658,6 +658,13 @@ export function SecaoComparativoCusto({
                                 {p.nomeFantasia}
                                 <ExternalLink className="w-2.5 h-2.5 text-slate-400" />
                               </a>
+                              <a
+                                href={`/horas-competencias?comp=2026-09`}
+                                className="text-[10px] text-orange-600 hover:underline font-mono"
+                                title="Ver fechamento de competência de horas"
+                              >
+                                [Horas]
+                              </a>
                               {p.isMelhorCustoBeneficio && (
                                 <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] gap-1 py-0 h-4">
                                   <Award className="w-2.5 h-2.5" />

@@ -97,6 +97,8 @@ export default function MeuDia() {
   useRealtime('feedbacks_gestor', () => carregarRotina(true))
   useRealtime('documentos_pessoa', () => carregarRotina(true))
   useRealtime('pessoas', () => carregarRotina(true))
+  useRealtime('fechamentos_competencia', () => carregarRotina(true))
+  useRealtime('notas_fiscais', () => carregarRotina(true))
 
   // Saudação contextual por hora do dia
   const saudacaoInfo = useMemo(() => {
