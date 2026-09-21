@@ -30,6 +30,7 @@ import {
   Save,
   Plus,
   Building2,
+  CalendarClock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -776,7 +777,15 @@ export function Alertas() {
                       {/* Left: Info Candidato e Vaga */}
                       <div className="flex items-start gap-4 flex-1 min-w-0">
                         {/* Ring de Score ou Ícone do Evento */}
-                        {alerta.tipo?.includes('pj') ? (
+                        {alerta.tipo === 'renovacao_contrato_pj' ||
+                        alerta.tipo === 'contrato_pj_vencendo' ? (
+                          <div className="w-13 h-13 rounded-xl flex flex-col items-center justify-center shrink-0 border font-extrabold bg-indigo-50 text-indigo-800 border-indigo-200 shadow-2xs">
+                            <CalendarClock className="w-6 h-6 text-indigo-600" />
+                            <span className="text-[8px] uppercase tracking-wider font-black mt-0.5 text-indigo-700">
+                              Renovação PJ
+                            </span>
+                          </div>
+                        ) : alerta.tipo?.includes('pj') ? (
                           <div className="w-13 h-13 rounded-xl flex flex-col items-center justify-center shrink-0 border font-extrabold bg-amber-50 text-amber-800 border-amber-200">
                             <Briefcase className="w-6 h-6 text-amber-600" />
                             <span className="text-[8px] uppercase tracking-wider font-bold mt-0.5">
@@ -821,9 +830,16 @@ export function Alertas() {
                                 Novo
                               </Badge>
                             )}
+                            {alerta.tipo === 'renovacao_contrato_pj' ||
+                            alerta.tipo === 'contrato_pj_vencendo' ? (
+                              <Badge className="bg-indigo-100 text-indigo-900 border-indigo-300 hover:bg-indigo-100 text-[10px] font-black tracking-wide uppercase px-2 py-0.5">
+                                Renovação PJ
+                              </Badge>
+                            ) : null}
                             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                              {alerta.tipo === 'contrato_pj_vencendo'
-                                ? 'Renovação Contratual de Prestador PJ'
+                              {alerta.tipo === 'renovacao_contrato_pj' ||
+                              alerta.tipo === 'contrato_pj_vencendo'
+                                ? 'Decisão de Renovação Contratual PJ (Janela 60d)'
                                 : alerta.tipo === 'documento_pj_vencido'
                                   ? 'Documento / Certidão PJ Vencida'
                                   : alerta.tipo === 'documento_pj_vencendo'
@@ -902,7 +918,29 @@ export function Alertas() {
 
                       {/* Right: Ações Rápidas */}
                       <div className="flex items-center gap-2 self-end lg:self-center shrink-0 flex-wrap">
-                        {alerta.tipo?.includes('pj') ? (
+                        {alerta.tipo === 'renovacao_contrato_pj' ||
+                        alerta.tipo === 'contrato_pj_vencendo' ? (
+                          <>
+                            <Link to="/prestadores-pj">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs font-bold border-indigo-200 text-indigo-900 bg-indigo-50/50 hover:bg-indigo-100/70"
+                              >
+                                <Building2 className="w-3.5 h-3.5 mr-1 text-indigo-700" />
+                                Ficha do Prestador
+                              </Button>
+                            </Link>
+                            <Link to="/financeiro?tab=comparativo">
+                              <Button
+                                size="sm"
+                                className="h-8 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+                              >
+                                Comparativo de Custo
+                              </Button>
+                            </Link>
+                          </>
+                        ) : alerta.tipo?.includes('pj') ? (
                           <Link to="/prestadores-pj">
                             <Button
                               variant="outline"

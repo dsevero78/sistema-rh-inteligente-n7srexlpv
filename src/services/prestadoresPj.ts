@@ -1519,4 +1519,49 @@ export const prestadoresService = {
   async excluirEventoTimeline(id: string): Promise<boolean> {
     return await pb.collection('eventos_timeline_pj').delete(id)
   },
+
+  // --------------------------------------------------------------------------
+  // Renovação Assistida por IA
+  // --------------------------------------------------------------------------
+  async gerarRenovacaoAssistidaIA(
+    prestadorId: string,
+    contratoId?: string,
+  ): Promise<{
+    email: {
+      assunto: string
+      destinatario_nome: string
+      destinatario_email: string
+      corpo_texto: string
+      tom_comunicacao: string
+    }
+    minuta: {
+      titulo: string
+      preambulo_partes: string
+      clausula_objeto: string
+      clausula_vigencia: string
+      clausula_valor: string
+      clausula_sla_entregas: string
+      clausula_confidencialidade_lgpd: string
+      clausula_disposicoes_gerais: string
+      prazo_assinatura_dias: number
+      texto_completo_formatado: string
+    }
+    sintese_decisao: {
+      decisao: 'RENOVAR' | 'RENEGOCIAR' | 'REAVALIAR'
+      emoji: string
+      valor_mensal_proposto: number
+      valor_hora_proposto: number
+      dias_para_vencer: number
+      recomendacao_resumo: string
+    }
+  }> {
+    const res = await pb.send('/backend/v1/prestadores-pj/renovacao-ia', {
+      method: 'POST',
+      body: {
+        prestador_id: prestadorId,
+        contrato_id: contratoId,
+      },
+    })
+    return res.resultado
+  },
 }

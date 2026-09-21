@@ -50,6 +50,7 @@ import { LinhaDoTempoPJ } from './LinhaDoTempoPJ'
 import { AbaAditivos } from './AbaAditivos'
 import { BlocoPrazosEFinanceiroContrato } from './BlocoPrazosEFinanceiroContrato'
 import { ModalNovoAditivo } from './ModalNovoAditivo'
+import { BannerDecisaoRenovacao, calcularDecisaoRenovacaoPrestador } from './BannerDecisaoRenovacao'
 import {
   ModalNovoContrato,
   ModalNovoDocumento,
@@ -351,6 +352,26 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* Banner Completo "Decisão de Renovação" quando o prestador está na janela <= 60 dias */}
+      {(() => {
+        const decisao = calcularDecisaoRenovacaoPrestador(
+          prestador,
+          contratos,
+          aditivosLocais,
+          avaliacoes,
+          [prestador],
+        )
+        if (!decisao) return null
+        return (
+          <BannerDecisaoRenovacao
+            prestador={prestador}
+            decisao={decisao}
+            variante="completo"
+            onAtualizar={handleRecarregarTudo}
+          />
+        )
+      })()}
 
       {/* Mini Cards de KPIs do Prestador com Financeiro em Destaque e Valor-Hora (Base 160h) */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">

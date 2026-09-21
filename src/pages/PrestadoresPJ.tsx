@@ -56,6 +56,10 @@ import {
 } from 'lucide-react'
 import { ModalNovoPrestador } from '@/components/prestadores/ModalNovoPrestador'
 import { PrestadorDetalhesView } from '@/components/prestadores/PrestadorDetalhesView'
+import {
+  BannerDecisaoRenovacao,
+  calcularDecisaoRenovacaoPrestador,
+} from '@/components/prestadores/BannerDecisaoRenovacao'
 
 export const PrestadoresPJ: React.FC = () => {
   const { toast } = useToast()
@@ -675,8 +679,28 @@ export const PrestadoresPJ: React.FC = () => {
                           )
                         })()}
                       </div>
-
-                      {/* Mini-indicador de progresso da etapa do Lifecycle */}
+                      {/* Banner de Destaque "Decisão de Renovação" na Listagem para contratos na janela <= 60 dias */}
+                      {(() => {
+                        const decisaoRenov = calcularDecisaoRenovacaoPrestador(
+                          p,
+                          contratos,
+                          aditivos,
+                          avaliacoes,
+                          prestadores,
+                        )
+                        if (!decisaoRenov) return null
+                        return (
+                          <div className="pt-0.5">
+                            <BannerDecisaoRenovacao
+                              prestador={p}
+                              decisao={decisaoRenov}
+                              variante="compacto"
+                              onAtualizar={carregarDados}
+                            />
+                          </div>
+                        )
+                      })()}
+                      {/* Mini-indicador de progresso da etapa do Lifecycle */}{' '}
                       {(() => {
                         const etapaAtual =
                           p.etapa_lifecycle ||
@@ -726,7 +750,6 @@ export const PrestadoresPJ: React.FC = () => {
                           </div>
                         )
                       })()}
-
                       {/* Informações Centrais com Financeiro em Destaque & Valor-Hora (Base 160h) */}
                       <div className="bg-slate-50/80 rounded-lg p-3 text-xs space-y-2 border border-slate-100">
                         <div className="flex justify-between items-center text-slate-600">
@@ -771,7 +794,6 @@ export const PrestadoresPJ: React.FC = () => {
                           </span>
                         </div>
                       </div>
-
                       {/* Rodapé com Média e Ações */}
                       <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                         <div className="flex items-center gap-1.5">

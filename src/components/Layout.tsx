@@ -505,11 +505,15 @@ export default function Layout() {
                       const isAprovVaga = al.tipo === 'aprovacao_vaga_gestor'
                       const isParecerGestor = al.tipo === 'parecer_gestor_candidato'
                       const isAlertaMeta = al.tipo && al.tipo.startsWith('meta_orcamento_')
+                      const isRenovacaoPj =
+                        al.tipo === 'renovacao_contrato_pj' || al.tipo === 'contrato_pj_vencendo'
                       const isAlertaPj = al.tipo && al.tipo.includes('pj')
 
                       const handleClickNotif = () => {
                         if (isAlertaMeta) {
                           navigate('/financeiro')
+                        } else if (isRenovacaoPj) {
+                          navigate('/prestadores-pj')
                         } else if (isAlertaPj) {
                           navigate('/prestadores-pj')
                         } else if (isAprovVaga && vaga) {
@@ -560,7 +564,16 @@ export default function Layout() {
                                   Parecer do Gestor
                                 </span>
                               ) : null}
-                              {!isAlertaMeta && isAlertaPj ? (
+                              {!isAlertaMeta && isRenovacaoPj ? (
+                                <>
+                                  <span className="text-[10px] uppercase font-black px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-900 border border-indigo-300">
+                                    Renovação PJ
+                                  </span>
+                                  <span className="text-xs font-bold text-slate-900 truncate">
+                                    {prest?.nome_fantasia || prest?.razao_social || 'Prestador PJ'}
+                                  </span>
+                                </>
+                              ) : !isAlertaMeta && isAlertaPj ? (
                                 <>
                                   <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
                                     Prestador PJ
