@@ -348,15 +348,21 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
     const contratosUnificados = dadosMapeados['contratos_unificados'] || []
 
     // =========================================================================
-    // 2. REGRAS PARA O GESTOR CONTRATANTE (gestor@empresa.com)
+    // 2. REGRAS PARA O GESTOR CONTRATANTE (Líder de BU)
     // =========================================================================
-    // O Gestor Contratante NÃO recebe burocracia PJ/admissional (certidões fiscais,
-    // minutas de aditivos, documentos admissionais). Seu foco são decisões de vagas,
-    // pareceres técnicos de candidatos e entrevistas técnicas.
+    // O Gestor Contratante atua estritamente escopado à sua BU (empresa) e área.
+    // Ele NÃO recebe burocracia PJ/admissional nem itens de outras BUs.
     if (isGestor) {
+      const gestorBuId = usuario.empresa || ''
+      const gestorAreaId = usuario.area || ''
+
       // 2.1 Vagas atribuídas ao gestor aguardando aprovação ou com ajustes solicitados
-      // (Redireciona para /gestor)
-      const minhasVagas = vagas.filter((v) => v.gestor_responsavel === usuario.id)
+      // Filtradas por gestor responsável ou pela BU do gestor
+      const minhasVagas = vagas.filter((v) => {
+        if (v.gestor_responsavel === usuario.id) return true
+        if (gestorBuId && (v as any).empresa === gestorBuId) return true
+        return false
+      })
       const minhasVagasIds = new Set(minhasVagas.map((v) => v.id))
 
       for (const v of minhasVagas) {
@@ -484,12 +490,22 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       }
 
       // 2.4 APONTAMENTO E FECHAMENTO DE HORAS PELO GESTOR CONTRATANTE
-      // O Gestor é quem aponta as horas e fecha a competência dos prestadores da sua área:
+      // O Gestor é quem aponta as horas e fecha a competência dos prestadores da sua BU/área:
       // - Quando em "Devolvido para ajustes": URGENTE (ajustar correções apontadas pelo RH)
       // - Quando em "Em apontamento" ou sem fechamento na competência ativa/anterior:
       //   Urgente se perto do fim do mês (dia >= 25) ou mês anterior não fechado; Atenção se aberta.
+      // IMPORTANTE: Isolamento estrito por BU do gestor logado!
       const prestadoresDoGestor = pessoas.filter((p) => {
         if (p.modalidade !== 'PJ' || p.situacao_contrato === 'Encerrado') return false
+
+        // Se o gestor possui BU vinculada, o vínculo de empresa é OBRIGATÓRIO
+        if (gestorBuId) {
+          if (p.empresa !== gestorBuId) return false
+          if (gestorAreaId && p.area !== gestorAreaId) return false
+          return true
+        }
+
+        // Se não possui BU configurada, usa atribuição direta como fallback
         if (p.gestor_responsavel === usuario.id) return true
         if (
           p.gestor_nome &&
@@ -497,8 +513,8 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
           p.gestor_nome.toLowerCase().includes(usuario.name.toLowerCase().split(' ')[0])
         )
           return true
-        // Para ambiente de testes/demonstração onde gestor tem escopo de time
-        return true
+
+        return false
       })
 
       const mesPassado = new Date(agora.getFullYear(), agora.getMonth() - 1, 1)

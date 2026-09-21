@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-09-21T17:23:18.349Z",
+  "generatedAt": "2026-09-21T17:56:05.662Z",
   "collections": [
     {
       "name": "users",
       "type": "auth",
       "apiRules": {
-        "list": "id = @request.auth.id",
-        "view": "id = @request.auth.id",
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
         "create": "",
-        "update": "id = @request.auth.id",
+        "update": "@request.auth.id != ''",
         "delete": "id = @request.auth.id"
       },
       "fields": [
@@ -44,6 +44,20 @@
           "required": false,
           "system": false,
           "selectValues": ["RH / Recrutador", "Gestor Contratante", "Diretoria / Executivo"]
+        },
+        {
+          "name": "empresa",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "area",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "areas"
         }
       ],
       "indexes": [

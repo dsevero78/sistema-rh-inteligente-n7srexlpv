@@ -81,9 +81,13 @@ export default function GestorPortal() {
     if (!user) return
     try {
       setLoading(true)
-      // Buscar vagas onde o usuário é gestor_responsavel
+      // Buscar vagas onde o usuário é gestor_responsavel OU da BU do gestor
+      let filtroVagas = `gestor_responsavel = '${user.id}'`
+      if (user.empresa) {
+        filtroVagas = `gestor_responsavel = '${user.id}' || empresa = '${user.empresa}'`
+      }
       const vagasGestor = await pb.collection('vagas').getFullList({
-        filter: `gestor_responsavel = '${user.id}'`,
+        filter: filtroVagas,
         sort: '-created',
       })
       setVagas(vagasGestor)

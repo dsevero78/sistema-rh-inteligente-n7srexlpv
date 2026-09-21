@@ -65,6 +65,7 @@ import {
   type NotaFiscalLoteItem,
   type StatusNotaFiscal,
 } from '@/services/fechamentoNfService'
+import { empresasService, type Empresa, type Area } from '@/services/empresasService'
 import { pessoasService, type PessoaUnificada } from '@/services/pessoasService'
 import { DocumentViewerModal } from '@/components/prestadores/DocumentViewerModal'
 
@@ -83,6 +84,12 @@ export default function HorasCompetenciasPage() {
   const [fechamentos, setFechamentos] = useState<FechamentoCompetencia[]>([])
   const [apontamentos, setApontamentos] = useState<ApontamentoHora[]>([])
   const [nfs, setNfs] = useState<NotaFiscalLoteItem[]>([])
+  const [empresas, setEmpresas] = useState<Empresa[]>([])
+  const [areas, setAreas] = useState<Area[]>([])
+
+  // Filtro de BU e Área (RH vê todas e pode filtrar; Gestor fica escopado à sua BU/área)
+  const [filtroEmpresa, setFiltroEmpresa] = useState<string>('todos')
+  const [filtroArea, setFiltroArea] = useState<string>('todos')
 
   // Filtro de busca textual
   const [busca, setBusca] = useState('')
@@ -155,12 +162,16 @@ export default function HorasCompetenciasPage() {
       setPessoasPj(apenasPj)
 
       // Carregar fechamentos, apontamentos e NFs da competência selecionada em paralelo
-      const [fechRes, apontRes, nfsRes] = await Promise.all([
+      const [fechRes, apontRes, nfsRes, empRes, areaRes] = await Promise.all([
         horasService.listarFechamentosPorCompetencia(competencia),
         horasService.listarApontamentosPorCompetencia(competencia),
         fechamentoNfService.listarNfsPorCompetencia(competencia),
+        empresasService.listarEmpresas(),
+        empresasService.listarAreas(),
       ])
 
+      setEmpresas(empRes)
+      setAreas(areaRes)
       setFechamentos(fechRes)
       setApontamentos(apontRes)
       setNfs(nfsRes)
@@ -255,27 +266,115 @@ export default function HorasCompetenciasPage() {
   const isGestor = user?.cargo_funcao === 'Gestor Contratante'
   const isRhOuAdmin = !isGestor
 
+  // BU e Área do Gestor logado
+  const gestorBuId = user?.empresa || ''
+  const gestorAreaId = user?.area || ''
+  const gestorEmpresaObj = useMemo(
+    () => empresas.find((e) => e.id === gestorBuId),
+    [empresas, gestorBuId],
+  )
+  const gestorAreaObj = useMemo(
+    () => areas.find((a) => a.id === gestorAreaId),
+    [areas, gestorAreaId],
+  )
+
   // Filtragem da tabela com suporte ao escopo de visibilidade:
-  // Se for Gestor, exibe apenas pessoas do time dele por padrão (ou dele como responsável)
-  // Se for RH/Admin, vê todas as pessoas da empresa
-  const pessoasVisiveis = useMemo(() => {
-    if (!isGestor || !user?.id) return pessoasPj
-    return pessoasPj.filter((p) => {
-      if (p.gestor_responsavel === user.id) return true
-      if (
-        p.gestor_nome &&
-        user.name &&
-        p.gestor_nome.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])
-      ) {
-        return true
+  // 1. Se for Gestor Contratante (Líder de BU):
+  //    - OBRIGATORIAMENTE escopado à sua BU (empresa) vinculada
+  //    - Se tiver área específica atribuída, escopado à sua área
+  // 2. Se for RH/Admin:
+  //    - Acesso consolidado ao Grupo Econômico SouYess
+  //    - Pode filtrar por BU e Área livremente pelos filtros da tela
+  const pessoasEscopadas = useMemo(() => {
+    if (isGestor) {
+      if (!gestorBuId) {
+        // Gestor sem BU cadastrada vê apenas pessoas diretamente atribuídas a ele
+        return pessoasPj.filter((p) => {
+          if (p.gestor_responsavel === user?.id) return true
+          if (
+            p.gestor_nome &&
+            user?.name &&
+            p.gestor_nome.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])
+          ) {
+            return true
+          }
+          return false
+        })
       }
-      return false
+
+      // Escopado à BU
+      return pessoasPj.filter((p) => {
+        const matchEmpresa = p.empresa === gestorBuId
+        if (!matchEmpresa) return false
+
+        // Se o gestor também tem área atribuída, filtrar por ela
+        if (gestorAreaId) {
+          return p.area === gestorAreaId
+        }
+
+        return true
+      })
+    }
+
+    // Se for RH/Admin: aplica filtros interativos de BU e Área se selecionados
+    return pessoasPj.filter((p) => {
+      if (filtroEmpresa !== 'todos' && p.empresa !== filtroEmpresa) return false
+      if (filtroArea !== 'todos' && p.area !== filtroArea) return false
+      return true
     })
-  }, [pessoasPj, isGestor, user])
+  }, [pessoasPj, isGestor, gestorBuId, gestorAreaId, user, filtroEmpresa, filtroArea])
+
+  // Recalcular métricas do painel com base no escopo visível (Gestor vê totais da sua BU, RH vê do escopo atual)
+  const metricasEscopo = useMemo(() => {
+    let totalHorasLancadas = 0
+    let totalValorCalculado = 0
+    let totalFechamentosValidados = 0
+    let totalNfsSolicitadas = 0
+    let totalNfsRecebidas = 0
+    let totalNfsAtraso = 0
+    let valorAtraso = 0
+
+    pessoasEscopadas.forEach((p) => {
+      const fech = fechamentosPorPessoa.get(p.id)
+      const apList = apontamentosPorPessoa.get(p.id) || []
+      const nf = nfsPorPessoa.get(p.id)
+
+      const horasPessoa = fech
+        ? fech.total_horas
+        : apList.reduce((acc, a) => acc + (a.horas || 0), 0)
+      totalHorasLancadas += horasPessoa
+
+      const valPessoa = fech
+        ? fech.valor_total_calculado
+        : horasPessoa * (p.valor_hora || (p.valor_contratado || 0) / 160)
+      totalValorCalculado += valPessoa
+
+      if (fech?.status_ciclo === 'Validado') totalFechamentosValidados++
+
+      if (nf) {
+        if (nf.status === 'Solicitada') totalNfsSolicitadas++
+        if (nf.status === 'Recebida' || nf.status === 'Conciliada') totalNfsRecebidas++
+        if (nf.status === 'Em atraso') {
+          totalNfsAtraso++
+          valorAtraso += nf.valor || 0
+        }
+      }
+    })
+
+    return {
+      totalHorasLancadas,
+      totalValorCalculado,
+      totalFechamentosValidados,
+      totalNfsSolicitadas,
+      totalNfsRecebidas,
+      totalNfsAtraso,
+      valorAtraso,
+    }
+  }, [pessoasEscopadas, fechamentosPorPessoa, apontamentosPorPessoa, nfsPorPessoa])
 
   // Filtragem da tabela
   const listaFiltrada = useMemo(() => {
-    return pessoasVisiveis.filter((p) => {
+    return pessoasEscopadas.filter((p) => {
       const fech = fechamentosPorPessoa.get(p.id)
       const nf = nfsPorPessoa.get(p.id)
 
@@ -313,7 +412,7 @@ export default function HorasCompetenciasPage() {
 
       return true
     })
-  }, [pessoasVisiveis, fechamentosPorPessoa, nfsPorPessoa, busca, filtroStatus])
+  }, [pessoasEscopadas, fechamentosPorPessoa, nfsPorPessoa, busca, filtroStatus])
 
   // Lógica de seleção múltipla (apenas os com status 'Validado' podem ser solicitados em lote)
   const itensElegiveisParaLote = useMemo(() => {
@@ -364,7 +463,9 @@ export default function HorasCompetenciasPage() {
 
     setSalvandoApontamento(true)
     try {
-      const p = pessoasPj.find((x) => x.id === lancamentoPessoaId)
+      const p =
+        pessoasEscopadas.find((x) => x.id === lancamentoPessoaId) ||
+        pessoasPj.find((x) => x.id === lancamentoPessoaId)
       const autorDesc = user?.name
         ? `${user.name} (${isGestor ? 'Gestor' : 'RH'})`
         : 'Gestor Contratante'
@@ -758,14 +859,16 @@ export default function HorasCompetenciasPage() {
         <Card className="bg-card border-border/80 shadow-xs">
           <CardHeader className="p-4 pb-2">
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-              Horas Lançadas
+              Horas Lançadas {isGestor ? '(Sua BU)' : ''}
             </span>
             <CardTitle className="text-2xl font-black text-[#212B55] dark:text-[#F7F8FB] font-mono tabular-nums mt-1">
-              {metricasCompetencia.totalHorasLancadas.toFixed(1)}h
+              {metricasEscopo.totalHorasLancadas.toFixed(1)}h
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <p className="text-[11px] text-muted-foreground font-mono">Base padrão de 160h/mês</p>
+            <p className="text-[11px] text-muted-foreground font-mono">
+              {pessoasEscopadas.length} prestador(es) escopados
+            </p>
           </CardContent>
         </Card>
 
@@ -773,11 +876,11 @@ export default function HorasCompetenciasPage() {
         <Card className="bg-card border-border/80 shadow-xs">
           <CardHeader className="p-4 pb-2">
             <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
-              Valor Calculado
+              Valor Calculado {isGestor ? '(Sua BU)' : ''}
             </span>
             <CardTitle className="text-2xl font-black text-emerald-700 dark:text-emerald-300 font-mono tabular-nums mt-1">
               R${' '}
-              {metricasCompetencia.totalValorCalculado.toLocaleString('pt-BR', {
+              {metricasEscopo.totalValorCalculado.toLocaleString('pt-BR', {
                 minimumFractionDigits: 2,
               })}
             </CardTitle>
@@ -796,7 +899,7 @@ export default function HorasCompetenciasPage() {
               Validados pelo RH
             </span>
             <CardTitle className="text-2xl font-black text-indigo-700 dark:text-indigo-300 font-mono tabular-nums mt-1">
-              {metricasCompetencia.totalFechamentosValidados} prestador(es)
+              {metricasEscopo.totalFechamentosValidados} prestador(es)
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
@@ -813,12 +916,12 @@ export default function HorasCompetenciasPage() {
               NFs Recebidas
             </span>
             <CardTitle className="text-2xl font-black text-[#E9530E] font-mono tabular-nums mt-1">
-              {metricasCompetencia.totalNfsRecebidas} recebida(s)
+              {metricasEscopo.totalNfsRecebidas} recebida(s)
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <p className="text-[11px] text-muted-foreground font-sans">
-              {metricasCompetencia.totalNfsSolicitadas} solicitada(s) aguardando
+              {metricasEscopo.totalNfsSolicitadas} solicitada(s) aguardando
             </p>
           </CardContent>
         </Card>
@@ -831,19 +934,121 @@ export default function HorasCompetenciasPage() {
               NFs em Atraso
             </span>
             <CardTitle className="text-2xl font-black text-red-600 font-mono tabular-nums mt-1">
-              {metricasCompetencia.totalNfsAtraso} atrasada(s)
+              {metricasEscopo.totalNfsAtraso} atrasada(s)
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <p className="text-[11px] font-mono font-bold text-red-600 truncate">
               R${' '}
-              {metricasCompetencia.valorAtraso.toLocaleString('pt-BR', {
+              {metricasEscopo.valorAtraso.toLocaleString('pt-BR', {
                 minimumFractionDigits: 2,
               })}
             </p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Banner de Contexto de BU do Gestor ou Filtros de BU para o RH */}
+      {isGestor ? (
+        <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+              <Building2 className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-semibold text-slate-800 dark:text-slate-100">
+                Acesso Escopado por Líder de BU:
+              </span>{' '}
+              <span className="text-amber-900 dark:text-amber-300 font-bold">
+                {gestorEmpresaObj ? gestorEmpresaObj.nome_fantasia : 'BU não vinculada'}
+              </span>
+              {gestorAreaObj && (
+                <span className="text-slate-600 dark:text-slate-400">
+                  {' '}
+                  · Área:{' '}
+                  <strong className="text-slate-900 dark:text-slate-200">
+                    {gestorAreaObj.nome}
+                  </strong>
+                </span>
+              )}
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Você visualiza e lança horas estritamente para os prestadores pertencentes à sua BU.
+              </p>
+            </div>
+          </div>
+          <Badge
+            variant="outline"
+            className="border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 text-amber-800 dark:text-amber-300 text-[10px] font-mono"
+          >
+            {pessoasEscopadas.length} prestadores na BU
+          </Badge>
+        </div>
+      ) : (
+        /* Se for RH, exibe seletor de BU e Área para navegação analítica consolidada ou filtrada */
+        <div className="bg-slate-50 dark:bg-[#11162B] border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+              <Building2 className="w-4 h-4" />
+            </span>
+            <div>
+              <span className="font-semibold text-slate-800 dark:text-slate-200">
+                Visão Consolidada RH — Grupo Econômico SouYess
+              </span>
+              <p className="text-[11px] text-slate-500">
+                Filtre por BU e Área para conferir apontamentos por unidade, ou visualize o
+                consolidado.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500 text-[11px]">Empresa / BU:</span>
+              <Select
+                value={filtroEmpresa}
+                onValueChange={(val) => {
+                  setFiltroEmpresa(val)
+                  setFiltroArea('todos')
+                }}
+              >
+                <SelectTrigger className="h-8 w-[190px] text-xs">
+                  <SelectValue placeholder="Todas as BUs" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Grupo Consolidado (Todas)</SelectItem>
+                  {empresas.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.sigla ? `[${e.sigla}] ` : ''}
+                      {e.nome_fantasia}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {filtroEmpresa !== 'todos' && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-500 text-[11px]">Área:</span>
+                <Select value={filtroArea} onValueChange={setFiltroArea}>
+                  <SelectTrigger className="h-8 w-[160px] text-xs">
+                    <SelectValue placeholder="Todas as áreas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas as áreas</SelectItem>
+                    {areas
+                      .filter((a) => a.empresa === filtroEmpresa)
+                      .map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.nome}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 3. Barra de Filtros e Busca */}
       <div className="bg-white dark:bg-[#1A2240] rounded-xl border border-[#E7EAF0] dark:border-[#2E3A6E] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
@@ -1297,21 +1502,27 @@ export default function HorasCompetenciasPage() {
 
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Prestador PJ</Label>
+              <Label className="text-xs font-semibold">
+                Prestador PJ {isGestor ? '(Sua BU)' : ''}
+              </Label>
               <Select value={lancamentoPessoaId} onValueChange={setLancamentoPessoaId}>
                 <SelectTrigger className="text-xs">
                   <SelectValue placeholder="Selecione o prestador..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {pessoasPj.map((p) => (
+                  {pessoasEscopadas.map((p) => (
                     <SelectItem key={p.id} value={p.id} className="text-xs">
-                      {p.nome} — R$ {p.valor_hora?.toFixed(2)}/h ({p.departamento || 'PJ'})
+                      {p.nome} — {p.cargo_funcao} ({p.departamento || 'PJ'})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {pessoasEscopadas.length === 0 && (
+                <p className="text-[11px] text-amber-600 mt-1">
+                  Nenhum prestador vinculado a esta BU encontrado.
+                </p>
+              )}
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Data do Apontamento</Label>

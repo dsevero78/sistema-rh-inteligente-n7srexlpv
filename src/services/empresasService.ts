@@ -394,4 +394,67 @@ export const empresasService = {
       return { success: false, motivo: e.message || 'Erro ao excluir área.' }
     }
   },
+
+  /**
+   * Lista usuários com perfil de gestor ou membros da equipe com suas BUs e Áreas vinculadas
+   */
+  async listarUsuariosGestao(): Promise<
+    Array<{
+      id: string
+      name: string
+      email: string
+      cargo_funcao?: string
+      empresa?: string
+      empresa_nome?: string
+      area?: string
+      area_nome?: string
+      created?: string
+    }>
+  > {
+    try {
+      const records = await pb.collection('users').getFullList({
+        sort: 'name',
+        expand: 'empresa,area',
+      })
+
+      return records.map((u) => {
+        const expand = u.expand as
+          | {
+              empresa?: { nome_fantasia?: string }
+              area?: { nome?: string }
+            }
+          | undefined
+
+        return {
+          id: u.id,
+          name: u.name || u.email,
+          email: u.email,
+          cargo_funcao: u.cargo_funcao,
+          empresa: u.empresa || '',
+          empresa_nome: expand?.empresa?.nome_fantasia || '',
+          area: u.area || '',
+          area_nome: expand?.area?.nome || '',
+          created: u.created,
+        }
+      })
+    } catch (e) {
+      console.error('Erro ao listar usuários:', e)
+      return []
+    }
+  },
+
+  /**
+   * Atualiza a atribuição de BU e Área de um usuário
+   */
+  async atualizarEscopoUsuario(
+    userId: string,
+    dados: { empresa?: string; area?: string; cargo_funcao?: string; name?: string },
+  ): Promise<void> {
+    await pb.collection('users').update(userId, {
+      empresa: dados.empresa || null,
+      area: dados.area || null,
+      ...(dados.cargo_funcao ? { cargo_funcao: dados.cargo_funcao } : {}),
+      ...(dados.name ? { name: dados.name } : {}),
+    })
+  },
 }

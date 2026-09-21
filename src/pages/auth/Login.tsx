@@ -167,15 +167,21 @@ export default function Login() {
 
             <div className="bg-[#FEF1EA] p-3 rounded-lg border border-[#FBDCC9] text-xs text-[#9B340A] flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
-                <span className="font-semibold">RH (Admin):</span>
-                <span className="font-mono text-[#11162B] dark:text-[#F7F8FB] bg-white dark:bg-[#11162B] px-2 py-0.5 rounded text-[11px] border border-[#FBDCC9] dark:border-[#2E3A6E]">
+                <span className="font-semibold">RH (Consolidado):</span>
+                <span className="font-mono text-[#11162B] dark:text-[#F7F8FB] bg-white dark:bg-[#11162B] px-2 py-0.5 rounded text-[10px] border border-[#FBDCC9] dark:border-[#2E3A6E]">
                   severo.douglas2@gmail.com / Skip@Pass
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="font-semibold">Gestor:</span>
-                <span className="font-mono text-[#11162B] dark:text-[#F7F8FB] bg-white dark:bg-[#11162B] px-2 py-0.5 rounded text-[11px] border border-[#FBDCC9] dark:border-[#2E3A6E]">
+                <span className="font-semibold">Líder BU Tecnologia:</span>
+                <span className="font-mono text-[#11162B] dark:text-[#F7F8FB] bg-white dark:bg-[#11162B] px-2 py-0.5 rounded text-[10px] border border-[#FBDCC9] dark:border-[#2E3A6E]">
                   gestor@empresa.com / Skip@Pass
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-semibold">Líder BU Vértice Mídia:</span>
+                <span className="font-mono text-[#11162B] dark:text-[#F7F8FB] bg-white dark:bg-[#11162B] px-2 py-0.5 rounded text-[10px] border border-[#FBDCC9] dark:border-[#2E3A6E]">
+                  gestora.produto@empresa.com / Skip@Pass
                 </span>
               </div>
             </div>

@@ -1002,6 +1002,30 @@ export default function Layout() {
                 placeholder="Ex: Douglas Severo"
               />
             </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-[#4D5566]">
+                Perfil de Acesso & Escopo
+              </Label>
+              <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Função:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {user?.cargo_funcao || 'RH / Recrutador'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Escopo BU:</span>
+                  <span className="font-semibold text-[#E9530E]">
+                    {user?.cargo_funcao === 'Gestor Contratante'
+                      ? user?.empresa
+                        ? 'Líder de BU (Escopado)'
+                        : 'Líder sem BU'
+                      : 'Grupo Consolidado (Todas as BUs)'}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
