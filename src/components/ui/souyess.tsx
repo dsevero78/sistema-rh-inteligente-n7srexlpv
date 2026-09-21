@@ -148,14 +148,14 @@ export function HeroPanel({ eyebrow, title, body, cta, className, ...props }: He
   return (
     <div
       className={cn(
-        'relative bg-[#212B55] text-white rounded-2xl p-6 md:p-8 overflow-hidden shadow-[0_8px_24px_rgba(11,18,48,0.18)]',
+        'relative bg-[#1A2240] text-white rounded-2xl p-6 md:p-8 overflow-hidden shadow-[0_8px_24px_rgba(17,22,43,0.22)]',
         className,
       )}
       {...props}
     >
       {/* Geometria SouYess conector em laranja no canto superior direito */}
       <div className="pointer-events-none absolute -top-8 -right-8 w-44 h-44 bg-[#E9530E] rounded-bl-[140px] opacity-90 z-0" />
-      <div className="pointer-events-none absolute top-16 right-16 w-16 h-16 rounded-full border-4 border-[#E9530E] bg-[#212B55] z-0" />
+      <div className="pointer-events-none absolute top-16 right-16 w-16 h-16 rounded-full border-4 border-[#E9530E] bg-[#11162B] z-0" />
 
       <div className="relative z-10 max-w-2xl">
         {eyebrow && (

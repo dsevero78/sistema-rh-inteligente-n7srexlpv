@@ -202,16 +202,16 @@ export default function Layout() {
     .toUpperCase()
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#212B55] text-white">
+    <div className="flex flex-col h-full bg-[#1A2240] text-[#F7F8FB]">
       {/* Brand Header SouYess */}
-      <div className="h-16 px-5 flex items-center justify-between border-b border-[#2E3A6E]">
+      <div className="h-16 px-5 flex items-center justify-between border-b border-[#11162B]/80 bg-[#11162B]/35">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[#E9530E] flex items-center justify-center text-white shadow-[0_2px_8px_rgba(233,83,14,0.35)] shrink-0 font-extrabold text-sm tracking-wider">
             SY
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-sm text-white tracking-wider uppercase">
+              <span className="font-extrabold text-sm text-[#F7F8FB] tracking-wider uppercase">
                 SouYess
               </span>
               <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#E9530E]/20 text-[#F19763] border border-[#E9530E]/30 uppercase">
@@ -295,14 +295,14 @@ export default function Layout() {
               className={`flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150 group relative ${
                 isActive
                   ? 'bg-[#FEF1EA] text-[#E9530E] shadow-xs'
-                  : 'text-[#D3D7E5] hover:text-white hover:bg-[#2E3A6E]/70'
+                  : 'text-[#D3D7E5] hover:text-[#F7F8FB] hover:bg-[#2E3A6E]'
               }`}
             >
               {isActive && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#E9530E] rounded-r-full" />
               )}
               <Icon
-                className={`w-4 h-4 transition-colors shrink-0 ${isActive ? 'text-[#E9530E]' : 'text-[#A8B0C9] group-hover:text-white'}`}
+                className={`w-4 h-4 transition-colors shrink-0 ${isActive ? 'text-[#E9530E]' : 'text-[#A8B0C9] group-hover:text-[#F7F8FB]'}`}
               />
               <span className="flex-1 truncate">{item.title}</span>
               {item.badge && (
@@ -310,7 +310,7 @@ export default function Layout() {
                   className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.2 rounded border ${
                     isActive
                       ? 'bg-[#E9530E] text-white border-transparent'
-                      : 'bg-[#2E3A6E] text-[#D3D7E5] border-[#4A567E]'
+                      : 'bg-[#2E3A6E] text-[#D3D7E5] border-[#4A567E]/60'
                   }`}
                 >
                   {item.badge}
@@ -326,17 +326,17 @@ export default function Layout() {
         })}
       </div>
 
-      {/* User Footer Card */}
-      <div className="p-3 border-t border-[#2E3A6E] bg-[#1A2240]">
+      {/* User Footer Card - Deep Ink #11162B para máxima profundidade */}
+      <div className="p-3 border-t border-[#11162B] bg-[#11162B]">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#2E3A6E] transition-colors text-left focus:outline-none focus:ring-2 focus:ring-[#E9530E]">
-              <Avatar className="h-8 w-8 border border-[#4A567E] bg-[#212B55] text-white font-bold text-xs shrink-0">
+              <Avatar className="h-8 w-8 border border-[#4A567E] bg-[#1A2240] text-white font-bold text-xs shrink-0">
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-bold text-white truncate">
+                  <p className="text-xs font-bold text-[#F7F8FB] truncate">
                     {user?.name || 'Douglas Severo'}
                   </p>
                 </div>
@@ -353,7 +353,7 @@ export default function Layout() {
           </DropdownMenuTrigger>{' '}
           <DropdownMenuContent
             align="end"
-            className="w-56 mb-2 bg-[#1A2240] border-[#2E3A6E] text-white"
+            className="w-56 mb-2 bg-[#11162B] border-[#2E3A6E] text-[#F7F8FB] shadow-xl"
           >
             <DropdownMenuLabel className="text-xs text-[#A8B0C9]">Minha Conta</DropdownMenuLabel>
             <DropdownMenuItem
@@ -361,18 +361,18 @@ export default function Layout() {
                 setEditName(user?.name || '')
                 setProfileModalOpen(true)
               }}
-              className="hover:bg-[#2E3A6E] text-white cursor-pointer text-xs"
+              className="hover:bg-[#2E3A6E] text-[#F7F8FB] cursor-pointer text-xs focus:bg-[#2E3A6E] focus:text-white"
             >
               <User className="w-3.5 h-3.5 mr-2 text-[#F19763]" />
               Editar perfil
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-[#2E3A6E]" />
+            <DropdownMenuSeparator className="bg-white/10" />
             <DropdownMenuItem
               onClick={() => {
                 logout()
                 navigate('/login')
               }}
-              className="text-[#ff8a80] hover:bg-[#2E3A6E] hover:text-red-200 cursor-pointer text-xs"
+              className="text-[#ff8a80] hover:bg-[#2E3A6E] hover:text-red-200 cursor-pointer text-xs focus:bg-[#2E3A6E] focus:text-red-200"
             >
               <LogOut className="w-3.5 h-3.5 mr-2" />
               Sair da conta
@@ -487,7 +487,7 @@ export default function Layout() {
                 className="w-84 sm:w-96 p-0 bg-white border border-[#E7EAF0] shadow-[0_16px_32px_rgba(11,18,48,0.12)] rounded-xl overflow-hidden"
               >
                 {/* Header do Dropdown */}
-                <div className="p-3.5 bg-[#212B55] text-white flex items-center justify-between border-b border-[#2E3A6E]">
+                <div className="p-3.5 bg-[#1A2240] text-[#F7F8FB] flex items-center justify-between border-b border-[#11162B]">
                   <div className="flex items-center gap-2">
                     <Bell className="w-4 h-4 text-[#F19763]" />
                     <span className="text-xs font-bold tracking-wide uppercase">

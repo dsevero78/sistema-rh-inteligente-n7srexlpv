@@ -45,14 +45,15 @@
 
     --radius: 0.5rem; /* 8px standard SouYess */
 
-    /* Sidebar SouYess Navy-700 / Navy-800 */
-    --sidebar-background: 228 44% 23%; /* #212B55 */
-    --sidebar-foreground: 220 20% 96%;
+    /* Sidebar e superfícies de menu SouYess — paleta escura do guia:
+       Base Dark Surface #1A2240 e Deep Ink #11162B */
+    --sidebar-background: 228 42% 18%; /* #1A2240 Dark Surface */
+    --sidebar-foreground: 220 20% 98%; /* #F7F8FB */
     --sidebar-primary: 19 89% 48%; /* #E9530E */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 228 39% 30%; /* #2E3A6E */
+    --sidebar-accent: 228 39% 30%; /* #2E3A6E Hover navy */
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 228 43% 18%; /* #1A2240 */
+    --sidebar-border: 228 44% 12%; /* #11162B Deep Ink */
     --sidebar-ring: 19 89% 48%;
 
     /* Charts mapped to SouYess palette */

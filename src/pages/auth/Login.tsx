@@ -69,7 +69,7 @@ export default function Login() {
       {/* SouYess Brand Geometry Accents */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Navy Deep Hero Backdrop arc */}
-        <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-[#212B55]/5 blur-2xl" />
+        <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-[#1A2240]/10 blur-2xl" />
         {/* SouYess Orange Corner Geometry (Iconic visual from Brand Guide) */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#E9530E]/10 rounded-bl-[200px]" />
         <div className="absolute top-36 right-28 w-24 h-24 rounded-full border-4 border-[#E9530E]/20 bg-transparent" />
@@ -79,11 +79,11 @@ export default function Login() {
 
       <Card className="w-full max-w-md relative z-10 border-[#E7EAF0] shadow-[0_16px_32px_rgba(11,18,48,0.10)] bg-white rounded-2xl overflow-hidden">
         {/* Brand Top Bar */}
-        <div className="h-1.5 bg-gradient-to-r from-[#212B55] via-[#345EA9] to-[#E9530E]" />
+        <div className="h-1.5 bg-gradient-to-r from-[#11162B] via-[#1A2240] to-[#E9530E]" />
 
         <CardHeader className="space-y-3 text-center pb-6 pt-7 border-b border-[#F2F4F8]">
           <div className="mx-auto flex items-center justify-center gap-2">
-            <div className="w-12 h-12 rounded-xl bg-[#212B55] flex items-center justify-center text-white shadow-md shadow-[#212B55]/20 font-extrabold text-base tracking-widest border-2 border-[#E9530E]">
+            <div className="w-12 h-12 rounded-xl bg-[#1A2240] flex items-center justify-center text-[#F7F8FB] shadow-md shadow-[#11162B]/25 font-extrabold text-base tracking-widest border-2 border-[#E9530E]">
               SY
             </div>
           </div>
@@ -91,7 +91,7 @@ export default function Login() {
             <div className="text-[11px] font-bold uppercase tracking-widest text-[#E9530E] mb-1">
               SouYess Design System
             </div>
-            <CardTitle className="text-2xl font-black tracking-tight text-[#212B55] uppercase">
+            <CardTitle className="text-2xl font-black tracking-tight text-[#11162B] uppercase">
               Gente &amp; Gestão
             </CardTitle>
             <CardDescription className="text-[#6B7384] text-xs mt-1">
@@ -168,13 +168,13 @@ export default function Login() {
             <div className="bg-[#FEF1EA] p-3 rounded-lg border border-[#FBDCC9] text-xs text-[#9B340A] flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <span className="font-semibold">RH (Admin):</span>
-                <span className="font-mono text-[#212B55] bg-white px-2 py-0.5 rounded text-[11px] border border-[#FBDCC9]">
+                <span className="font-mono text-[#11162B] bg-white px-2 py-0.5 rounded text-[11px] border border-[#FBDCC9]">
                   severo.douglas2@gmail.com / Skip@Pass
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-semibold">Gestor:</span>
-                <span className="font-mono text-[#212B55] bg-white px-2 py-0.5 rounded text-[11px] border border-[#FBDCC9]">
+                <span className="font-mono text-[#11162B] bg-white px-2 py-0.5 rounded text-[11px] border border-[#FBDCC9]">
                   gestor@empresa.com / Skip@Pass
                 </span>
               </div>
