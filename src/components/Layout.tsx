@@ -206,19 +206,19 @@ export default function Layout() {
       {/* Brand Header SouYess */}
       <div className="h-16 px-5 flex items-center justify-between border-b border-[#2E3A6E]/45 bg-[#11162B]/60 backdrop-blur-xs">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[#E9530E] flex items-center justify-center text-white shadow-[0_2px_8px_rgba(233,83,14,0.35)] shrink-0 font-extrabold text-sm tracking-wider">
+          <div className="w-9 h-9 rounded-lg bg-[#E9530E] flex items-center justify-center text-white shadow-[0_2px_8px_rgba(233,83,14,0.35)] shrink-0 font-extrabold text-sm tracking-wider font-display">
             SY
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-sm text-[#F7F8FB] tracking-wider uppercase">
+              <span className="font-extrabold text-sm text-[#F7F8FB] tracking-wider uppercase font-display">
                 SouYess
               </span>
-              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#E9530E]/20 text-[#F19763] border border-[#E9530E]/30 uppercase">
+              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#E9530E]/20 text-[#F19763] border border-[#E9530E]/30 uppercase font-display">
                 RH
               </span>
             </div>
-            <span className="text-[10px] text-[#A8B0C9] font-medium tracking-wide">
+            <span className="text-[11px] text-[#A8B0C9] font-semibold tracking-wide font-display">
               Gente &amp; Gestão
             </span>
           </div>
@@ -226,7 +226,7 @@ export default function Layout() {
       </div>
 
       {/* Nav List */}
-      <div className="flex-1 py-5 px-3 space-y-1 overflow-y-auto">
+      <div className="flex-1 py-5 px-3 space-y-1 overflow-y-auto font-sans">
         {(isGestorContratante
           ? [
               { title: 'Minhas Vagas', href: '/gestor', icon: Briefcase },
@@ -292,9 +292,9 @@ export default function Layout() {
               key={item.href}
               to={item.href}
               onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150 group relative ${
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium tracking-normal font-sans transition-all duration-150 group relative ${
                 isActive
-                  ? 'bg-[#FEF1EA] text-[#E9530E] shadow-xs'
+                  ? 'bg-[#FEF1EA] text-[#E9530E] font-semibold shadow-xs'
                   : 'text-[#D3D7E5] hover:text-[#F7F8FB] hover:bg-[#2E3A6E]'
               }`}
             >
@@ -304,10 +304,10 @@ export default function Layout() {
               <Icon
                 className={`w-4 h-4 transition-colors shrink-0 ${isActive ? 'text-[#E9530E]' : 'text-[#A8B0C9] group-hover:text-[#F7F8FB]'}`}
               />
-              <span className="flex-1 truncate">{item.title}</span>
+              <span className="flex-1 truncate font-sans text-sm">{item.title}</span>
               {item.badge && (
                 <span
-                  className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.2 rounded border ${
+                  className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.2 rounded border font-sans ${
                     isActive
                       ? 'bg-[#E9530E] text-white border-transparent'
                       : 'bg-[#2E3A6E] text-[#D3D7E5] border-[#4A567E]/60'
@@ -317,7 +317,7 @@ export default function Layout() {
                 </span>
               )}
               {item.countKey === 'alertas' && alertasNovosCount > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#E9530E] text-white min-w-[18px] text-center shadow-xs">
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#E9530E] text-white min-w-[18px] text-center font-mono shadow-xs">
                   {alertasNovosCount}
                 </span>
               )}
@@ -327,24 +327,24 @@ export default function Layout() {
       </div>
 
       {/* User Footer Card - Superfície elevada em #1A2240 com borda em #2E3A6E sobre o gradiente até #1A2240 */}
-      <div className="p-3 border-t border-[#2E3A6E]/40 bg-[#11162B]/40 backdrop-blur-xs">
+      <div className="p-3 border-t border-[#2E3A6E]/40 bg-[#11162B]/40 backdrop-blur-xs font-sans">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-[#1A2240]/80 hover:bg-[#2E3A6E]/90 border border-[#2E3A6E] transition-all text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E9530E]">
-              <Avatar className="h-8 w-8 border border-[#4A567E] bg-[#212B55] text-white font-bold text-xs shrink-0 shadow-xs">
+              <Avatar className="h-8 w-8 border border-[#4A567E] bg-[#212B55] text-white font-bold text-xs shrink-0 shadow-xs font-display">
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 font-sans">
                 <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-bold text-[#F7F8FB] truncate">
+                  <p className="text-xs font-semibold text-[#F7F8FB] truncate font-sans">
                     {user?.name || 'Douglas Severo'}
                   </p>
                 </div>
-                <p className="text-[10px] text-[#F19763] font-medium truncate">
+                <p className="text-[11px] text-[#F19763] font-medium truncate font-sans">
                   {user?.cargo_funcao ||
                     (isGestorContratante ? 'Gestor Contratante' : 'RH / Recrutador')}
                 </p>
-                <p className="text-[10px] text-[#A8B0C9] truncate">
+                <p className="text-[10px] text-[#A8B0C9] truncate font-sans">
                   {user?.email || 'severo.douglas2@gmail.com'}
                 </p>
               </div>
@@ -353,15 +353,17 @@ export default function Layout() {
           </DropdownMenuTrigger>{' '}
           <DropdownMenuContent
             align="end"
-            className="w-56 mb-2 bg-[#1A2240] border-[#2E3A6E] text-[#F7F8FB] shadow-2xl rounded-xl"
+            className="w-56 mb-2 bg-[#1A2240] border-[#2E3A6E] text-[#F7F8FB] shadow-2xl rounded-xl font-sans"
           >
-            <DropdownMenuLabel className="text-xs text-[#A8B0C9]">Minha Conta</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-[#A8B0C9] font-sans">
+              Minha Conta
+            </DropdownMenuLabel>
             <DropdownMenuItem
               onClick={() => {
                 setEditName(user?.name || '')
                 setProfileModalOpen(true)
               }}
-              className="hover:bg-[#2E3A6E] text-[#F7F8FB] cursor-pointer text-xs focus:bg-[#2E3A6E] focus:text-white"
+              className="hover:bg-[#2E3A6E] text-[#F7F8FB] cursor-pointer text-xs focus:bg-[#2E3A6E] focus:text-white font-sans"
             >
               <User className="w-3.5 h-3.5 mr-2 text-[#F19763]" />
               Editar perfil
@@ -372,7 +374,7 @@ export default function Layout() {
                 logout()
                 navigate('/login')
               }}
-              className="text-[#ff8a80] hover:bg-[#2E3A6E] hover:text-red-200 cursor-pointer text-xs focus:bg-[#2E3A6E] focus:text-red-200"
+              className="text-[#ff8a80] hover:bg-[#2E3A6E] hover:text-red-200 cursor-pointer text-xs focus:bg-[#2E3A6E] focus:text-red-200 font-sans"
             >
               <LogOut className="w-3.5 h-3.5 mr-2" />
               Sair da conta
@@ -423,10 +425,10 @@ export default function Layout() {
               <Menu className="w-5 h-5" />
             </button>
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#E9530E]">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#E9530E] font-display">
                 SouYess People Hub
               </div>
-              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-[#212B55] truncate">
+              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-[#212B55] truncate font-display">
                 {getPageTitle()}
               </h1>
             </div>

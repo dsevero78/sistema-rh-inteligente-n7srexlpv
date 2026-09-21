@@ -28,17 +28,18 @@ export default {
     extend: {
       fontFamily: {
         sans: [
-          'Gotham',
-          'Montserrat',
+          'Inter',
           '-apple-system',
           'BlinkMacSystemFont',
           'Segoe UI',
           'Roboto',
+          'Helvetica',
+          'Arial',
           'sans-serif',
         ],
         display: [
-          'Gotham',
           'Montserrat',
+          'Gotham',
           '-apple-system',
           'BlinkMacSystemFont',
           'Segoe UI',
