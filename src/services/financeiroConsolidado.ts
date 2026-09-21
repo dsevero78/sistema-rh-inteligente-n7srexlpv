@@ -1017,101 +1017,213 @@ export async function carregarDadosFinanceiros(
     }
   }
 
-  // Mapeamento auxiliar para identificar a BU de qualquer registro
-  const normalizarParaEmpresaId = (empRef?: string, nomeRef?: string): string => {
+  // Mapeamento auxiliar para identificar a BU de qualquer registro (com fallback estrito para "sem-bu")
+  const normalizarBu = (empRef?: string, nomeRef?: string, areaRef?: string): string => {
+    // 1. Correspondência exata por ID da lista de BUs
     if (empRef) {
       const matchDireto = empresasLista.find((e) => e.id === empRef)
       if (matchDireto) return matchDireto.id
     }
-    const texto = `${empRef || ''} ${nomeRef || ''}`.toLowerCase()
+
+    // 2. Tentar buscar em empresas (caso empRef seja outro ID ou slug)
+    if (empRef && empresas) {
+      const empObj = empresas.find((e) => e.id === empRef)
+      if (empObj) {
+        const porId = empresasLista.find((el) => el.id === empObj.id)
+        if (porId) return porId.id
+        const porNome = empresasLista.find(
+          (el) =>
+            el.nome.toLowerCase() ===
+              (empObj.nome_fantasia || empObj.razao_social || '').toLowerCase() ||
+            el.sigla.toUpperCase() === (empObj.sigla || '').toUpperCase(),
+        )
+        if (porNome) return porNome.id
+      }
+    }
+
+    const texto = `${empRef || ''} ${nomeRef || ''} ${areaRef || ''}`.toLowerCase()
+
+    // 3. Regras de matching por palavras-chave e áreas/departamentos:
+    // Tecnologia: engenharia de software, cloud, devops, sre, tech, software, infra
+    if (
+      texto.includes('nexus') ||
+      texto.includes('cloud') ||
+      texto.includes('devops') ||
+      texto.includes('sre') ||
+      texto.includes('engenharia de software') ||
+      texto.includes('tecnologia') ||
+      texto.includes('tech') ||
+      texto.includes('software')
+    ) {
+      const e = empresasLista.find(
+        (x) =>
+          (x.sigla || '').toUpperCase() === 'TECH' ||
+          (x.sigla || '').toUpperCase() === 'EMP-02' ||
+          x.nome.toLowerCase().includes('tecnologia'),
+      )
+      if (e) return e.id
+    }
+
+    // Vértice Mídia: marketing, employer branding, mídia, midia, campanhas, vertice, vértice
     if (
       texto.includes('vertice') ||
       texto.includes('vértice') ||
       texto.includes('mídia') ||
-      texto.includes('midia')
+      texto.includes('midia') ||
+      texto.includes('employer branding') ||
+      texto.includes('branding') ||
+      texto.includes('marketing')
     ) {
       const e = empresasLista.find(
         (x) =>
-          (x.sigla || '').toUpperCase() === 'VERTICE' || x.nome.toLowerCase().includes('vértice'),
+          (x.sigla || '').toUpperCase() === 'VERTICE' ||
+          (x.sigla || '').toUpperCase() === 'EMP-03' ||
+          x.nome.toLowerCase().includes('vértice') ||
+          x.nome.toLowerCase().includes('vertice'),
       )
       if (e) return e.id
     }
-    if (texto.includes('operac') || texto.includes('operaç') || texto.includes('ops')) {
-      const e = empresasLista.find(
-        (x) => (x.sigla || '').toUpperCase() === 'OPS' || x.nome.toLowerCase().includes('operaç'),
-      )
-      if (e) return e.id
-    }
+
+    // Holding: jurídico, juridico, compliance, advocacia, silveira, gente & gestão, people, governança
     if (
-      texto.includes('tec') ||
-      texto.includes('tech') ||
-      texto.includes('software') ||
-      texto.includes('cloud') ||
-      texto.includes('devops')
+      texto.includes('silveira') ||
+      texto.includes('advocacia') ||
+      texto.includes('jurídic') ||
+      texto.includes('juridic') ||
+      texto.includes('compliance') ||
+      texto.includes('gente & gestão') ||
+      texto.includes('people') ||
+      texto.includes('holding') ||
+      texto.includes('matriz')
     ) {
       const e = empresasLista.find(
         (x) =>
-          (x.sigla || '').toUpperCase() === 'TECH' || x.nome.toLowerCase().includes('tecnologia'),
+          (x.tipo || '').includes('Holding') ||
+          (x.sigla || '').toUpperCase() === 'HOLDING' ||
+          (x.sigla || '').toUpperCase() === 'EMP-01',
       )
       if (e) return e.id
     }
-    const holding = empresasLista.find(
-      (x) => (x.tipo || '').includes('Holding') || (x.sigla || '').toUpperCase() === 'HOLDING',
-    )
-    return holding ? holding.id : empresasLista[0].id
+
+    // Operações: operações, operacoes, facilities, logística, suprimentos, ops
+    if (
+      texto.includes('operac') ||
+      texto.includes('operaç') ||
+      texto.includes('facilities') ||
+      texto.includes('logística') ||
+      texto.includes('ops')
+    ) {
+      const e = empresasLista.find(
+        (x) =>
+          (x.sigla || '').toUpperCase() === 'OPS' ||
+          (x.sigla || '').toUpperCase() === 'EMP-04' ||
+          x.nome.toLowerCase().includes('operaç') ||
+          x.nome.toLowerCase().includes('operac'),
+      )
+      if (e) return e.id
+    }
+
+    // 4. Se não encontrar, retornar categoria explícita "sem-bu" (nunca Holding silenciosa)
+    return 'sem-bu'
   }
 
-  // Identificar empresa de cada prestador PJ (através de área, contrato, ou vínculo de pessoas correspondente)
+  // Identificar empresa de cada prestador PJ (através de contato_email, documento, nome fantasia, ou área de atuação)
   const empresaIdPorPrestador = new Map<string, string>()
   prestadores.forEach((p) => {
-    // 1. Procurar em pessoas com mesmo email ou documento se existir
-    const pessoaEquiv = pessoas.find(
-      (pes) =>
-        (p.email && pes.email && pes.email.toLowerCase() === p.email.toLowerCase()) ||
-        (p.cnpj && pes.cpf_cnpj && pes.cpf_cnpj.replace(/\D/g, '') === p.cnpj.replace(/\D/g, '')) ||
-        (pes.nome &&
-          p.nome_fantasia &&
-          pes.nome.toLowerCase().includes(p.nome_fantasia.toLowerCase())),
-    )
-    if (pessoaEquiv && pessoaEquiv.empresa) {
-      empresaIdPorPrestador.set(p.id, pessoaEquiv.empresa)
+    const pEmail = (p.contato_email || p.email || '').toLowerCase().trim()
+    const pCnpjLimpo = (p.cnpj || '').replace(/\D/g, '')
+    const pNomeFantasia = (p.nome_fantasia || '').toLowerCase().trim()
+    const pRazao = (p.razao_social || '').toLowerCase().trim()
+
+    // 1. Procurar em pessoas com mesmo contato_email, CNPJ ou razão/nome fantasia
+    const pessoaEquiv = pessoas.find((pes) => {
+      const pesEmail = (pes.email || '').toLowerCase().trim()
+      const pesCpfCnpj = (pes.cpf_cnpj || '').replace(/\D/g, '')
+      const pesNome = (pes.nome || '').toLowerCase().trim()
+
+      if (pEmail && pesEmail && pEmail === pesEmail) return true
+      if (pCnpjLimpo && pesCpfCnpj && pCnpjLimpo === pesCpfCnpj) return true
+      if (
+        pesNome &&
+        pNomeFantasia &&
+        (pesNome.includes(pNomeFantasia) || pNomeFantasia.includes(pesNome))
+      )
+        return true
+      if (pesNome && pRazao && (pesNome.includes(pRazao) || pRazao.includes(pesNome))) return true
+      return false
+    })
+
+    if (pessoaEquiv && (pessoaEquiv.empresa || pessoaEquiv.departamento || pessoaEquiv.area)) {
+      const empResolvida = normalizarBu(
+        pessoaEquiv.empresa,
+        pessoaEquiv.expand?.empresa?.nome_fantasia ||
+          pessoaEquiv.expand?.empresa?.nome ||
+          pessoaEquiv.expand?.empresa?.sigla,
+        `${pessoaEquiv.departamento || ''} ${pessoaEquiv.cargo_funcao || ''} ${p.area_atuacao || ''}`,
+      )
+      empresaIdPorPrestador.set(p.id, empResolvida)
       return
     }
 
-    // 2. Inferir pela área de atuação
-    const areaTexto = (p.area_atuacao || '').toLowerCase()
-    empresaIdPorPrestador.set(p.id, normalizarParaEmpresaId(undefined, areaTexto))
+    // 2. Inferir pela razão social / nome fantasia ou área de atuação
+    const empResolvida = normalizarBu(
+      undefined,
+      `${p.nome_fantasia || ''} ${p.razao_social || ''}`,
+      p.area_atuacao,
+    )
+    empresaIdPorPrestador.set(p.id, empResolvida)
   })
 
   // Comprometido PJ por BU
   const buComprometidoPjMap = new Map<string, number>()
   empresasLista.forEach((e) => buComprometidoPjMap.set(e.id, 0))
+  buComprometidoPjMap.set('sem-bu', 0)
+
   prestadoresAtivos.forEach((p) => {
     const empId =
-      empresaIdPorPrestador.get(p.id) || normalizarParaEmpresaId(undefined, p.area_atuacao)
+      empresaIdPorPrestador.get(p.id) ||
+      normalizarBu(undefined, `${p.nome_fantasia || ''} ${p.razao_social || ''}`, p.area_atuacao)
     const atual = buComprometidoPjMap.get(empId) || 0
     buComprometidoPjMap.set(empId, atual + (Number(p.valor_mensal_atual) || 0))
   })
 
-  // Comprometido CLT por BU (pessoas com vínculo CLT ativo ou CLT no tipo_contrato/modalidade)
+  // Comprometido CLT por BU (pessoas com vínculo CLT ativo: modalidade === 'CLT')
   const buComprometidoCltMap = new Map<string, number>()
   const buContagemCltMap = new Map<string, number>()
   empresasLista.forEach((e) => {
     buComprometidoCltMap.set(e.id, 0)
     buContagemCltMap.set(e.id, 0)
   })
+  buComprometidoCltMap.set('sem-bu', 0)
+  buContagemCltMap.set('sem-bu', 0)
 
   let somaComprometidoClt = 0
   let totalColaboradoresClt = 0
 
   pessoas.forEach((pes) => {
-    const mod = (pes.modalidade_contratacao || pes.tipo || '').toUpperCase()
-    const isClt = mod.includes('CLT') || !mod.includes('PJ')
+    const mod = String(pes.modalidade || pes.modalidade_contratacao || pes.tipo || '')
+      .toUpperCase()
+      .trim()
+    // PJ NUNCA entra na folha CLT: exige explicitamente ser CLT
+    const isClt = mod === 'CLT' && String(pes.tipo_pessoa || '').toUpperCase() !== 'PJ'
     if (isClt && pes.status !== 'Inativo' && pes.status !== 'Desligado') {
-      const empId = normalizarParaEmpresaId(pes.empresa, pes.expand?.empresa?.nome)
-      const sal = Number(pes.salario_base || pes.remuneracao || pes.valor_hora || 0)
-      // Se não houver salário cadastrado, estimar média CLT de mercado SouYess ~R$ 7.500
-      const salarioEfetivo = sal > 0 ? sal : 7500
+      const empId = normalizarBu(
+        pes.empresa,
+        pes.expand?.empresa?.nome_fantasia ||
+          pes.expand?.empresa?.nome ||
+          pes.expand?.empresa?.sigla,
+        `${pes.departamento || ''} ${pes.cargo_funcao || ''} ${pes.centro_custo || ''}`,
+      )
+      // Salário via pes.valor_contratado || pes.salario_base || (pes.valor_hora * pes.horas_mensais_base)
+      const salContratado = Number(pes.valor_contratado) || 0
+      const salBase = Number(pes.salario_base || pes.remuneracao) || 0
+      const salPorHora =
+        Number(pes.valor_hora) > 0 && Number(pes.horas_mensais_base || 160) > 0
+          ? Number(pes.valor_hora) * Number(pes.horas_mensais_base || 160)
+          : 0
+
+      const salCalculado = salContratado > 0 ? salContratado : salBase > 0 ? salBase : salPorHora
+      const salarioEfetivo = salCalculado > 0 ? salCalculado : 7500
       somaComprometidoClt += salarioEfetivo
       totalColaboradoresClt++
 
@@ -1119,17 +1231,6 @@ export async function carregarDadosFinanceiros(
       buContagemCltMap.set(empId, (buContagemCltMap.get(empId) || 0) + 1)
     }
   })
-
-  // Se folha de novas contratações (ofertas/onboardings) tiver empresa vinculada, somar ao CLT
-  ofertas
-    .filter((o) => o.status === 'Aceita')
-    .forEach((of) => {
-      const sal = Number(of.salario_ofertado) || 0
-      const empVaga = of.expand?.vaga?.empresa || ''
-      const empId = normalizarParaEmpresaId(empVaga)
-      buComprometidoCltMap.set(empId, (buComprometidoCltMap.get(empId) || 0) + sal)
-      somaComprometidoClt += sal
-    })
 
   // NFs por BU (Pagas, A Pagar, Atrasadas)
   const buNfsPagasMap = new Map<string, number>()
@@ -1140,13 +1241,21 @@ export async function carregarDadosFinanceiros(
     buNfsAPagarMap.set(e.id, 0)
     buNfsAtrasadasMap.set(e.id, 0)
   })
+  buNfsPagasMap.set('sem-bu', 0)
+  buNfsAPagarMap.set('sem-bu', 0)
+  buNfsAtrasadasMap.set('sem-bu', 0)
 
   notasFiscais.forEach((nf) => {
     const val = Number(nf.valor) || 0
     const comp = nf.competencia || ''
     const status = nf.status || ''
     if (comp === compStringMesAtual) {
-      const empId = empresaIdPorPrestador.get(nf.prestador) || normalizarParaEmpresaId()
+      const empId =
+        empresaIdPorPrestador.get(nf.prestador) ||
+        normalizarBu(
+          undefined,
+          nf.expand?.prestador?.nome_fantasia || nf.expand?.prestador?.razao_social,
+        )
       if (status === 'Paga') {
         buNfsPagasMap.set(empId, (buNfsPagasMap.get(empId) || 0) + val)
       } else if (
@@ -1165,9 +1274,15 @@ export async function carregarDadosFinanceiros(
   // Horas apontadas por BU
   const buHorasMap = new Map<string, number>()
   empresasLista.forEach((e) => buHorasMap.set(e.id, 0))
+  buHorasMap.set('sem-bu', 0)
   let totalHorasApontadasPeriodo = 0
+
   apontamentos.forEach((ap) => {
-    const empId = normalizarParaEmpresaId(ap.empresa, ap.expand?.empresa?.nome)
+    const empId = normalizarBu(
+      ap.empresa,
+      ap.expand?.empresa?.nome_fantasia || ap.expand?.empresa?.nome,
+      ap.descricao,
+    )
     const h = Number(ap.horas_liquidas || ap.horas_brutas || ap.quantidade_horas || 0)
     buHorasMap.set(empId, (buHorasMap.get(empId) || 0) + h)
     totalHorasApontadasPeriodo += h
@@ -1175,7 +1290,9 @@ export async function carregarDadosFinanceiros(
   // Se não houver apontamentos registrados para o mês atual, calcular horas estimadas (160h por prestador ativo)
   if (totalHorasApontadasPeriodo === 0 && prestadoresAtivos.length > 0) {
     prestadoresAtivos.forEach((p) => {
-      const empId = empresaIdPorPrestador.get(p.id) || normalizarParaEmpresaId()
+      const empId =
+        empresaIdPorPrestador.get(p.id) ||
+        normalizarBu(undefined, `${p.nome_fantasia || ''} ${p.razao_social || ''}`, p.area_atuacao)
       buHorasMap.set(empId, (buHorasMap.get(empId) || 0) + 160)
       totalHorasApontadasPeriodo += 160
     })
@@ -1184,12 +1301,15 @@ export async function carregarDadosFinanceiros(
   // Prestadores PJ contagem por BU
   const buContagemPjMap = new Map<string, number>()
   empresasLista.forEach((e) => buContagemPjMap.set(e.id, 0))
+  buContagemPjMap.set('sem-bu', 0)
   prestadoresAtivos.forEach((p) => {
-    const empId = empresaIdPorPrestador.get(p.id) || normalizarParaEmpresaId()
+    const empId =
+      empresaIdPorPrestador.get(p.id) ||
+      normalizarBu(undefined, `${p.nome_fantasia || ''} ${p.razao_social || ''}`, p.area_atuacao)
     buContagemPjMap.set(empId, (buContagemPjMap.get(empId) || 0) + 1)
   })
 
-  // Funções utilitárias de montagem de decomposição
+  // Funções utilitárias de montagem de decomposição (inclui "Sem BU definida" dinamicamente só se houver registros > 0)
   const montarDecomposicao = (
     mapaValores: Map<string, number>,
     totalConsolidado: number,
@@ -1206,6 +1326,21 @@ export async function carregarDadosFinanceiros(
         percentual: pct,
       }
     })
+
+    const valorSemBu = mapaValores.get('sem-bu') || 0
+    if (valorSemBu > 0) {
+      const pctSemBu =
+        totalConsolidado > 0 ? Math.round((valorSemBu / totalConsolidado) * 1000) / 10 : 0
+      decomposicaoBu.push({
+        empresaId: 'sem-bu',
+        sigla: 'SEM BU',
+        nome: 'Sem BU definida',
+        cor: '#94A3B8',
+        valor: valorSemBu,
+        percentual: pctSemBu,
+      })
+    }
+
     return {
       total: totalConsolidado,
       decomposicaoBu,
@@ -1248,11 +1383,36 @@ export async function carregarDadosFinanceiros(
       folhaCltMes: clt,
       colaboradoresCltCount: buContagemCltMap.get(e.id) || 0,
       novasContratacoesClt: ofertas.filter(
-        (o) => o.status === 'Aceita' && normalizarParaEmpresaId(o.expand?.vaga?.empresa) === e.id,
+        (o) => o.status === 'Aceita' && normalizarBu(o.expand?.vaga?.empresa) === e.id,
       ).length,
       totalComprometidoGeral: pj + clt,
     }
   })
+
+  // Se houver algum registro em 'sem-bu', adicionar linha na tabela Visão por BU
+  const totalSemBuGeral =
+    (buComprometidoPjMap.get('sem-bu') || 0) + (buComprometidoCltMap.get('sem-bu') || 0)
+  if (totalSemBuGeral > 0) {
+    const pjSemBu = buComprometidoPjMap.get('sem-bu') || 0
+    const cltSemBu = buComprometidoCltMap.get('sem-bu') || 0
+    visaoPorBu.push({
+      empresaId: 'sem-bu',
+      sigla: 'SEM BU',
+      nome: 'Sem BU definida',
+      cor: '#94A3B8',
+      tipo: 'Indefinido',
+      comprometidoPjMes: pjSemBu,
+      nfsPagasPj: buNfsPagasMap.get('sem-bu') || 0,
+      nfsAbertoPj: buNfsAPagarMap.get('sem-bu') || 0,
+      nfsAtrasadasPj: buNfsAtrasadasMap.get('sem-bu') || 0,
+      horasApontadasPj: buHorasMap.get('sem-bu') || 0,
+      prestadoresPjCount: buContagemPjMap.get('sem-bu') || 0,
+      folhaCltMes: cltSemBu,
+      colaboradoresCltCount: buContagemCltMap.get('sem-bu') || 0,
+      novasContratacoesClt: 0,
+      totalComprometidoGeral: pjSemBu + cltSemBu,
+    })
+  }
 
   const kpis: KpisFinanceiros = {
     comprometidoMensalPj: somaComprometidoMensalPj,
