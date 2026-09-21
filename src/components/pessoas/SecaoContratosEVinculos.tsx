@@ -103,7 +103,7 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
       const lista = await contratosService.listarContratos({ pessoaId: pessoa.id })
       setContratosDigitais(lista || [])
     } catch (err: any) {
-      console.warn('Erro ao carregar contratos digitais na seção:', err)
+      console.warn('[SecaoContratosEVinculos] Erro ao carregar contratos digitais na seção:', err)
       setErroContratos('Não foi possível carregar os contratos digitais no momento.')
       setContratosDigitais([])
     } finally {

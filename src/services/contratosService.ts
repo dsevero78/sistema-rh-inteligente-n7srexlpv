@@ -382,9 +382,12 @@ export const contratosService = {
       })
 
       return records || []
-    } catch (err) {
-      // Falhas de permissão (401/403) ou ausência de registros não devem quebrar a aplicação
-      console.warn('Aviso ao listar contratos:', err)
+    } catch (err: any) {
+      // Falhas temporárias, de permissão ou ausência de registros não afetam a autenticação
+      console.warn(
+        '[contratosService] Aviso ao listar contratos (resiliência ativada):',
+        err?.message || err,
+      )
       return []
     }
   },
