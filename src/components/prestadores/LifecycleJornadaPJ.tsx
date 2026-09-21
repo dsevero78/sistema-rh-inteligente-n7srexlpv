@@ -252,12 +252,12 @@ export const LifecycleJornadaPJ: React.FC<LifecycleJornadaPJProps> = ({
                     <div className="mt-3 flex flex-col items-center min-w-[70px]">
                       {isAtual ? (
                         // Pílula verde-clara com o nome da etapa em negrito (como no print)
-                        <span className="px-3.5 py-1 rounded-full bg-[#E5F9ED] text-[#1E3A2B] text-xs font-bold tracking-tight shadow-2xs border border-[#C6EFD7]">
+                        <span className="font-display px-3.5 py-1 rounded-full bg-[#E5F9ED] text-[#1E3A2B] text-xs font-bold tracking-tight shadow-2xs border border-[#C6EFD7]">
                           {etapaNome}
                         </span>
                       ) : (
                         <span
-                          className={`text-xs font-medium transition-colors ${
+                          className={`text-xs font-medium transition-colors font-display ${
                             isVisualizada
                               ? 'text-slate-900 font-bold underline decoration-[#2D7A4D] decoration-2 underline-offset-4'
                               : isConcluida
@@ -357,7 +357,7 @@ export const LifecycleJornadaPJ: React.FC<LifecycleJornadaPJProps> = ({
                     {/* Nome do Marco à Esquerda com Tipografia Idêntica aos Prints */}
                     <div className="flex-1 min-w-0 pr-4">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-base sm:text-[17px] font-bold text-[#2A3742] tracking-tight group-hover:text-blue-700 transition-colors truncate">
+                        <h4 className="font-display text-base sm:text-[17px] font-bold text-[#2A3742] tracking-tight group-hover:text-blue-700 transition-colors truncate">
                           {marco.nome_marco}
                         </h4>
                         <Edit2 className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />

@@ -218,9 +218,9 @@ export const ModalNovoAditivo: React.FC<ModalNovoAditivoProps> = ({
               <FileSignature className="w-4 h-4" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-slate-900">
-                {aditivoParaEditar ? 'Editar Aditivo Contratual' : 'Novo Aditivo Contratual PJ'}
-              </DialogTitle>
+              <DialogTitle className="font-display text-base sm:text-lg font-bold text-slate-900">
+                {aditivoParaEditar ? 'Editar Termo Aditivo' : 'Novo Termo Aditivo Contratual'}
+              </DialogTitle>{' '}
               <DialogDescription className="text-xs text-slate-500">
                 Formalize prorrogações de prazo, reajustes de valor e alterações de escopo com
                 histórico preservado.

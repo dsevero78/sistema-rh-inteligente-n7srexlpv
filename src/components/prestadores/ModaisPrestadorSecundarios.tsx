@@ -101,9 +101,9 @@ export const ModalNovoContrato: React.FC<{
               <FileText className="w-4 h-4" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-slate-900">
-                Novo Contrato de Prestação PJ
-              </DialogTitle>
+              <DialogTitle className="font-display text-base sm:text-lg font-bold text-slate-900">
+                Novo Contrato de Prestação de Serviços
+              </DialogTitle>{' '}
               <DialogDescription className="text-xs text-slate-500">
                 Vincular contrato com {prestador.nome_fantasia || prestador.razao_social}
               </DialogDescription>
@@ -311,7 +311,7 @@ export const ModalNovoDocumento: React.FC<{
               <FileCheck className="w-4 h-4" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-slate-900">
+              <DialogTitle className="font-display text-base sm:text-lg font-bold text-slate-900">
                 Novo Documento ou Certidão
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
@@ -498,9 +498,9 @@ export const ModalNovaNotaFiscal: React.FC<{
               <DollarSign className="w-4 h-4" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-slate-900">
-                Lançamento de Nota Fiscal PJ
-              </DialogTitle>
+              <DialogTitle className="font-display text-base sm:text-lg font-bold text-slate-900">
+                Lançamento de Nota Fiscal de Prestação
+              </DialogTitle>{' '}
               <DialogDescription className="text-xs text-slate-500">
                 Acompanhe o ciclo de liquidação de faturas de serviços prestados.
               </DialogDescription>
@@ -745,7 +745,7 @@ export const ModalNovaAvaliacao: React.FC<{
               <Star className="w-4 h-4" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-slate-900">
+              <DialogTitle className="font-display text-base sm:text-lg font-bold text-slate-900">
                 Avaliação de Desempenho do Prestador
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">

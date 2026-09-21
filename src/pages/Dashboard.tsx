@@ -235,12 +235,12 @@ export default function Dashboard() {
         <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-[#E9530E]" />
         <div className="pl-2">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-[#E9530E] bg-[#FEF1EA] px-2.5 py-0.5 rounded-full border border-[#FBDCC9]">
+            <span className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] bg-[#FEF1EA] px-2.5 py-0.5 rounded-full border border-[#FBDCC9]">
               Visão Executiva · SouYess
             </span>
             <span className="text-xs text-[#6B7384] font-medium">· {periodLabel}</span>
           </div>
-          <p className="text-sm text-[#4D5566] mt-1.5">
+          <p className="text-sm text-[#4D5566] mt-1.5 leading-relaxed">
             Acompanhe em tempo real as vagas estratégicas, o ritmo de entrevistas e a aderência de
             talentos via IA.
           </p>
@@ -309,7 +309,7 @@ export default function Dashboard() {
         >
           <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#E9530E]" />
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
               Vagas Ativas
             </span>
             <div className="w-9 h-9 rounded-lg bg-[#FEF1EA] text-[#E9530E] flex items-center justify-center group-hover:bg-[#E9530E] group-hover:text-white transition-colors">
@@ -317,7 +317,9 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-[#212B55] tabular-nums">{vagasAtivas}</span>
+            <span className="text-3xl font-bold font-mono text-[#212B55] tabular-nums">
+              {vagasAtivas}
+            </span>
             <span className="text-xs font-medium text-[#6B7384]">de {vagas.length} totais</span>
           </div>
           <div className="mt-3 flex items-center gap-1.5 text-xs text-[#1F9D6A] font-semibold">
@@ -332,7 +334,7 @@ export default function Dashboard() {
           className="p-5 border-[#E7EAF0] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group relative overflow-hidden"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
               Candidatos no Funil
             </span>
             <div className="w-9 h-9 rounded-lg bg-[#EDF2F9] text-[#345EA9] flex items-center justify-center group-hover:bg-[#345EA9] group-hover:text-white transition-colors">
@@ -340,7 +342,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-[#212B55] tabular-nums">
+            <span className="text-3xl font-bold font-mono text-[#212B55] tabular-nums">
               {candidatosEmAnalise}
             </span>
             <span className="text-xs font-medium text-[#6B7384]">em avaliação</span>
@@ -357,7 +359,7 @@ export default function Dashboard() {
           className="p-5 border-[#E7EAF0] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group relative overflow-hidden"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
               Entrevistas na Semana
             </span>
             <div className="w-9 h-9 rounded-lg bg-[#FBF1D2] text-[#875A00] flex items-center justify-center group-hover:bg-[#E5A700] group-hover:text-white transition-colors">
@@ -365,7 +367,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-[#212B55] tabular-nums">
+            <span className="text-3xl font-bold font-mono text-[#212B55] tabular-nums">
               {entrevistasMarcadas}
             </span>
             <span className="text-xs font-medium text-[#6B7384]">agendadas</span>
@@ -382,7 +384,7 @@ export default function Dashboard() {
           className="p-5 border-[#E7EAF0] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group relative overflow-hidden"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
               Taxa de Preenchimento
             </span>
             <div className="w-9 h-9 rounded-lg bg-[#DDF3E8] text-[#1F9D6A] flex items-center justify-center group-hover:bg-[#1F9D6A] group-hover:text-white transition-colors">
@@ -390,7 +392,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-[#212B55] tabular-nums">
+            <span className="text-3xl font-bold font-mono text-[#212B55] tabular-nums">
               {taxaPreenchimento}%
             </span>
             <span className="text-xs font-medium text-[#6B7384]">meta: 80%</span>
@@ -408,7 +410,7 @@ export default function Dashboard() {
         <Card className="lg:col-span-2 border-slate-200 shadow-xs p-6 bg-white">
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
             <div>
-              <CardTitle className="text-base font-bold text-slate-900">
+              <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55]">
                 Fluxo de Candidatos por Estágio
               </CardTitle>
               <CardDescription className="text-xs text-slate-500 mt-0.5">
@@ -456,10 +458,10 @@ export default function Dashboard() {
                     <span className="text-xs font-medium text-slate-600 truncate">{st.label}</span>
                   </div>
                   <div className="mt-2 flex items-baseline justify-between">
-                    <span className="text-lg font-bold text-slate-900 tabular-nums">
+                    <span className="text-lg font-bold font-mono text-slate-900 tabular-nums">
                       {st.count}
                     </span>
-                    <span className="text-[11px] font-semibold text-slate-400">
+                    <span className="text-[11px] font-semibold font-mono text-slate-400">
                       {st.percentage}%
                     </span>
                   </div>
@@ -472,7 +474,7 @@ export default function Dashboard() {
         {/* Vagas por Canal (Donut / Progress breakdown) */}
         <Card className="border-slate-200 shadow-xs p-6 bg-white">
           <CardHeader className="p-0 pb-4 border-b border-slate-100">
-            <CardTitle className="text-base font-bold text-slate-900">
+            <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55]">
               Origem dos Talentos
             </CardTitle>
             <CardDescription className="text-xs text-slate-500">
@@ -485,7 +487,9 @@ export default function Dashboard() {
               <div key={c.nome} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-medium text-slate-700">{c.nome}</span>
-                  <span className="font-semibold text-slate-900 tabular-nums">{c.count}%</span>
+                  <span className="font-semibold font-mono text-slate-900 tabular-nums">
+                    {c.count}%
+                  </span>
                 </div>
                 <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                   <div
@@ -514,16 +518,16 @@ export default function Dashboard() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-[#212B55] uppercase tracking-wide">
+                  <h3 className="font-display text-sm font-bold text-[#212B55] tracking-wide">
                     Alertas Automáticos de Talentos Recém-Identificados
                   </h3>
                   {alertasNovos.length > 0 && (
-                    <Badge className="bg-[#E9530E] text-white text-[10px] font-bold">
+                    <Badge className="bg-[#E9530E] text-white text-[10px] font-bold font-mono">
                       {alertasNovos.length} novo(s)
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-[#6B7384]">
+                <p className="text-xs text-[#6B7384] mt-0.5">
                   Candidatos qualificados do Banco de Talentos com alta compatibilidade para vagas
                   ativas.
                 </p>
@@ -553,11 +557,11 @@ export default function Dashboard() {
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className="text-xs font-bold text-slate-900 truncate">
+                      <span className="font-display text-xs font-bold text-slate-900 truncate">
                         {cand?.nome || 'Talento'}
                       </span>
                       <span
-                        className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded shrink-0 ${
+                        className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded shrink-0 ${
                           (al.score || 75) >= 85
                             ? 'bg-blue-100 text-blue-800'
                             : 'bg-slate-100 text-slate-700'
@@ -596,10 +600,10 @@ export default function Dashboard() {
         <Card className="lg:col-span-2 border-slate-200 shadow-xs bg-white">
           <CardHeader className="p-5 border-b border-slate-100 flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-base font-bold text-slate-900">
+              <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55]">
                 Próximas Entrevistas Agendadas
               </CardTitle>
-              <CardDescription className="text-xs text-slate-500">
+              <CardDescription className="text-xs text-slate-500 mt-0.5">
                 Entrevistas da semana com lembretes automáticos e avaliação pós-entrevista
               </CardDescription>
             </div>
@@ -628,7 +632,7 @@ export default function Dashboard() {
                   className="p-4 hover:bg-slate-50/70 transition-colors flex items-center justify-between cursor-pointer gap-4"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-xs shrink-0 border border-slate-200">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-700 font-bold font-display flex items-center justify-center text-xs shrink-0 border border-slate-200">
                       {cand.nome
                         .split(' ')
                         .map((n: string) => n[0])
@@ -637,7 +641,7 @@ export default function Dashboard() {
                         .toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate hover:text-blue-600 transition-colors">
+                      <p className="font-display text-sm font-bold text-slate-900 truncate hover:text-blue-600 transition-colors">
                         {cand.nome}
                       </p>
                       <p className="text-xs text-slate-500 truncate">
@@ -673,12 +677,12 @@ export default function Dashboard() {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">
+              <span className="font-display text-[11px] font-bold text-blue-300 uppercase tracking-wider">
                 Gestor de Talentos (IA)
               </span>
             </div>
 
-            <h3 className="text-lg font-bold text-white tracking-tight leading-snug">
+            <h3 className="font-display text-lg font-bold text-white tracking-tight leading-snug">
               Otimize sua triagem com raciocínio analítico
             </h3>
 
@@ -690,10 +694,11 @@ export default function Dashboard() {
             <div className="bg-white/10 rounded-lg p-3.5 border border-white/10 text-xs text-slate-200 space-y-1.5">
               <div className="flex items-center gap-2 font-semibold text-blue-200">
                 <Sparkles className="w-3.5 h-3.5 text-blue-300" />
-                <span>Sugestão do Agente:</span>
+                <span className="font-display text-xs font-bold">Sugestão do Agente:</span>
               </div>
               <p className="text-[11px] text-slate-300">
-                2 candidatos possuem aderência superior a 85% para a vaga de{' '}
+                2 candidatos possuem aderência superior a{' '}
+                <span className="font-mono font-semibold">85%</span> para a vaga de{' '}
                 <span className="font-medium text-white">Desenvolvedor Backend Sênior</span>.
               </p>
             </div>

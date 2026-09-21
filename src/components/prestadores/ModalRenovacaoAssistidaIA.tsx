@@ -172,7 +172,7 @@ export const ModalRenovacaoAssistidaIA: React.FC<ModalRenovacaoAssistidaIAProps>
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <DialogTitle className="font-display text-lg font-bold text-slate-900 flex items-center gap-2">
                   Renovação Assistida por IA
                   <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-[10px] font-semibold">
                     Skip AI Gateway

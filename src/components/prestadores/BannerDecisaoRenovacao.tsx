@@ -272,25 +272,26 @@ export const BannerDecisaoRenovacao: React.FC<BannerDecisaoRenovacaoProps> = ({
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <span
-                  className={`text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full ${corBadge}`}
+                  className={`font-display text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${corBadge}`}
                 >
                   {decisao.emoji} Decisão de Renovação: {decisao.tier}
                 </span>
                 <Badge
                   variant="outline"
-                  className="text-xs bg-white/90 border-slate-300 font-bold text-slate-700"
+                  className="font-display text-xs bg-white/90 border-slate-300 font-bold text-slate-700"
                 >
                   <Clock className="w-3.5 h-3.5 mr-1 text-amber-600" />
-                  Janela de 60 dias aberta ({decisao.diasRestantes} dias restantes)
+                  Janela de 60 dias aberta (
+                  <span className="font-mono">{decisao.diasRestantes}</span> dias restantes)
                 </Badge>
                 {decisao.temAditivoPendente && (
-                  <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-xs">
+                  <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-xs font-medium">
                     Aditivo pendente de assinatura
                   </Badge>
                 )}
               </div>
 
-              <h3 className={`text-base sm:text-lg font-extrabold ${corTexto}`}>
+              <h3 className={`font-display text-base sm:text-lg font-bold ${corTexto}`}>
                 Parecer Estratégico do Comparativo de Custos & Performance
               </h3>
               <p className="text-xs sm:text-sm text-slate-700 leading-relaxed max-w-3xl">
@@ -326,40 +327,40 @@ export const BannerDecisaoRenovacao: React.FC<BannerDecisaoRenovacaoProps> = ({
           {/* Grid dos Números que Sustentam a Decisão */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2 border-t border-slate-200/80">
             <div className="bg-white/80 p-2.5 rounded-xl border border-slate-200/70">
-              <span className="text-[10px] text-slate-500 font-semibold block uppercase">
+              <span className="font-display text-[10px] text-slate-500 font-bold block uppercase tracking-wider">
                 Valor Mensal Atual
               </span>
-              <span className="text-sm font-extrabold text-slate-900 block mt-0.5">
+              <span className="text-sm font-bold font-mono text-slate-900 block mt-0.5 tabular-nums">
                 R$ {decisao.valorMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
               <span className="text-[9px] text-slate-400">Contrato vigente</span>
             </div>
 
             <div className="bg-white/80 p-2.5 rounded-xl border border-slate-200/70">
-              <span className="text-[10px] text-indigo-700 font-semibold block uppercase">
+              <span className="font-display text-[10px] text-indigo-700 font-bold block uppercase tracking-wider">
                 Valor-Hora (160h)
               </span>
-              <span className="text-sm font-extrabold text-indigo-900 block mt-0.5">
+              <span className="text-sm font-bold font-mono text-indigo-900 block mt-0.5 tabular-nums">
                 R$ {decisao.valorHora.toFixed(2)}/h
               </span>
               <span className="text-[9px] text-indigo-600">Base contratual</span>
             </div>
 
             <div className="bg-white/80 p-2.5 rounded-xl border border-slate-200/70">
-              <span className="text-[10px] text-slate-500 font-semibold block uppercase">
+              <span className="font-display text-[10px] text-slate-500 font-bold block uppercase tracking-wider">
                 Custo por Ponto
               </span>
-              <span className="text-sm font-extrabold text-slate-900 block mt-0.5">
+              <span className="text-sm font-bold font-mono text-slate-900 block mt-0.5 tabular-nums">
                 R$ {decisao.custoPorPonto.toFixed(2)}/pt
               </span>
               <span className="text-[9px] text-slate-400">Hora ÷ Nota</span>
             </div>
 
             <div className="bg-white/80 p-2.5 rounded-xl border border-slate-200/70">
-              <span className="text-[10px] text-slate-500 font-semibold block uppercase">
+              <span className="font-display text-[10px] text-slate-500 font-bold block uppercase tracking-wider">
                 Nota de Avaliação
               </span>
-              <span className="text-sm font-extrabold text-purple-700 block mt-0.5 flex items-center gap-1">
+              <span className="text-sm font-bold font-mono text-purple-700 block mt-0.5 flex items-center gap-1 tabular-nums">
                 <Star className="w-3.5 h-3.5 fill-purple-600 text-purple-600" />
                 {decisao.notaMedia.toFixed(1)}/10
               </span>
@@ -367,10 +368,10 @@ export const BannerDecisaoRenovacao: React.FC<BannerDecisaoRenovacaoProps> = ({
             </div>
 
             <div className="bg-white/80 p-2.5 rounded-xl border border-slate-200/70">
-              <span className="text-[10px] text-slate-500 font-semibold block uppercase">
+              <span className="font-display text-[10px] text-slate-500 font-bold block uppercase tracking-wider">
                 Mediana do Portfólio
               </span>
-              <span className="text-sm font-extrabold text-slate-800 block mt-0.5">
+              <span className="text-sm font-bold font-mono text-slate-800 block mt-0.5 tabular-nums">
                 R$ {decisao.medianaPortforlio.toFixed(2)}/h
               </span>
               <span
@@ -381,10 +382,10 @@ export const BannerDecisaoRenovacao: React.FC<BannerDecisaoRenovacaoProps> = ({
             </div>
 
             <div className="bg-white/80 p-2.5 rounded-xl border border-slate-200/70">
-              <span className="text-[10px] text-amber-700 font-semibold block uppercase">
+              <span className="font-display text-[10px] text-amber-700 font-bold block uppercase tracking-wider">
                 Dias para Vencer
               </span>
-              <span className="text-sm font-extrabold text-amber-800 block mt-0.5">
+              <span className="text-sm font-bold font-mono text-amber-800 block mt-0.5 tabular-nums">
                 ~{decisao.diasRestantes} dias
               </span>
               <span className="text-[9px] text-slate-400">

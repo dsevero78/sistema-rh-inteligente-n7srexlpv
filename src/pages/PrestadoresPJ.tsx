@@ -387,10 +387,10 @@ export const PrestadoresPJ: React.FC = () => {
                   <Building2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                  <h1 className="font-display text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900">
                     Prestadores de Serviços PJ
                   </h1>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Governança de fornecedores terceirizados, vigência de contratos, certidões
                     fiscais e notas fiscais.
                   </p>
@@ -432,12 +432,16 @@ export const PrestadoresPJ: React.FC = () => {
             <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-slate-50/50">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-medium">Prestadores Ativos</span>
+                  <span className="font-display text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Prestadores Ativos
+                  </span>
                   <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <Building2 className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-bold text-slate-900 mt-2">{kpis.ativos}</div>
+                <div className="text-2xl font-bold font-mono text-slate-900 mt-2 tabular-nums">
+                  {kpis.ativos}
+                </div>
                 <span className="text-[11px] text-slate-400">
                   {prestadores.length} cadastrados no total
                 </span>
@@ -448,12 +452,14 @@ export const PrestadoresPJ: React.FC = () => {
             <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-slate-50/50">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-medium">Contratos Vigentes</span>
+                  <span className="font-display text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Contratos Vigentes
+                  </span>
                   <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                     <FileText className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-bold text-slate-900 mt-2">
+                <div className="text-2xl font-bold font-mono text-slate-900 mt-2 tabular-nums">
                   {kpis.contratosVigentes}
                 </div>
                 <span className="text-[11px] text-slate-400">Parcerias em execução</span>
@@ -465,8 +471,10 @@ export const PrestadoresPJ: React.FC = () => {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between text-slate-500">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium">Valor Mensal Atual</span>
-                    <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1 py-0.2 rounded font-bold">
+                    <span className="font-display text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      Valor Mensal Atual
+                    </span>
+                    <span className="text-[9px] font-mono bg-indigo-100 text-indigo-700 px-1 py-0.2 rounded font-bold">
                       160h/mês
                     </span>
                   </div>
@@ -474,10 +482,10 @@ export const PrestadoresPJ: React.FC = () => {
                     <DollarSign className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-xl font-bold text-slate-900 mt-2">
+                <div className="text-xl font-bold font-mono text-slate-900 mt-2 tabular-nums">
                   R$ {kpis.valorMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </div>
-                <span className="text-[11px] text-indigo-700 font-bold block truncate">
+                <span className="text-[11px] font-mono text-indigo-700 font-bold block truncate">
                   R$ {kpis.valorHoraGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/h
                   &bull; {kpis.totalAditivos} aditivos
                 </span>
@@ -488,12 +496,14 @@ export const PrestadoresPJ: React.FC = () => {
             <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-amber-50/20">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-medium">Vencendo em 30 Dias</span>
+                  <span className="font-display text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Vencendo em 30 Dias
+                  </span>
                   <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
                     <Clock className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-bold text-amber-700 mt-2">
+                <div className="text-2xl font-bold font-mono text-amber-700 mt-2 tabular-nums">
                   {kpis.contratosVencendo30Dias}
                 </div>
                 <span className="text-[11px] text-amber-700/80 font-medium">
@@ -506,12 +516,16 @@ export const PrestadoresPJ: React.FC = () => {
             <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-rose-50/20">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-medium">Documentos Vencidos</span>
+                  <span className="font-display text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Documentos Vencidos
+                  </span>
                   <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
                     <ShieldAlert className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-bold text-rose-700 mt-2">{kpis.docsVencidos}</div>
+                <div className="text-2xl font-bold font-mono text-rose-700 mt-2 tabular-nums">
+                  {kpis.docsVencidos}
+                </div>
                 <span className="text-[11px] text-rose-700/80 font-medium">
                   {kpis.docsVencidos > 0 ? 'Pendência de compliance' : 'Certidões em dia'}
                 </span>
@@ -593,7 +607,9 @@ export const PrestadoresPJ: React.FC = () => {
               <CardContent className="p-12 text-center space-y-3">
                 <Building2 className="w-10 h-10 text-slate-300 mx-auto" />
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">Nenhum prestador encontrado</h3>
+                  <h3 className="font-display text-base font-bold text-slate-800">
+                    Nenhum prestador encontrado
+                  </h3>
                   <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
                     Não há prestadores que correspondam aos filtros selecionados. Tente limpar os
                     termos ou cadastre um novo fornecedor.
@@ -642,28 +658,31 @@ export const PrestadoresPJ: React.FC = () => {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                            <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">
+                            <span className="font-display text-[11px] font-bold text-blue-600 uppercase tracking-wider">
                               {p.area_atuacao}
                             </span>
                             {temDocVencido && (
-                              <Badge variant="destructive" className="text-[10px] py-0 px-1.5">
+                              <Badge
+                                variant="destructive"
+                                className="text-[10px] py-0 px-1.5 font-mono"
+                              >
                                 Doc Vencido
                               </Badge>
                             )}
                             {temContratoVencendo && (
-                              <Badge className="bg-amber-100 text-amber-800 text-[10px] py-0 px-1.5">
+                              <Badge className="bg-amber-100 text-amber-800 text-[10px] py-0 px-1.5 font-mono">
                                 Contrato a Vencer
                               </Badge>
                             )}
                           </div>
 
-                          <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                          <h3 className="font-display text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
                             {p.nome_fantasia || p.razao_social}
                           </h3>
                           <p className="text-[11px] text-slate-400 font-mono truncate">{p.cnpj}</p>
                         </div>
 
-                        {/* Pílula da Etapa Atual do Lifecycle em Destaque (como solicitado) */}
+                        {/* Pílula da Etapa Atual do Lifecycle em Destaque */}
                         {(() => {
                           const etapa =
                             p.etapa_lifecycle ||
@@ -673,7 +692,7 @@ export const PrestadoresPJ: React.FC = () => {
                                 ? 'Saída'
                                 : 'Ativo')
                           return (
-                            <span className="px-3 py-1 rounded-full bg-[#E5F9ED] text-[#1E3A2B] text-xs font-bold tracking-tight shadow-2xs border border-[#C6EFD7] shrink-0">
+                            <span className="font-display px-3 py-1 rounded-full bg-[#E5F9ED] text-[#1E3A2B] text-xs font-bold tracking-tight shadow-2xs border border-[#C6EFD7] shrink-0">
                               {etapa}
                             </span>
                           )
@@ -726,9 +745,12 @@ export const PrestadoresPJ: React.FC = () => {
                             <div className="flex items-center justify-between text-[11px]">
                               <span className="font-semibold text-slate-700 flex items-center gap-1">
                                 <GitCommit className="w-3.5 h-3.5 text-[#2D7A4D]" />
-                                Jornada: <strong className="text-slate-900">{etapaAtual}</strong>
+                                Jornada:{' '}
+                                <strong className="font-display text-slate-900">
+                                  {etapaAtual}
+                                </strong>
                               </span>
-                              <span className="text-[#2D7A4D] font-bold">
+                              <span className="text-[#2D7A4D] font-mono font-bold">
                                 {concluidos}/{total || 4} ({pct}%)
                               </span>
                             </div>
@@ -754,14 +776,14 @@ export const PrestadoresPJ: React.FC = () => {
                       <div className="bg-slate-50/80 rounded-lg p-3 text-xs space-y-2 border border-slate-100">
                         <div className="flex justify-between items-center text-slate-600">
                           <span>Contratos & Aditivos:</span>
-                          <strong className="text-slate-900">
+                          <strong className="text-slate-900 font-mono">
                             {
                               contratosDoPrestador.filter(
                                 (c) => c.status === 'Vigente' || c.status === 'Vencendo',
                               ).length
                             }{' '}
                             ativo(s) &bull;{' '}
-                            <span className="text-indigo-700">
+                            <span className="text-indigo-700 font-mono">
                               {aditsDestePrestador.length} aditivo(s)
                             </span>
                           </strong>
@@ -769,7 +791,7 @@ export const PrestadoresPJ: React.FC = () => {
 
                         <div className="flex justify-between items-center text-slate-600">
                           <span>Valor Mensal Atual:</span>
-                          <strong className="text-blue-700 font-bold">
+                          <strong className="text-blue-700 font-bold font-mono">
                             R${' '}
                             {valorMensalTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </strong>
@@ -778,7 +800,7 @@ export const PrestadoresPJ: React.FC = () => {
                         {/* Valor-Hora (Base 160h/mês) */}
                         <div className="flex justify-between items-center bg-white p-1.5 rounded-md border border-indigo-100 text-[11px]">
                           <span className="text-indigo-900 font-medium">Valor-Hora (÷ 160h):</span>
-                          <strong className="text-indigo-700 font-bold">
+                          <strong className="text-indigo-700 font-bold font-mono">
                             R${' '}
                             {valorHoraPrestador.toLocaleString('pt-BR', {
                               minimumFractionDigits: 2,
@@ -797,11 +819,11 @@ export const PrestadoresPJ: React.FC = () => {
                       {/* Rodapé com Média e Ações */}
                       <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                         <div className="flex items-center gap-1.5">
-                          <div className="flex items-center text-purple-600 font-bold text-xs">
+                          <div className="flex items-center text-purple-600 font-bold font-mono text-xs">
                             <Star className="w-3.5 h-3.5 fill-purple-600 mr-1" />
                             {p.media_avaliacao ? p.media_avaliacao.toFixed(1) : 'S/N'}
                           </div>
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-[10px] text-slate-400 font-mono">
                             ({p.total_avaliacoes || 0} avaliações)
                           </span>
                         </div>
@@ -845,7 +867,7 @@ export const PrestadoresPJ: React.FC = () => {
           <DialogHeader className="pb-2 border-b">
             <div className="flex items-center gap-2 text-rose-600">
               <AlertTriangle className="w-5 h-5" />
-              <DialogTitle className="text-base font-bold text-slate-900">
+              <DialogTitle className="font-display text-base font-bold text-slate-900">
                 Confirmar Exclusão de Prestador
               </DialogTitle>
             </div>

@@ -99,7 +99,9 @@ export const BlocoPrazosEFinanceiroContrato: React.FC<BlocoPrazosEFinanceiroCont
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-3">
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h4 className="text-sm font-bold text-slate-900">{contrato.titulo}</h4>
+              <h4 className="font-display text-sm sm:text-base font-bold text-slate-900">
+                {contrato.titulo}
+              </h4>
               <Badge variant="outline" className="text-[11px] font-mono">
                 {contrato.numero_contrato || 'S/N'}
               </Badge>
@@ -142,7 +144,7 @@ export const BlocoPrazosEFinanceiroContrato: React.FC<BlocoPrazosEFinanceiroCont
           {/* Coluna 1: Prazos, Vigência e Barra de Decurso */}
           <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <span className="font-display text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-purple-600" />
                 Cronograma de Vigência
               </span>
@@ -202,10 +204,10 @@ export const BlocoPrazosEFinanceiroContrato: React.FC<BlocoPrazosEFinanceiroCont
           {/* Coluna 2: Controle Financeiro em Destaque & Valor-Hora (Base 160h/mês) */}
           <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <DollarSign className="w-4 h-4 text-emerald-600" />
-                Valor da Prestação & Valor-Hora
-              </span>
+              <span className="font-display text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-blue-600" />
+                Equivalência Financeira & Valor-Hora
+              </span>{' '}
               <span className="text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold border border-indigo-200">
                 base 160h/mês
               </span>
@@ -215,7 +217,7 @@ export const BlocoPrazosEFinanceiroContrato: React.FC<BlocoPrazosEFinanceiroCont
               {/* Valor Mensal Atual */}
               <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                 <span className="text-[10px] text-slate-400 block">Valor Mensal Atual</span>
-                <strong className="text-base font-extrabold text-blue-700 block">
+                <strong className="text-base font-bold font-mono text-blue-700 block tabular-nums">
                   R$ {valorMensalEfetivo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </strong>
                 <span className="text-[10px] text-slate-500">
@@ -230,7 +232,7 @@ export const BlocoPrazosEFinanceiroContrato: React.FC<BlocoPrazosEFinanceiroCont
                 <span className="text-[10px] text-indigo-600 font-semibold block">
                   Valor-Hora Calculado
                 </span>
-                <strong className="text-base font-extrabold text-indigo-900 block">
+                <strong className="text-base font-bold font-mono text-indigo-900 block tabular-nums">
                   R${' '}
                   {infoValorHora.valorHora.toLocaleString('pt-BR', {
                     minimumFractionDigits: 2,

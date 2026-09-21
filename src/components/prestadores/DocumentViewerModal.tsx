@@ -37,9 +37,9 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               <FileText className="w-4 h-4" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-slate-900 leading-tight">
-                {title || 'Visualizador de Anexo'}
-              </DialogTitle>
+              <DialogTitle className="font-display text-base sm:text-lg font-bold text-slate-900 leading-tight">
+                {title || 'Visualizador de Documentos'}
+              </DialogTitle>{' '}
               {filename && (
                 <DialogDescription className="text-xs text-slate-500 font-mono">
                   {filename}

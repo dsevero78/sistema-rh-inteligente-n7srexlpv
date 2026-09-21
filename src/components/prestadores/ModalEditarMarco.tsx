@@ -94,7 +94,7 @@ export const ModalEditarMarco: React.FC<ModalEditarMarcoProps> = ({
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             Etapa: {marco.etapa}
           </div>
-          <DialogTitle className="text-base font-bold text-slate-900 mt-1">
+          <DialogTitle className="font-display text-base sm:text-lg font-bold text-slate-900 mt-1">
             {marco.nome_marco}
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500">

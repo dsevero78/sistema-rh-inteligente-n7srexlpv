@@ -27,6 +27,7 @@ import {
   Hourglass,
   ArrowRight,
   ShieldCheck,
+  DollarSign,
 } from 'lucide-react'
 import { ModalNovoAditivo } from './ModalNovoAditivo'
 import { DocumentViewerModal } from './DocumentViewerModal'
@@ -197,10 +198,10 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <h3 className="font-display text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
               <FileSignature className="w-4 h-4 text-indigo-600" />
-              Gestão de Aditivos Contratuais & Reajustes
-            </h3>
+              Gestão de Aditivos Contratuais & Histórico de Alterações
+            </h3>{' '}
             <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 font-bold text-xs">
               {totalAditivos} aditivo(s)
             </Badge>
@@ -230,18 +231,26 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
           <div>
-            <span className="text-[11px] text-slate-500 block">Total de Aditivos</span>
-            <span className="text-xl font-bold text-slate-900">{totalAditivos} formalizados</span>
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+              Total de Aditivos
+            </span>
+            <span className="text-xl font-bold font-mono text-slate-900 tabular-nums">
+              {totalAditivos} formalizados
+            </span>
           </div>
-          <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+          <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs font-mono">
             {totalAditivos}
           </div>
         </div>
 
         <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 flex items-center justify-between">
           <div>
-            <span className="text-[11px] text-emerald-800 block">Aditivos Vigentes</span>
-            <span className="text-xl font-bold text-emerald-900">{vigentes} em execução</span>
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-emerald-800 block">
+              Aditivos Vigentes
+            </span>
+            <span className="text-xl font-bold font-mono text-emerald-900 tabular-nums">
+              {vigentes} em execução
+            </span>
           </div>
           <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
             <CheckCircle2 className="w-4 h-4" />
@@ -250,8 +259,12 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
 
         <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-3 flex items-center justify-between">
           <div>
-            <span className="text-[11px] text-amber-800 block">Aguardando Assinatura</span>
-            <span className="text-xl font-bold text-amber-900">{pendentes} pendente(s)</span>
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-amber-800 block">
+              Aguardando Assinatura
+            </span>
+            <span className="text-xl font-bold font-mono text-amber-900 tabular-nums">
+              {pendentes} pendente(s)
+            </span>
           </div>
           <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
             <Hourglass className="w-4 h-4" />
@@ -265,7 +278,9 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
           <CardContent className="p-10 text-center space-y-3">
             <FileSignature className="w-10 h-10 text-slate-300 mx-auto" />
             <div>
-              <h4 className="text-sm font-bold text-slate-800">Nenhum aditivo registrado</h4>
+              <h4 className="font-display text-base font-bold text-slate-800">
+                Nenhum aditivo registrado
+              </h4>
               <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
                 Formalize prorrogações de prazo ou reajustes periódicos sem sobrescrever os termos
                 iniciais do contrato.
@@ -391,11 +406,10 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {/* Bloco 1: Alteração Financeira & Valor-Hora */}
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs space-y-1.5">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3 text-indigo-600" />
-                        Condição Financeira & Valor-Hora
+                      <span className="font-display text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                        <DollarSign className="w-3 h-3 text-emerald-600" />
+                        Ajuste Financeiro
                       </span>
-
                       {novoValorMensal > 0 ? (
                         <>
                           <div className="flex items-baseline justify-between">
@@ -440,7 +454,7 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
 
                     {/* Bloco 2: Delta de Vigência */}
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs space-y-1.5">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <span className="font-display text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                         <Calendar className="w-3 h-3 text-purple-600" />
                         Prorrogação de Vigência
                       </span>
@@ -476,7 +490,7 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
                     {/* Bloco 3: Anexo e Auditoria */}
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs flex flex-col justify-between">
                       <div>
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
+                        <span className="font-display text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
                           <ShieldCheck className="w-3 h-3 text-emerald-600" />
                           Documento & Auditoria
                         </span>

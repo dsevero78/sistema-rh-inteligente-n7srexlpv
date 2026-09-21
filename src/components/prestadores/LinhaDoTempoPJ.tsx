@@ -223,14 +223,14 @@ export const LinhaDoTempoPJ: React.FC<LinhaDoTempoPJProps> = ({ prestador, onAtu
       <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white">
         <div className="flex items-center gap-2.5">
           <Activity className="w-5 h-5 text-emerald-600 stroke-[2.2]" />
-          <h3 className="text-lg font-bold text-slate-900 tracking-tight flex items-baseline gap-2 flex-wrap">
-            <span>Linha do tempo</span>
-            {prestador.area_atuacao && (
-              <span className="text-sm font-normal text-slate-500">
-                &middot; {prestador.area_atuacao}
+          <h3 className="font-display text-lg sm:text-xl font-bold text-slate-900 tracking-tight flex items-baseline gap-2 flex-wrap">
+            Linha do Tempo
+            {prestador.nome_fantasia && (
+              <span className="text-sm font-normal text-slate-500 font-sans">
+                &bull; {prestador.nome_fantasia}
               </span>
             )}
-          </h3>
+          </h3>{' '}
         </div>
 
         <div className="flex items-center gap-3">
@@ -439,10 +439,10 @@ export const LinhaDoTempoPJ: React.FC<LinhaDoTempoPJProps> = ({ prestador, onAtu
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-600" />
-              Novo Registro na Linha do Tempo
-            </DialogTitle>
+            <DialogTitle className="font-display text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Plus className="w-4 h-4 text-emerald-600" />
+              Novo Evento na Linha do Tempo
+            </DialogTitle>{' '}
           </DialogHeader>
 
           <form onSubmit={handleCriarEventoManual} className="space-y-4 pt-2">

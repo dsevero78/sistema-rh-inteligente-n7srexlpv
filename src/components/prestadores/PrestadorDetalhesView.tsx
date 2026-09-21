@@ -321,12 +321,12 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
 
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-slate-900">
+              <h2 className="font-display text-xl sm:text-2xl font-bold text-slate-900">
                 {prestador.nome_fantasia || prestador.razao_social}
               </h2>
               {statusBadge(prestador.status)}
             </div>
-            <p className="text-xs text-slate-500 font-mono">
+            <p className="text-xs text-slate-500 font-mono mt-0.5">
               CNPJ: {prestador.cnpj} &bull; {prestador.razao_social}
             </p>
           </div>
@@ -379,17 +379,19 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-blue-50/30">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium text-slate-500">Valor Mensal Atual</span>
+              <span className="font-display text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Valor Mensal Atual
+              </span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onEditar}
-                className="h-5 px-1.5 text-[10px] text-blue-600 hover:text-blue-800 p-0"
+                className="h-5 px-1.5 text-[10px] font-semibold text-blue-600 hover:text-blue-800 p-0"
               >
                 Configurar
               </Button>
             </div>
-            <div className="text-lg font-bold text-blue-700 mt-1">
+            <div className="text-lg font-bold font-mono text-blue-700 mt-1 tabular-nums">
               R$ {totalMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
             <span className="text-[10px] text-slate-400">
@@ -404,12 +406,14 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         <Card className="border-indigo-200 shadow-xs bg-gradient-to-br from-white to-indigo-50/40">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium text-indigo-700">Valor-Hora Calculado</span>
-              <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">
+              <span className="font-display text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                Valor-Hora Calculado
+              </span>
+              <span className="text-[9px] font-mono bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">
                 160h/mês
               </span>
             </div>
-            <div className="text-lg font-extrabold text-indigo-900 mt-1">
+            <div className="text-lg font-bold font-mono text-indigo-900 mt-1 tabular-nums">
               R$ {valorHoraGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               <span className="text-xs font-normal text-indigo-600">/h</span>
             </div>
@@ -423,10 +427,12 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-purple-50/20">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium text-slate-500">Aditivos Contratuais</span>
+              <span className="font-display text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Aditivos Contratuais
+              </span>
               <FileSignature className="w-4 h-4 text-purple-600" />
             </div>
-            <div className="text-lg font-bold text-purple-900 mt-1">
+            <div className="text-lg font-bold font-mono text-purple-900 mt-1 tabular-nums">
               {totalAditivos} formalizado(s)
             </div>
             <span className="text-[10px] text-purple-700">
@@ -438,15 +444,17 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         </Card>
         <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-slate-50/50">
           <CardContent className="p-4">
-            <span className="text-[11px] font-medium text-slate-500">Média de Desempenho</span>
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Média de Desempenho
+            </span>
             <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-lg font-bold text-purple-700">
+              <span className="text-lg font-bold font-mono text-purple-700 tabular-nums">
                 {prestador.media_avaliacao ? prestador.media_avaliacao.toFixed(1) : '—'}
               </span>
               <div className="flex text-purple-500">
                 <Star className="w-4 h-4 fill-purple-600 text-purple-600" />
               </div>
-              <span className="text-xs text-slate-400">/10</span>
+              <span className="text-xs text-slate-400 font-mono">/10</span>
             </div>
             <span className="text-[10px] text-slate-400">
               {avaliacoes.length} avaliação(ões) registrada(s)
@@ -456,9 +464,11 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
 
         <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-slate-50/50">
           <CardContent className="p-4">
-            <span className="text-[11px] font-medium text-slate-500">Documentos em Dia</span>
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Documentos em Dia
+            </span>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-lg font-bold text-slate-900">
+              <span className="text-lg font-bold font-mono text-slate-900 tabular-nums">
                 {
                   documentos.filter(
                     (d) => d.status_calculado === 'Válido' || d.status_calculado === 'Sem validade',
@@ -475,8 +485,10 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
 
         <Card className="border-slate-200 shadow-xs bg-gradient-to-br from-white to-slate-50/50">
           <CardContent className="p-4">
-            <span className="text-[11px] font-medium text-slate-500">NFs Pendentes</span>
-            <div className="text-lg font-bold text-amber-700 mt-1">
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              NFs Pendentes
+            </span>
+            <div className="text-lg font-bold font-mono text-amber-700 mt-1 tabular-nums">
               R$ {totalPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
             <span className="text-[10px] text-slate-400">
@@ -491,38 +503,38 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         <TabsList className="bg-slate-100 p-1 border border-slate-200/80 rounded-xl flex flex-wrap">
           <TabsTrigger
             value="timeline"
-            className="gap-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-800 shadow-2xs"
+            className="font-display gap-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-emerald-800 shadow-2xs"
           >
             <Activity className="w-3.5 h-3.5 text-emerald-600" />
             Linha do Tempo
           </TabsTrigger>
           <TabsTrigger
             value="jornada"
-            className="gap-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900 shadow-2xs"
+            className="font-display gap-2 text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900 shadow-2xs"
           >
             <GitCommit className="w-3.5 h-3.5 text-blue-600" />
             Lifecycle ({prestador.etapa_lifecycle || 'Jornada'})
           </TabsTrigger>
-          <TabsTrigger value="perfil" className="gap-2 text-xs">
+          <TabsTrigger value="perfil" className="font-display gap-2 text-xs font-bold">
             <Building2 className="w-3.5 h-3.5" />
             Perfil & Contratos ({contratos.length})
           </TabsTrigger>
           <TabsTrigger
             value="aditivos"
-            className="gap-2 text-xs font-semibold data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-900"
+            className="font-display gap-2 text-xs font-bold data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-900"
           >
             <FileSignature className="w-3.5 h-3.5 text-indigo-600" />
             Aditivos & Prazos ({aditivosLocais.length})
           </TabsTrigger>
-          <TabsTrigger value="documentos" className="gap-2 text-xs">
+          <TabsTrigger value="documentos" className="font-display gap-2 text-xs font-bold">
             <FileCheck className="w-3.5 h-3.5" />
             Documentos & Certidões ({documentos.length})
           </TabsTrigger>
-          <TabsTrigger value="notas" className="gap-2 text-xs">
+          <TabsTrigger value="notas" className="font-display gap-2 text-xs font-bold">
             <DollarSign className="w-3.5 h-3.5" />
             Notas Fiscais ({notasFiscais.length})
           </TabsTrigger>
-          <TabsTrigger value="avaliacoes" className="gap-2 text-xs">
+          <TabsTrigger value="avaliacoes" className="font-display gap-2 text-xs font-bold">
             <Star className="w-3.5 h-3.5" />
             Avaliações ({avaliacoes.length})
           </TabsTrigger>
@@ -541,11 +553,11 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         <TabsContent value="jornada" className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1">
             <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <h3 className="font-display text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
                 <GitCommit className="w-4 h-4 text-emerald-600" />
                 Jornada de Lifecycle do Prestador PJ
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Acompanhamento contínuo da Entrada à Saída com validação de CNPJ, contratos,
                 aprovação de notas fiscais, aditivos e encerramento.
               </p>
@@ -577,11 +589,11 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
           {/* Seção de Prazos e Semáforos de Cada Contrato */}
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <h3 className="font-display text-base font-bold text-slate-900 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-purple-600" />
                 Controle de Prazos & Semáforo de Vigência Contratual
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Prazos em tempo real com semáforo (Verde / Âmbar / Vermelho), dias restantes e
                 valor-hora com base 160h/mês.
               </p>
@@ -620,7 +632,7 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
             <Card className="md:col-span-2 border-slate-200 shadow-xs">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center justify-between border-b pb-3">
-                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <h3 className="font-display text-base font-bold text-slate-900 flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-blue-600" />
                     Ficha Cadastral da Empresa
                   </h3>
@@ -723,7 +735,7 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
             <Card className="border-slate-200 shadow-xs">
               <CardContent className="p-6 flex flex-col justify-between h-full space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-2">
+                  <h3 className="font-display text-base font-bold text-slate-900 flex items-center gap-2 mb-2">
                     <FileText className="w-4 h-4 text-blue-600" />
                     Contrato Social Arquivado
                   </h3>
@@ -778,10 +790,10 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">
+                <h3 className="font-display text-base sm:text-lg font-bold text-slate-900">
                   Contratos de Prestação de Serviços
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Histórico de contratos, vigências, valores e aditivos.
                 </p>
               </div>
@@ -834,7 +846,9 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
                               <div className="flex items-start justify-between gap-2">
                                 <div>
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <h4 className="text-sm font-bold text-slate-900">{c.titulo}</h4>
+                                    <h4 className="font-display text-sm sm:text-base font-bold text-slate-900">
+                                      {c.titulo}
+                                    </h4>
                                     <Badge
                                       variant={
                                         c.status === 'Vigente'
@@ -965,10 +979,10 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         <TabsContent value="documentos" className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 className="font-display text-base sm:text-lg font-bold text-slate-900">
                 Documentos e Certidões de Regularidade
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Monitoramento de CNDT, CRF/FGTS, certidões negativas e prazos de validade.
               </p>
             </div>
@@ -1092,8 +1106,10 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         <TabsContent value="notas" className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Notas Fiscais de Prestação</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className="font-display text-base sm:text-lg font-bold text-slate-900">
+                Notas Fiscais de Prestação
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
                 Acompanhe status de liquidação, prazos de vencimento e retenções.
               </p>
             </div>
@@ -1199,10 +1215,10 @@ export const PrestadorDetalhesView: React.FC<PrestadorDetalhesViewProps> = ({
         <TabsContent value="avaliacoes" className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 className="font-display text-base sm:text-lg font-bold text-slate-900">
                 Avaliações Trimestrais & Desempenho
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Métricas de qualidade, prazo, comunicação, alinhamento cultural e recomendação de
                 continuidade.
               </p>

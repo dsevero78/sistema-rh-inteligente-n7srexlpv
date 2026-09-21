@@ -232,7 +232,7 @@ export const ModalNovoPrestador: React.FC<ModalNovoPrestadorProps> = ({
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <DialogTitle className="text-lg font-bold text-slate-900">
+              <DialogTitle className="font-display text-lg font-bold text-slate-900">
                 {isEditing ? 'Editar Prestador de Serviços PJ' : 'Novo Prestador de Serviços PJ'}
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
@@ -246,7 +246,7 @@ export const ModalNovoPrestador: React.FC<ModalNovoPrestadorProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           {/* Seção 1: Identificação da Empresa */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5 border-b pb-1">
+            <h3 className="font-display text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5 border-b pb-1">
               <span>1. Identificação Empresarial</span>
             </h3>
 
@@ -335,7 +335,7 @@ export const ModalNovoPrestador: React.FC<ModalNovoPrestadorProps> = ({
 
           {/* Seção 2: Contato do Responsável */}
           <div className="space-y-3 pt-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 border-b pb-1">
+            <h3 className="font-display text-xs font-bold uppercase tracking-wider text-slate-600 border-b pb-1">
               2. Contato & Localização
             </h3>
 
@@ -397,7 +397,7 @@ export const ModalNovoPrestador: React.FC<ModalNovoPrestadorProps> = ({
 
           {/* Seção 3: Dados Bancários & Fiscais e Remuneração Mensal */}
           <div className="space-y-3 pt-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 border-b pb-1">
+            <h3 className="font-display text-xs font-bold uppercase tracking-wider text-slate-600 border-b pb-1">
               3. Dados Fiscais, Faturamento & Valor Mensal
             </h3>
 
@@ -528,10 +528,9 @@ export const ModalNovoPrestador: React.FC<ModalNovoPrestadorProps> = ({
 
           {/* Seção 4: Documento Anexo e Observações */}
           <div className="space-y-3 pt-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 border-b pb-1">
-              4. Anexo do Contrato Social & Observações
+            <h3 className="font-display text-xs font-bold uppercase tracking-wider text-slate-600 border-b pb-1">
+              4. Contrato Social & Observações
             </h3>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs font-semibold text-slate-700">
