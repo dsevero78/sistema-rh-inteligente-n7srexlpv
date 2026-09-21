@@ -50,6 +50,7 @@ import {
   type DadosFinanceirosConsolidados,
   type SinteseFinanceiraIA,
 } from '@/services/financeiroConsolidado'
+import { SecaoMetasOrcamento } from '@/components/financeiro/SecaoMetasOrcamento'
 
 const MESES = [
   { valor: 1, nome: 'Janeiro' },
@@ -140,6 +141,29 @@ export default function PainelFinanceiro() {
     if (!dados) return []
     const setDept = new Set(dados.vagasCruzamento.map((v) => v.departamento))
     return Array.from(setDept).filter(Boolean)
+  }, [dados])
+
+  const departamentosSugeridos = useMemo(() => {
+    const setDeptos = new Set<string>([
+      'Tecnologia',
+      'Marketing',
+      'Jurídico',
+      'Produto & Design',
+      'Gente & Gestão',
+      'Financeiro',
+      'Comercial',
+    ])
+    if (dados?.vagasCruzamento) {
+      dados.vagasCruzamento.forEach((v) => {
+        if (v.departamento) setDeptos.add(v.departamento)
+      })
+    }
+    if (dados?.metasDepartamentos) {
+      dados.metasDepartamentos.forEach((m) => {
+        if (m.departamento) setDeptos.add(m.departamento)
+      })
+    }
+    return Array.from(setDeptos)
   }, [dados])
 
   const formatarMoeda = (val: number) => {
@@ -438,6 +462,14 @@ export default function PainelFinanceiro() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 1.1 Metas de Orçamento por Departamento com Semáforo e Alertas */}
+      <SecaoMetasOrcamento
+        metas={dados?.metasDepartamentos || []}
+        horizonteMeses={horizonteProjecao}
+        departamentosSugeridos={departamentosSugeridos}
+        onAtualizar={carregarPainel}
+      />
 
       {/* 2. Projeção Mensal de Pagamentos (Gráfico de Barras / Área) */}
       <Card className="border-slate-200/80 shadow-xs">

@@ -350,7 +350,7 @@ cronAdd('monitorar_prestadores_pj_cron', '0 3 * * *', () => {
       const aditivos = $app.findRecordsByFilter(
         'aditivos_pj',
         "status = 'Pendente de assinatura'",
-        '-created',
+        '',
         200,
         0,
       )
@@ -552,6 +552,163 @@ cronAdd('monitorar_prestadores_pj_cron', '0 3 * * *', () => {
     } catch (errNfs) {
       console.log('Erro ao checar notas fiscais atrasadas:', errNfs)
     }
+
+    // 5. MONITORAR METAS DE ORÇAMENTO POR DEPARTAMENTO
+    try {
+      const metas = $app.findRecordsByFilter(
+        'metas_orcamento_departamento',
+        'ativo = true && limite_mensal > 0',
+        'departamento',
+        100,
+        0,
+      )
+
+      if (metas && metas.length > 0) {
+        const prestadores = $app.findRecordsByFilter(
+          'prestadores_pj',
+          "status = 'Ativo' || status = 'Em renovação'",
+          '',
+          100,
+          0,
+        )
+        const vagas = $app.findRecordsByFilter('vagas', '', '', 100, 0)
+        const ofertas = $app.findRecordsByFilter('ofertas', "status = 'Aceita'", '', 100, 0)
+        const onboardings = $app.findRecordsByFilter('onboardings', "status = 'Ativo'", '', 100, 0)
+
+        const mesAnoChave = agora.getMonth() + 1 + '_' + agora.getFullYear()
+
+        for (let m = 0; m < metas.length; m++) {
+          const meta = metas[m]
+          const depNome = meta.getString('departamento')
+          const limite = meta.getInt('limite_mensal')
+          if (!depNome || limite <= 0) continue
+
+          const depLower = depNome.toLowerCase()
+
+          // Prestadores vinculados ao depto
+          let custoPj = 0
+          for (let p = 0; p < prestadores.length; p++) {
+            const prest = prestadores[p]
+            const area = (prest.getString('area_atuacao') || '').toLowerCase()
+            let pertence = false
+            if (
+              depLower.includes('tecnologia') ||
+              depLower.includes('tech') ||
+              depLower.includes('ti')
+            ) {
+              pertence =
+                area.includes('software') || area.includes('cloud') || area.includes('devops')
+            } else if (depLower.includes('marketing') || depLower.includes('comunicação')) {
+              pertence =
+                area.includes('marketing') || area.includes('branding') || area.includes('mídia')
+            } else if (depLower.includes('produto') || depLower.includes('design')) {
+              pertence = area.includes('software') || area.includes('branding')
+            } else if (
+              depLower.includes('humano') ||
+              depLower.includes('rh') ||
+              depLower.includes('gente') ||
+              depLower.includes('jurídico') ||
+              depLower.includes('juridico')
+            ) {
+              pertence =
+                area.includes('jurídic') || area.includes('trabalhist') || area.includes('lgpd')
+            }
+            if (pertence) {
+              custoPj += prest.getInt('valor_mensal_atual') || 0
+            }
+          }
+
+          // Vagas do departamento (ofertas aceitas + onboardings)
+          let custoFolha = 0
+          for (let v = 0; v < vagas.length; v++) {
+            const vg = vagas[v]
+            if ((vg.getString('departamento') || '').toLowerCase() === depLower) {
+              const vagaId = vg.id
+              const of = ofertas.find((o) => o.getString('vaga') === vagaId)
+              const ob = onboardings.find((o) => o.getString('vaga') === vagaId)
+              if (of) {
+                custoFolha += of.getInt('salario_ofertado') || 0
+              } else if (ob) {
+                custoFolha += vg.getInt('orcamento_mensal') || 8500
+              }
+            }
+          }
+
+          const projecaoTotal = custoPj + custoFolha
+          const pct = Math.round((projecaoTotal / limite) * 100)
+
+          // Se ultrapassou 100% ou atingiu atenção >= 90%
+          if (pct >= 90) {
+            const isEstouro = pct > 100
+            const limiarChave = isEstouro ? 'estouro' : 'atencao'
+            const tipoAlerta = 'meta_orcamento_' + limiarChave
+
+            // Idempotência por departamento por mês por limiar:
+            // busca alertas criados no mesmo mês para este departamento
+            let jaNotificadoMes = false
+            try {
+              const criados = $app.findRecordsByFilter(
+                'alertas',
+                "tipo = '" + tipoAlerta + "'",
+                '-criado_em',
+                50,
+                0,
+              )
+              for (let k = 0; k < criados.length; k++) {
+                const recAl = criados[k]
+                const resumo = recAl.getString('resumo_ia') || ''
+                if (
+                  resumo.includes('[' + depNome + ']') &&
+                  resumo.includes('[' + mesAnoChave + ']')
+                ) {
+                  jaNotificadoMes = true
+                  break
+                }
+              }
+            } catch (_) {}
+
+            if (!jaNotificadoMes) {
+              const excesso = projecaoTotal - limite
+              const resumo = isEstouro
+                ? '[' +
+                  depNome +
+                  '] [' +
+                  mesAnoChave +
+                  '] Orçamento Departamental Estourado: Projeção de R$ ' +
+                  projecaoTotal.toLocaleString('pt-BR') +
+                  ' ultrapassou o teto mensal de R$ ' +
+                  limite.toLocaleString('pt-BR') +
+                  ' (' +
+                  pct +
+                  '%, excesso de R$ ' +
+                  excesso.toLocaleString('pt-BR') +
+                  ').'
+                : '[' +
+                  depNome +
+                  '] [' +
+                  mesAnoChave +
+                  '] Alerta de Atenção Orçamentária: Projeção de R$ ' +
+                  projecaoTotal.toLocaleString('pt-BR') +
+                  ' atingiu ' +
+                  pct +
+                  '% do limite mensal de R$ ' +
+                  limite.toLocaleString('pt-BR') +
+                  '.'
+
+              const alMeta = new Record(alertasCol)
+              alMeta.set('score', isEstouro ? 98 : 88)
+              alMeta.set('tipo', tipoAlerta)
+              alMeta.set('status', 'Novo')
+              alMeta.set('resumo_ia', resumo)
+              alMeta.set('criado_em', agoraIso)
+              $app.save(alMeta)
+            }
+          }
+        }
+      }
+    } catch (errMetas) {
+      console.log('Erro ao checar metas de orçamento por departamento no cron:', errMetas)
+    }
   } catch (errGlobal) {
     console.log('Erro geral no cron monitorar_prestadores_pj_cron:', errGlobal)
   }
@@ -739,7 +896,7 @@ routerAdd(
         const aditivos = $app.findRecordsByFilter(
           'aditivos_pj',
           "status = 'Pendente de assinatura'",
-          '-created',
+          '',
           200,
           0,
         )
@@ -857,13 +1014,357 @@ routerAdd(
         }
       }
 
+      // 5. Metas de Orçamento por Departamento
+      try {
+        const metas = $app.findRecordsByFilter(
+          'metas_orcamento_departamento',
+          'ativo = true && limite_mensal > 0',
+          'departamento',
+          100,
+          0,
+        )
+
+        if (metas && metas.length > 0) {
+          const prestadores = $app.findRecordsByFilter(
+            'prestadores_pj',
+            "status = 'Ativo' || status = 'Em renovação'",
+            '',
+            100,
+            0,
+          )
+          const vagas = $app.findRecordsByFilter('vagas', '', '', 100, 0)
+          const ofertas = $app.findRecordsByFilter('ofertas', "status = 'Aceita'", '', 100, 0)
+          const onboardings = $app.findRecordsByFilter(
+            'onboardings',
+            "status = 'Ativo'",
+            '',
+            100,
+            0,
+          )
+
+          const mesAnoChave = agora.getMonth() + 1 + '_' + agora.getFullYear()
+
+          for (let m = 0; m < metas.length; m++) {
+            const meta = metas[m]
+            const depNome = meta.getString('departamento')
+            const limite = meta.getInt('limite_mensal')
+            if (!depNome || limite <= 0) continue
+
+            const depLower = depNome.toLowerCase()
+
+            let custoPj = 0
+            for (let p = 0; p < prestadores.length; p++) {
+              const prest = prestadores[p]
+              const area = (prest.getString('area_atuacao') || '').toLowerCase()
+              let pertence = false
+              if (
+                depLower.includes('tecnologia') ||
+                depLower.includes('tech') ||
+                depLower.includes('ti')
+              ) {
+                pertence =
+                  area.includes('software') || area.includes('cloud') || area.includes('devops')
+              } else if (depLower.includes('marketing') || depLower.includes('comunicação')) {
+                pertence =
+                  area.includes('marketing') || area.includes('branding') || area.includes('mídia')
+              } else if (depLower.includes('produto') || depLower.includes('design')) {
+                pertence = area.includes('software') || area.includes('branding')
+              } else if (
+                depLower.includes('humano') ||
+                depLower.includes('rh') ||
+                depLower.includes('gente') ||
+                depLower.includes('jurídico') ||
+                depLower.includes('juridico')
+              ) {
+                pertence =
+                  area.includes('jurídic') || area.includes('trabalhist') || area.includes('lgpd')
+              }
+              if (pertence) {
+                custoPj += prest.getInt('valor_mensal_atual') || 0
+              }
+            }
+
+            let custoFolha = 0
+            for (let v = 0; v < vagas.length; v++) {
+              const vg = vagas[v]
+              if ((vg.getString('departamento') || '').toLowerCase() === depLower) {
+                const vagaId = vg.id
+                const of = ofertas.find((o) => o.getString('vaga') === vagaId)
+                const ob = onboardings.find((o) => o.getString('vaga') === vagaId)
+                if (of) {
+                  custoFolha += of.getInt('salario_ofertado') || 0
+                } else if (ob) {
+                  custoFolha += vg.getInt('orcamento_mensal') || 8500
+                }
+              }
+            }
+
+            const projecaoTotal = custoPj + custoFolha
+            const pct = Math.round((projecaoTotal / limite) * 100)
+
+            if (pct >= 90) {
+              const isEstouro = pct > 100
+              const limiarChave = isEstouro ? 'estouro' : 'atencao'
+              const tipoAlerta = 'meta_orcamento_' + limiarChave
+
+              let jaNotificadoMes = false
+              try {
+                const criados = $app.findRecordsByFilter(
+                  'alertas',
+                  "tipo = '" + tipoAlerta + "'",
+                  '-criado_em',
+                  50,
+                  0,
+                )
+                for (let k = 0; k < criados.length; k++) {
+                  const recAl = criados[k]
+                  const resumo = recAl.getString('resumo_ia') || ''
+                  if (
+                    resumo.includes('[' + depNome + ']') &&
+                    resumo.includes('[' + mesAnoChave + ']')
+                  ) {
+                    jaNotificadoMes = true
+                    break
+                  }
+                }
+              } catch (_) {}
+
+              if (!jaNotificadoMes) {
+                const excesso = projecaoTotal - limite
+                const resumo = isEstouro
+                  ? '[' +
+                    depNome +
+                    '] [' +
+                    mesAnoChave +
+                    '] Orçamento Departamental Estourado: Projeção de R$ ' +
+                    projecaoTotal.toLocaleString('pt-BR') +
+                    ' ultrapassou o teto mensal de R$ ' +
+                    limite.toLocaleString('pt-BR') +
+                    ' (' +
+                    pct +
+                    '%, excesso de R$ ' +
+                    excesso.toLocaleString('pt-BR') +
+                    ').'
+                  : '[' +
+                    depNome +
+                    '] [' +
+                    mesAnoChave +
+                    '] Alerta de Atenção Orçamentária: Projeção de R$ ' +
+                    projecaoTotal.toLocaleString('pt-BR') +
+                    ' atingiu ' +
+                    pct +
+                    '% do limite mensal de R$ ' +
+                    limite.toLocaleString('pt-BR') +
+                    '.'
+
+                const alMeta = new Record(alertasCol)
+                alMeta.set('score', isEstouro ? 98 : 88)
+                alMeta.set('tipo', tipoAlerta)
+                alMeta.set('status', 'Novo')
+                alMeta.set('resumo_ia', resumo)
+                alMeta.set('criado_em', agoraIso)
+                $app.save(alMeta)
+                alertasGerados++
+              }
+            }
+          }
+        }
+      } catch (errMetasVar) {
+        console.log('Erro ao checar metas na varredura:', errMetasVar)
+      }
+
       return e.json(200, {
         success: true,
         alertas_gerados: alertasGerados,
-        mensagem: 'Varredura de prestadores PJ concluída com sucesso.',
+        mensagem: 'Varredura de prestadores PJ e metas concluída com sucesso.',
       })
     } catch (err) {
       return e.json(500, { error: err.message || 'Erro ao executar varredura PJ' })
+    }
+  },
+  $apis.requireAuth(),
+)
+
+// Endpoint dedicado para checagem imediata de metas disparada pela tela de Financeiro
+routerAdd(
+  'POST',
+  '/backend/v1/financeiro/metas/checar-alertas',
+  (e) => {
+    try {
+      const authUser = e.auth
+      if (!authUser || !authUser.id) {
+        return e.json(401, { error: 'Autenticação necessária' })
+      }
+
+      const agora = new Date()
+      const agoraIso = agora.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
+      const alertasCol = $app.findCollectionByNameOrId('alertas')
+      const mesAnoChave = agora.getMonth() + 1 + '_' + agora.getFullYear()
+
+      let alertasGerados = 0
+      const departamentosEstourados = []
+      const departamentosAtencao = []
+
+      const metas = $app.findRecordsByFilter(
+        'metas_orcamento_departamento',
+        'ativo = true && limite_mensal > 0',
+        'departamento',
+        100,
+        0,
+      )
+
+      if (metas && metas.length > 0) {
+        const prestadores = $app.findRecordsByFilter(
+          'prestadores_pj',
+          "status = 'Ativo' || status = 'Em renovação'",
+          '',
+          100,
+          0,
+        )
+        const vagas = $app.findRecordsByFilter('vagas', '', '', 100, 0)
+        const ofertas = $app.findRecordsByFilter('ofertas', "status = 'Aceita'", '', 100, 0)
+        const onboardings = $app.findRecordsByFilter('onboardings', "status = 'Ativo'", '', 100, 0)
+
+        for (let m = 0; m < metas.length; m++) {
+          const meta = metas[m]
+          const depNome = meta.getString('departamento')
+          const limite = meta.getInt('limite_mensal')
+          if (!depNome || limite <= 0) continue
+
+          const depLower = depNome.toLowerCase()
+
+          let custoPj = 0
+          for (let p = 0; p < prestadores.length; p++) {
+            const prest = prestadores[p]
+            const area = (prest.getString('area_atuacao') || '').toLowerCase()
+            let pertence = false
+            if (
+              depLower.includes('tecnologia') ||
+              depLower.includes('tech') ||
+              depLower.includes('ti')
+            ) {
+              pertence =
+                area.includes('software') || area.includes('cloud') || area.includes('devops')
+            } else if (depLower.includes('marketing') || depLower.includes('comunicação')) {
+              pertence =
+                area.includes('marketing') || area.includes('branding') || area.includes('mídia')
+            } else if (depLower.includes('produto') || depLower.includes('design')) {
+              pertence = area.includes('software') || area.includes('branding')
+            } else if (
+              depLower.includes('humano') ||
+              depLower.includes('rh') ||
+              depLower.includes('gente') ||
+              depLower.includes('jurídico') ||
+              depLower.includes('juridico')
+            ) {
+              pertence =
+                area.includes('jurídic') || area.includes('trabalhist') || area.includes('lgpd')
+            }
+            if (pertence) {
+              custoPj += prest.getInt('valor_mensal_atual') || 0
+            }
+          }
+
+          let custoFolha = 0
+          for (let v = 0; v < vagas.length; v++) {
+            const vg = vagas[v]
+            if ((vg.getString('departamento') || '').toLowerCase() === depLower) {
+              const vagaId = vg.id
+              const of = ofertas.find((o) => o.getString('vaga') === vagaId)
+              const ob = onboardings.find((o) => o.getString('vaga') === vagaId)
+              if (of) {
+                custoFolha += of.getInt('salario_ofertado') || 0
+              } else if (ob) {
+                custoFolha += vg.getInt('orcamento_mensal') || 8500
+              }
+            }
+          }
+
+          const projecaoTotal = custoPj + custoFolha
+          const pct = Math.round((projecaoTotal / limite) * 100)
+
+          if (pct > 100) {
+            departamentosEstourados.push(depNome)
+          } else if (pct >= 90) {
+            departamentosAtencao.push(depNome)
+          }
+
+          if (pct >= 90) {
+            const isEstouro = pct > 100
+            const limiarChave = isEstouro ? 'estouro' : 'atencao'
+            const tipoAlerta = 'meta_orcamento_' + limiarChave
+
+            let jaNotificadoMes = false
+            try {
+              const criados = $app.findRecordsByFilter(
+                'alertas',
+                "tipo = '" + tipoAlerta + "'",
+                '-criado_em',
+                50,
+                0,
+              )
+              for (let k = 0; k < criados.length; k++) {
+                const recAl = criados[k]
+                const resumo = recAl.getString('resumo_ia') || ''
+                if (
+                  resumo.includes('[' + depNome + ']') &&
+                  resumo.includes('[' + mesAnoChave + ']')
+                ) {
+                  jaNotificadoMes = true
+                  break
+                }
+              }
+            } catch (_) {}
+
+            if (!jaNotificadoMes) {
+              const excesso = projecaoTotal - limite
+              const resumo = isEstouro
+                ? '[' +
+                  depNome +
+                  '] [' +
+                  mesAnoChave +
+                  '] Orçamento Departamental Estourado: Projeção de R$ ' +
+                  projecaoTotal.toLocaleString('pt-BR') +
+                  ' ultrapassou o teto mensal de R$ ' +
+                  limite.toLocaleString('pt-BR') +
+                  ' (' +
+                  pct +
+                  '%, excesso de R$ ' +
+                  excesso.toLocaleString('pt-BR') +
+                  ').'
+                : '[' +
+                  depNome +
+                  '] [' +
+                  mesAnoChave +
+                  '] Alerta de Atenção Orçamentária: Projeção de R$ ' +
+                  projecaoTotal.toLocaleString('pt-BR') +
+                  ' atingiu ' +
+                  pct +
+                  '% do limite mensal de R$ ' +
+                  limite.toLocaleString('pt-BR') +
+                  '.'
+
+              const alMeta = new Record(alertasCol)
+              alMeta.set('score', isEstouro ? 98 : 88)
+              alMeta.set('tipo', tipoAlerta)
+              alMeta.set('status', 'Novo')
+              alMeta.set('resumo_ia', resumo)
+              alMeta.set('criado_em', agoraIso)
+              $app.save(alMeta)
+              alertasGerados++
+            }
+          }
+        }
+      }
+
+      return e.json(200, {
+        success: true,
+        alertas_gerados: alertasGerados,
+        departamentos_estourados: departamentosEstourados,
+        departamentos_atencao: departamentosAtencao,
+      })
+    } catch (err) {
+      return e.json(500, { error: err.message || 'Erro ao checar alertas de metas' })
     }
   },
   $apis.requireAuth(),

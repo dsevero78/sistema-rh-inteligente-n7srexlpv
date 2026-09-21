@@ -504,10 +504,13 @@ export default function Layout() {
                       const isNovo = al.status === 'Novo'
                       const isAprovVaga = al.tipo === 'aprovacao_vaga_gestor'
                       const isParecerGestor = al.tipo === 'parecer_gestor_candidato'
+                      const isAlertaMeta = al.tipo && al.tipo.startsWith('meta_orcamento_')
                       const isAlertaPj = al.tipo && al.tipo.includes('pj')
 
                       const handleClickNotif = () => {
-                        if (isAlertaPj) {
+                        if (isAlertaMeta) {
+                          navigate('/financeiro')
+                        } else if (isAlertaPj) {
                           navigate('/prestadores-pj')
                         } else if (isAprovVaga && vaga) {
                           navigate(`/vagas/${vaga.id}`)
@@ -531,7 +534,24 @@ export default function Layout() {
                               {isNovo && (
                                 <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
                               )}
-                              {isAprovVaga ? (
+                              {isAlertaMeta ? (
+                                <>
+                                  <span
+                                    className={`text-[10px] uppercase font-bold px-1.5 py-0.2 rounded border ${
+                                      al.tipo === 'meta_orcamento_estouro'
+                                        ? 'bg-red-100 text-red-800 border-red-300'
+                                        : 'bg-amber-100 text-amber-800 border-amber-300'
+                                    }`}
+                                  >
+                                    {al.tipo === 'meta_orcamento_estouro'
+                                      ? 'Meta Estourada'
+                                      : 'Atenção Orçamento'}
+                                  </span>
+                                  <span className="text-xs font-bold text-slate-900 truncate">
+                                    Painel Financeiro
+                                  </span>
+                                </>
+                              ) : isAprovVaga ? (
                                 <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
                                   Vaga Validada
                                 </span>
@@ -540,7 +560,7 @@ export default function Layout() {
                                   Parecer do Gestor
                                 </span>
                               ) : null}
-                              {isAlertaPj ? (
+                              {!isAlertaMeta && isAlertaPj ? (
                                 <>
                                   <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
                                     Prestador PJ
@@ -553,7 +573,7 @@ export default function Layout() {
                                 <span className="text-xs font-bold text-slate-900 truncate">
                                   {vaga?.titulo || 'Vaga sob Gestão'}
                                 </span>
-                              ) : (
+                              ) : !isAlertaMeta ? (
                                 <>
                                   <span className="font-bold text-xs text-slate-900 truncate">
                                     {cand?.nome || 'Talento'}
@@ -563,7 +583,7 @@ export default function Layout() {
                                     {vaga?.titulo || 'Vaga'}
                                   </span>
                                 </>
-                              )}{' '}
+                              ) : null}{' '}
                             </div>
 
                             {/* Score Ring / Badge */}

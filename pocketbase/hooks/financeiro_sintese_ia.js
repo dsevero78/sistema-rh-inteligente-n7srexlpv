@@ -16,37 +16,77 @@ routerAdd(
       const vagasCruzamento = body.vagas_cruzamento || []
       const prestadores = body.prestadores || []
       const alertasNfs = body.alertas_nfs || []
+      const metasDept = body.metas_departamentos || []
+
+      // Compactar a série completa de projeção (suporta 3, 6 e 12 meses sem estourar tokens)
+      const projecaoResumida = (projecao || []).map((p) => ({
+        mes_ano: p.rotulo || p.chave,
+        prestacao_pj: p.prestracaoPjRecorrente || 0,
+        nfs_previstas: p.nfsPrevistas || 0,
+        folha_clt: p.folhaContratacoes || 0,
+        total: p.totalGeral || 0,
+      }))
+
+      // Compactar vagas
+      const vagasResumidas = (vagasCruzamento || []).map((v) => ({
+        vaga: v.titulo,
+        departamento: v.departamento,
+        orcamento: v.orcamentoMensal,
+        status: v.status,
+        custo_atual: v.custoAtualContratacao,
+        pj_depto: v.custoPjDepartamento,
+      }))
+
+      // Compactar prestadores
+      const prestadoresResumidos = (prestadores || []).map((p) => ({
+        nome: p.nomeFantasia || p.razaoSocial,
+        area: p.areaAtuacao,
+        valor_mensal: p.valorMensal,
+        pago: p.totalPago,
+        aberto: p.totalEmAberto,
+        atrasado: p.totalAtrasado,
+      }))
+
+      const horizonteMesesCount = projecaoResumida.length
 
       const prompt =
         'Você é o Head Executivo Financeiro e de People Analytics de Gente & Gestão da empresa. ' +
         'Gere uma síntese executiva estratégica em português (pt-BR) para a Diretoria Executiva e RH, ' +
-        'analisando o Painel Financeiro Consolidado com projeção de pagamentos PJ e folha de novas contratações ' +
-        'cruzada com o orçamento das vagas para a competência ' +
+        'analisando o Painel Financeiro Consolidado com projeção completa de desembolsos para o horizonte de ' +
+        horizonteMesesCount +
+        ' meses, pagamentos PJ, folha de novas contratações, metas de orçamento departamentais e orçamento das vagas para a competência ' +
         mes +
         '/' +
         ano +
         '.\n\n' +
-        '1. KPIs do Período:\n' +
+        '1. KPIs do Período Atual:\n' +
         JSON.stringify(kpis, null, 2) +
         '\n\n' +
-        '2. Projeção Mensal Consolidada (Próximos Meses):\n' +
-        JSON.stringify(projecao.slice(0, 6), null, 2) +
+        '2. Série Completa de Projeção Mensal (' +
+        horizonteMesesCount +
+        ' meses):\n' +
+        JSON.stringify(projecaoResumida, null, 2) +
         '\n\n' +
         '3. Cruzamento com Orçamento das Vagas e Headcount:\n' +
-        JSON.stringify(vagasCruzamento.slice(0, 6), null, 2) +
+        JSON.stringify(vagasResumidas, null, 2) +
         '\n\n' +
         '4. Prestadores PJ Contratados e Desempenho:\n' +
-        JSON.stringify(prestadores.slice(0, 5), null, 2) +
+        JSON.stringify(prestadoresResumidos, null, 2) +
         '\n\n' +
-        '5. Alertas Financeiros e Notas Fiscais Críticas:\n' +
+        '5. Metas Orçamentárias por Departamento e Aderência:\n' +
+        JSON.stringify(metasDept, null, 2) +
+        '\n\n' +
+        '6. Alertas Financeiros e Notas Fiscais Críticas:\n' +
         JSON.stringify(alertasNfs, null, 2) +
         '\n\n' +
         'Sua resposta deve ser EXCLUSIVAMENTE um objeto JSON válido, sem texto introdutório e sem blocos markdown ```json ou ```:\n' +
         '{\n' +
         '  "resumo_executivo": "Parágrafo executivo conciso sobre a posição financeira consolidada do mês, comprometimento com PJ e contratações em relação ao orçamento corporativo...",\n' +
-        '  "alertas_criticos": ["Alerta 1 (ex: NFs atrasadas ou em conferência, contratos a vencer, aditivos com impacto orçamentário)...", "Alerta 2...", "Alerta 3..."],\n' +
+        '  "alertas_criticos": ["Alerta 1 (ex: NFs atrasadas ou em conferência, contratos a vencer, estouros de metas de departamentos)...", "Alerta 2...", "Alerta 3..."],\n' +
         '  "analise_orcamento_vagas": "Análise sobre aderência orçamentária das vagas abertas vs preenchidas e a relação CLT vs Prestador PJ por área...",\n' +
-        '  "projecao_trimestral": "Diagnóstico do fluxo de caixa e compromissos para os próximos 3 a 6 meses...",\n' +
+        '  "projecao_trimestral": "Diagnóstico do fluxo de caixa e compromissos para o horizonte selecionado (' +
+        horizonteMesesCount +
+        ' meses)...",\n' +
         '  "recomendacoes_estrategicas": ["Recomendação 1...", "Recomendação 2...", "Recomendação 3..."]\n' +
         '}'
 

@@ -83,6 +83,23 @@ export interface SinteseFinanceiraIA {
   recomendacoes_estrategicas: string[]
 }
 
+export interface MetaDepartamentoConsolidada {
+  id?: string
+  departamento: string
+  limiteMensal: number
+  ativo: boolean
+  gastoAtualMes: number
+  projecaoMediaMensal: number
+  percentualUsoAtual: number
+  percentualUsoProjecao: number
+  status: 'dentro' | 'atencao' | 'estourado'
+  custoPj: number
+  custoNfs: number
+  custoFolha: number
+  prestadoresAssociados: Array<{ nome: string; valor: number }>
+  vagasAssociadas: Array<{ titulo: string; custo: number; status: string }>
+}
+
 export interface DadosFinanceirosConsolidados {
   mesSelecionado: number
   anoSelecionado: number
@@ -91,6 +108,7 @@ export interface DadosFinanceirosConsolidados {
   serieProjecao: MesProjecao[]
   vagasCruzamento: VagaCruzamentoFinanceiro[]
   prestadoresRanqueados: PrestadorRanqueado[]
+  metasDepartamentos: MetaDepartamentoConsolidada[]
   alertasFinanceiros: AlertaFinanceiroItem[]
   totaisRodapePrestadores: {
     totalMensal: number
@@ -139,41 +157,54 @@ export async function carregarDadosFinanceiros(
   ano: number,
   horizonteMeses: number = 6,
 ): Promise<DadosFinanceirosConsolidados> {
-  const [prestadores, contratos, notasFiscais, aditivos, vagas, ofertas, onboardings, avaliacoes] =
-    await Promise.all([
-      pb
-        .collection('prestadores_pj')
-        .getFullList({ sort: '-created' })
-        .catch(() => [] as RecordModel[]),
-      pb
-        .collection('contratos_pj')
-        .getFullList({ sort: '-created', expand: 'prestador,gestor_responsavel' })
-        .catch(() => [] as RecordModel[]),
-      pb
-        .collection('notas_fiscais_pj')
-        .getFullList({ sort: '-data_vencimento', expand: 'prestador,contrato' })
-        .catch(() => [] as RecordModel[]),
-      pb
-        .collection('aditivos_pj')
-        .getFullList({ sort: '-created', expand: 'prestador,contrato' })
-        .catch(() => [] as RecordModel[]),
-      pb
-        .collection('vagas')
-        .getFullList({ sort: '-created', expand: 'gestor_responsavel' })
-        .catch(() => [] as RecordModel[]),
-      pb
-        .collection('ofertas')
-        .getFullList({ sort: '-created', expand: 'candidato,vaga' })
-        .catch(() => [] as RecordModel[]),
-      pb
-        .collection('onboardings')
-        .getFullList({ sort: '-created', expand: 'candidato,vaga' })
-        .catch(() => [] as RecordModel[]),
-      pb
-        .collection('avaliacoes_prestador_pj')
-        .getFullList({ sort: '-created', expand: 'prestador' })
-        .catch(() => [] as RecordModel[]),
-    ])
+  const [
+    prestadores,
+    contratos,
+    notasFiscais,
+    aditivos,
+    vagas,
+    ofertas,
+    onboardings,
+    avaliacoes,
+    metasCadastradas,
+  ] = await Promise.all([
+    pb
+      .collection('prestadores_pj')
+      .getFullList({ sort: '-created' })
+      .catch(() => [] as RecordModel[]),
+    pb
+      .collection('contratos_pj')
+      .getFullList({ sort: '-created', expand: 'prestador,gestor_responsavel' })
+      .catch(() => [] as RecordModel[]),
+    pb
+      .collection('notas_fiscais_pj')
+      .getFullList({ sort: '-data_vencimento', expand: 'prestador,contrato' })
+      .catch(() => [] as RecordModel[]),
+    pb
+      .collection('aditivos_pj')
+      .getFullList({ sort: '-created', expand: 'prestador,contrato' })
+      .catch(() => [] as RecordModel[]),
+    pb
+      .collection('vagas')
+      .getFullList({ sort: '-created', expand: 'gestor_responsavel' })
+      .catch(() => [] as RecordModel[]),
+    pb
+      .collection('ofertas')
+      .getFullList({ sort: '-created', expand: 'candidato,vaga' })
+      .catch(() => [] as RecordModel[]),
+    pb
+      .collection('onboardings')
+      .getFullList({ sort: '-created', expand: 'candidato,vaga' })
+      .catch(() => [] as RecordModel[]),
+    pb
+      .collection('avaliacoes_prestador_pj')
+      .getFullList({ sort: '-created', expand: 'prestador' })
+      .catch(() => [] as RecordModel[]),
+    pb
+      .collection('metas_orcamento_departamento')
+      .getFullList({ sort: 'departamento' })
+      .catch(() => [] as RecordModel[]),
+  ])
 
   const compStringMesAtual = `${String(mes).padStart(2, '0')}/${ano}`
 
@@ -469,6 +500,189 @@ export async function carregarDadosFinanceiros(
     }
   })
 
+  // 5.1 Cálculo de Metas de Orçamento por Departamento
+  // Reutiliza a associação departamental (PJ + NFs + Folha de contratações)
+  const departamentosMapeados = new Set<string>()
+  metasCadastradas.forEach((m) => {
+    if (m.departamento) departamentosMapeados.add(m.departamento)
+  })
+  vagas.forEach((v) => {
+    if (v.departamento) departamentosMapeados.add(v.departamento)
+  })
+
+  const metasDepartamentos: MetaDepartamentoConsolidada[] = Array.from(departamentosMapeados)
+    .filter(Boolean)
+    .map((depNome) => {
+      const metaCadastrada = metasCadastradas.find(
+        (m) => (m.departamento || '').toLowerCase() === depNome.toLowerCase(),
+      )
+      const limiteMensal = metaCadastrada ? Number(metaCadastrada.limite_mensal) || 0 : 0
+      const ativo = metaCadastrada ? metaCadastrada.ativo !== false : false
+
+      // 1. Prestadores PJ do departamento
+      const prestadoresDoDepto = prestadoresAtivos.filter((p) => {
+        const area = (p.area_atuacao || '').toLowerCase()
+        const depLower = depNome.toLowerCase()
+        if (
+          depLower.includes('tecnologia') ||
+          depLower.includes('tech') ||
+          depLower.includes('ti')
+        ) {
+          return area.includes('software') || area.includes('cloud') || area.includes('devops')
+        }
+        if (depLower.includes('marketing') || depLower.includes('comunicação')) {
+          return area.includes('marketing') || area.includes('branding') || area.includes('mídia')
+        }
+        if (depLower.includes('produto') || depLower.includes('design')) {
+          return area.includes('software') || area.includes('branding')
+        }
+        if (
+          depLower.includes('humano') ||
+          depLower.includes('rh') ||
+          depLower.includes('gente') ||
+          depLower.includes('jurídico') ||
+          depLower.includes('juridico')
+        ) {
+          return area.includes('jurídic') || area.includes('trabalhist') || area.includes('lgpd')
+        }
+        return false
+      })
+
+      const custoPj = prestadoresDoDepto.reduce(
+        (acc, p) => acc + (Number(p.valor_mensal_atual) || 0),
+        0,
+      )
+
+      // 2. NFs do departamento no mês atual (se houver NF avulsa ou específica)
+      const idsPrestadores = new Set(prestadoresDoDepto.map((p) => p.id))
+      let custoNfsMesAtual = 0
+      notasFiscais.forEach((nf) => {
+        if (nf.competencia === compStringMesAtual && idsPrestadores.has(nf.prestador)) {
+          custoNfsMesAtual += Number(nf.valor) || 0
+        }
+      })
+
+      // 3. Vagas e Folha de novas contratações do departamento
+      const vagasDoDepto = vagasCruzamento.filter(
+        (v) => (v.departamento || '').toLowerCase() === depNome.toLowerCase(),
+      )
+      const custoFolha = vagasDoDepto.reduce(
+        (acc, v) => acc + (Number(v.custoAtualContratacao) || 0),
+        0,
+      )
+
+      // Gasto atual do mês corrente
+      // Se tiver NFs que cobrem o PJ, equilibra conforme regra global
+      let gastoPjBase = custoPj
+      if (custoNfsMesAtual >= custoPj * 0.7 && custoNfsMesAtual > 0) {
+        gastoPjBase = custoNfsMesAtual
+      }
+      const gastoAtualMes = gastoPjBase + custoFolha
+
+      // 4. Projeção média mensal no horizonte selecionado (3, 6 ou 12 meses)
+      // Simula a evolução departamental ao longo do horizonte
+      let somaProjecaoHorizonte = 0
+      for (let s = 0; s < horizonteMeses; s++) {
+        // PJ com aditivos futuros se aplicável
+        let pjMes = custoPj
+        prestadoresDoDepto.forEach((p) => {
+          const aditivo = aditivos.find(
+            (ad) =>
+              ad.prestador === p.id &&
+              (ad.status === 'Vigente' || ad.status === 'Pendente de assinatura') &&
+              Number(ad.novo_valor_mensal) > 0,
+          )
+          if (aditivo && s >= 2) {
+            pjMes += Number(aditivo.novo_valor_mensal) - (Number(p.valor_mensal_atual) || 0)
+          }
+        })
+
+        // Rampa suave de preenchimento para vagas ativas da área
+        const vagasAbertasArea = vagasDoDepto.filter((v) => v.status === 'Ativa').length
+        let folhaMesArea = custoFolha
+        if (s > 1 && vagasAbertasArea > 0) {
+          folhaMesArea += Math.round(vagasAbertasArea * 3000 * Math.min(s, 3))
+        }
+
+        somaProjecaoHorizonte += pjMes + folhaMesArea
+      }
+
+      const projecaoMediaMensal =
+        horizonteMeses > 0 ? Math.round(somaProjecaoHorizonte / horizonteMeses) : gastoAtualMes
+
+      // Percentuais de uso
+      const percentualUsoAtual =
+        limiteMensal > 0 ? Math.round((gastoAtualMes / limiteMensal) * 100) : 0
+      const percentualUsoProjecao =
+        limiteMensal > 0 ? Math.round((projecaoMediaMensal / limiteMensal) * 100) : 0
+
+      // Status do semáforo baseado na projeção (ou no gasto atual se maior)
+      const usoReferencia = Math.max(percentualUsoAtual, percentualUsoProjecao)
+      let status: 'dentro' | 'atencao' | 'estourado' = 'dentro'
+      if (usoReferencia > 100) {
+        status = 'estourado'
+      } else if (usoReferencia >= 90) {
+        status = 'atencao'
+      } else {
+        status = 'dentro'
+      }
+
+      // Adicionar alerta na lista de alertas financeiros se estourado
+      if (ativo && limiteMensal > 0) {
+        if (status === 'estourado') {
+          const excesso = Math.max(gastoAtualMes, projecaoMediaMensal) - limiteMensal
+          alertasFinanceiros.push({
+            id: `alerta-meta-${depNome.toLowerCase()}`,
+            tipo: 'vencimento', // padrão compatível
+            titulo: `Orçamento Estourado: Departamento ${depNome}`,
+            detalhe: `Projeção mensal de R$ ${projecaoMediaMensal.toLocaleString('pt-BR')} excede o limite estabelecido de R$ ${limiteMensal.toLocaleString('pt-BR')} (+R$ ${excesso.toLocaleString('pt-BR')}, ${percentualUsoProjecao}%).`,
+            valor: excesso,
+            grau: 'critico',
+          })
+        } else if (status === 'atencao') {
+          alertasFinanceiros.push({
+            id: `alerta-meta-atencao-${depNome.toLowerCase()}`,
+            tipo: 'vencimento',
+            titulo: `Orçamento em Atenção: Departamento ${depNome}`,
+            detalhe: `Projeção mensal de R$ ${projecaoMediaMensal.toLocaleString('pt-BR')} atingiu ${percentualUsoProjecao}% do limite de R$ ${limiteMensal.toLocaleString('pt-BR')}.`,
+            valor: projecaoMediaMensal,
+            grau: 'atencao',
+          })
+        }
+      }
+
+      return {
+        id: metaCadastrada?.id,
+        departamento: depNome,
+        limiteMensal,
+        ativo,
+        gastoAtualMes,
+        projecaoMediaMensal,
+        percentualUsoAtual,
+        percentualUsoProjecao,
+        status,
+        custoPj,
+        custoNfs: custoNfsMesAtual,
+        custoFolha,
+        prestadoresAssociados: prestadoresDoDepto.map((p) => ({
+          nome: p.nome_fantasia || p.razao_social,
+          valor: Number(p.valor_mensal_atual) || 0,
+        })),
+        vagasAssociadas: vagasDoDepto.map((v) => ({
+          titulo: v.titulo,
+          custo: v.custoAtualContratacao,
+          status: v.status,
+        })),
+      }
+    })
+
+  // Ordenar departamentos com metas cadastradas primeiro e por maior limite
+  metasDepartamentos.sort((a, b) => {
+    if (a.limiteMensal > 0 && b.limiteMensal === 0) return -1
+    if (a.limiteMensal === 0 && b.limiteMensal > 0) return 1
+    return b.limiteMensal - a.limiteMensal
+  })
+
   // 6. Composição do Custo por Prestador (Ranqueada)
   const prestadoresRanqueados: PrestadorRanqueado[] = prestadores.map((p) => {
     const valMensal = Number(p.valor_mensal_atual) || 0
@@ -565,6 +779,7 @@ export async function carregarDadosFinanceiros(
     kpis,
     serieProjecao,
     vagasCruzamento,
+    metasDepartamentos,
     prestadoresRanqueados,
     alertasFinanceiros,
     totaisRodapePrestadores,
@@ -585,6 +800,14 @@ export async function gerarSinteseFinanceiraIA(
     vagas_cruzamento: dados.vagasCruzamento,
     prestadores: dados.prestadoresRanqueados,
     alertas_nfs: dados.alertasFinanceiros,
+    metas_departamentos: (dados.metasDepartamentos || []).map((m) => ({
+      departamento: m.departamento,
+      limite_mensal: m.limiteMensal,
+      gasto_atual: m.gastoAtualMes,
+      projecao_media: m.projecaoMediaMensal,
+      uso_pct: m.percentualUsoProjecao,
+      status: m.status,
+    })),
   }
 
   try {
@@ -783,6 +1006,52 @@ export function exportarPainelFinanceiroPdf(dados: DadosFinanceirosConsolidados)
           <td>R$ ${m.nfsPrevistas.toLocaleString('pt-BR')}</td>
           <td>R$ ${m.folhaContratacoes.toLocaleString('pt-BR')}</td>
           <td style="text-align: right; font-weight: bold; color: #1E293B;">R$ ${m.totalGeral.toLocaleString('pt-BR')}</td>
+        </tr>
+      `,
+        )
+        .join('')}
+    </tbody>
+  </table>
+
+  <h2>Metas de Orçamento por Departamento</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Departamento</th>
+        <th>Limite Mensal (R$)</th>
+        <th>Gasto Atual (Mês)</th>
+        <th>Projeção Média Mensal</th>
+        <th>% de Uso (Projeção)</th>
+        <th>Status Orçamentário</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${dados.metasDepartamentos
+        .map(
+          (m) => `
+        <tr>
+          <td><strong>${m.departamento}</strong></td>
+          <td>${m.limiteMensal > 0 ? `R$ ${m.limiteMensal.toLocaleString('pt-BR')}` : 'Não configurado'}</td>
+          <td>R$ ${m.gastoAtualMes.toLocaleString('pt-BR')}</td>
+          <td>R$ ${m.projecaoMediaMensal.toLocaleString('pt-BR')}</td>
+          <td><strong>${m.percentualUsoProjecao}%</strong></td>
+          <td>
+            <span class="tag ${
+              m.status === 'estourado'
+                ? 'tag-red'
+                : m.status === 'atencao'
+                  ? 'tag-amber'
+                  : 'tag-green'
+            }">
+              ${
+                m.status === 'estourado'
+                  ? 'Estourado (>100%)'
+                  : m.status === 'atencao'
+                    ? 'Em Atenção (≥90%)'
+                    : 'Dentro do Orçamento'
+              }
+            </span>
+          </td>
         </tr>
       `,
         )
