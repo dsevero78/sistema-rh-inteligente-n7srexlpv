@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T13:48:43.742Z",
+  "generatedAt": "2026-09-21T14:59:57.579Z",
   "collections": [
     {
       "name": "users",
@@ -3436,6 +3436,511 @@
         "CREATE INDEX idx_janelas_cand ON janelas_entrevista_candidato (candidato)",
         "CREATE INDEX idx_janelas_vaga ON janelas_entrevista_candidato (vaga)",
         "CREATE INDEX idx_janelas_status ON janelas_entrevista_candidato (status)"
+      ]
+    },
+    {
+      "name": "rotinas_integracao",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "tipo_integrado",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["CLT", "PJ"]
+        },
+        {
+          "name": "nome_completo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "documento_identificacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_contato",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone_contato",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cargo_funcao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "departamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gestor_responsavel",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "gestor_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "buddy_mentor_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "buddy_mentor_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prestador_pj",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "prestadores_pj"
+        },
+        {
+          "name": "candidato",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "vaga",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "vagas"
+        },
+        {
+          "name": "data_inicio",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_contratado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_hora",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "horas_semanais",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "duracao_meses",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_contrato_tipo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Indeterminado", "Determinado", "Projeto Especifico"]
+        },
+        {
+          "name": "status_geral",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Planejado", "Em Andamento", "Integrado 90d", "Pausado", "Cancelado"]
+        },
+        {
+          "name": "percentual_conclusao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "template_origem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itens_checklist",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "marcos_30_60_90",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nps_onboarding_score",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nps_comentarios",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_rotinas_tipo ON rotinas_integracao (tipo_integrado)",
+        "CREATE INDEX idx_rotinas_status ON rotinas_integracao (status_geral)",
+        "CREATE INDEX idx_rotinas_gestor ON rotinas_integracao (gestor_responsavel)",
+        "CREATE INDEX idx_rotinas_prestador ON rotinas_integracao (prestador_pj)",
+        "CREATE INDEX idx_rotinas_candidato ON rotinas_integracao (candidato)",
+        "CREATE INDEX idx_rotinas_data_inicio ON rotinas_integracao (data_inicio)"
+      ]
+    },
+    {
+      "name": "pessoas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo_pessoa",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["PF", "PJ"]
+        },
+        {
+          "name": "modalidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["CLT", "PJ"]
+        },
+        {
+          "name": "cpf_cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cargo_funcao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "departamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "centro_custo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gestor_responsavel",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "gestor_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_inicio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_fim",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_renovacao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "situacao_contrato",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Vigente", "Em integração", "Encerrado", "Pausado"]
+        },
+        {
+          "name": "valor_contratado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "horas_mensais_base",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_hora",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "duracao_meses",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_tipo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Indeterminado", "Determinado", "Projeto Especifico"]
+        },
+        {
+          "name": "percentual_integracao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem_importacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "prestador_origem",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "prestadores_pj"
+        },
+        {
+          "name": "candidato_origem",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "candidatos"
+        },
+        {
+          "name": "rotina_origem",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "rotinas_integracao"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "documentos_pessoa",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "pessoa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pessoas"
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Contrato de Prestação / Admissão",
+            "Contrato Social / Ato Constitutivo",
+            "Certidão Fiscal (CND / Federal / Estadual)",
+            "Termo Assinado",
+            "Documentação Admissional (RG / CPF / CTPS)",
+            "Certificado / Comprovante",
+            "Outro"
+          ]
+        },
+        {
+          "name": "arquivo",
+          "type": "file",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_emissao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_vencimento",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tamanho_bytes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "enviado_por_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "enviado_por_usuario",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_docspessoa_pessoa ON documentos_pessoa (pessoa)",
+        "CREATE INDEX idx_docspessoa_tipo ON documentos_pessoa (tipo)",
+        "CREATE INDEX idx_docspessoa_vencimento ON documentos_pessoa (data_vencimento)"
       ]
     }
   ]

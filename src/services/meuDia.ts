@@ -60,6 +60,7 @@ export type ModuloOrigemMeuDia =
   | 'pj_renovacoes'
   | 'indicacoes'
   | 'alertas'
+  | 'documentos_pessoa'
 
 export interface ItemMeuDia {
   id: string
@@ -181,6 +182,8 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       feedbacksGestor,
       analisesVideoIa,
       janelasEntrevista,
+      documentosPessoas,
+      pessoas,
     ] = await Promise.all([
       pb.collection('vagas').getFullList({ sort: '-created', expand: 'gestor_responsavel' }),
       pb.collection('entrevistas').getFullList({
@@ -227,6 +230,13 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       pb.collection('janelas_entrevista_candidato').getFullList({
         sort: '-updated',
         expand: 'candidato,vaga',
+      }),
+      pb.collection('documentos_pessoa').getFullList({
+        sort: '-created',
+        expand: 'pessoa',
+      }),
+      pb.collection('pessoas').getFullList({
+        sort: 'nome',
       }),
     ])
 
@@ -767,9 +777,64 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
           origemRecordId: primeiro.id,
         })
       }
+
+      // 4.9 Alertas do Cofre de Documentos de Pessoas:
+      // Documentos vencidos -> "Urgente — requer ação hoje"
+      // Documentos vencendo em <= 30 dias -> "Atenção esta semana"
+      for (const doc of documentosPessoas || []) {
+        if (!doc.data_vencimento) continue
+
+        const pObj = doc.expand?.pessoa || pessoas.find((p) => p.id === doc.pessoa)
+        const pNome = pObj?.nome || 'Colaborador/Prestador'
+        const pMod = pObj?.modalidade || 'CLT/PJ'
+
+        const agoraZero = new Date(agora)
+        agoraZero.setHours(0, 0, 0, 0)
+        const vencDate = new Date(doc.data_vencimento)
+        vencDate.setHours(0, 0, 0, 0)
+
+        const diffDias = Math.ceil(
+          (vencDate.getTime() - agoraZero.getTime()) / (1000 * 60 * 60 * 24),
+        )
+
+        if (diffDias < 0) {
+          // Documento já vencido: URGENTE
+          const diasAtraso = Math.abs(diffDias)
+          itens.push({
+            id: `doc-pessoa-vencido-${doc.id}`,
+            tituloAcao: `Regularizar documento vencido de ${pNome}: ${doc.nome}`,
+            contexto: `${pNome} (${pMod}) · ${doc.tipo} · Venceu há ${diasAtraso}d`,
+            detalhe: `O documento "${doc.nome}" do cofre venceu em ${vencDate.toLocaleDateString('pt-BR')}. Solicite ou anexe imediatamente a via atualizada para mitigar riscos de conformidade.`,
+            modulo: 'documentos_pessoa',
+            moduloLabel: 'Cofre de Documentos',
+            severidade: 'urgente',
+            severidadeLabel: 'Urgente',
+            dataLimiteLabel: 'Vencido',
+            rotaDestino: `/pessoas/${doc.pessoa || pObj?.id}`,
+            origemRecordId: doc.id,
+            metaExtra: { pessoaId: doc.pessoa || pObj?.id, documentoId: doc.id, diffDias },
+          })
+        } else if (diffDias <= 30) {
+          // Documento vencendo em <= 30 dias: ATENÇÃO ESTA SEMANA
+          itens.push({
+            id: `doc-pessoa-vencendo-${doc.id}`,
+            tituloAcao: `Renovar documento de ${pNome} (Vence em ${diffDias}d): ${doc.nome}`,
+            contexto: `${pNome} (${pMod}) · ${doc.tipo} · Prazo ${vencDate.toLocaleDateString('pt-BR')}`,
+            detalhe: `O documento "${doc.nome}" expira em ${diffDias} dias. Notifique o colaborador/prestador ou inicie a emissão da nova certidão/termo.`,
+            modulo: 'documentos_pessoa',
+            moduloLabel: 'Cofre de Documentos',
+            severidade: 'atencao',
+            severidadeLabel: 'Atenção',
+            dataLimiteLabel: `Em ${diffDias}d`,
+            rotaDestino: `/pessoas/${doc.pessoa || pObj?.id}`,
+            origemRecordId: doc.id,
+            metaExtra: { pessoaId: doc.pessoa || pObj?.id, documentoId: doc.id, diffDias },
+          })
+        }
+      }
     }
 
-    // 4.9 Agendamentos de Entrevistas Confirmados ou Reagendamentos pelo Candidato (Portal Self-Service)
+    // 4.10 Agendamentos de Entrevistas Confirmados ou Reagendamentos pelo Candidato (Portal Self-Service)
     for (const jan of janelasEntrevista || []) {
       const cand = jan.expand?.candidato
       const vaga = jan.expand?.vaga

@@ -38,6 +38,8 @@ import Alertas from '@/pages/Alertas'
 import Onboarding from '@/pages/Onboarding'
 import RotinaIntegracaoPage from '@/pages/RotinaIntegracaoPage'
 import ExperienciaCandidato from '@/pages/ExperienciaCandidato'
+import PessoasListaPage from '@/pages/PessoasListaPage'
+import PessoaDetalhesPage from '@/pages/PessoaDetalhesPage'
 import AdmissaoPublica from '@/pages/AdmissaoPublica'
 import ExperienciaPublica from '@/pages/ExperienciaPublica'
 import IndicarPublica from '@/pages/IndicarPublica'
@@ -108,6 +110,8 @@ export default function App() {
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="meu-dia" element={<MeuDia />} />
+                <Route path="pessoas" element={<PessoasListaPage />} />
+                <Route path="pessoas/:id" element={<PessoaDetalhesPage />} />
                 <Route path="gestor" element={<GestorPortal />} />
                 <Route path="vagas" element={<Vagas />} />
                 <Route path="vagas/:id" element={<VagaDetalhes />} />

@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Sunrise,
   Briefcase,
+  Users,
   Users2,
   GitPullRequest,
   FileCheck2,
@@ -277,6 +278,7 @@ export default function Layout() {
         {(isGestorContratante
           ? [
               { title: 'Meu Dia', href: '/meu-dia', icon: Sunrise, countKey: 'meudia' as const },
+              { title: 'Pessoas (Unificado)', href: '/pessoas', icon: Users, badge: 'Ficha' },
               { title: 'Minhas Vagas', href: '/gestor', icon: Briefcase },
               { title: 'Indicadores', href: '/indicadores', icon: Compass, badge: 'KPIs' },
               { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
@@ -284,6 +286,12 @@ export default function Layout() {
           : [
               { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
               { title: 'Meu Dia', href: '/meu-dia', icon: Sunrise, countKey: 'meudia' as const },
+              {
+                title: 'Pessoas (Unificado)',
+                href: '/pessoas',
+                icon: Users,
+                badge: 'CLT & PJ',
+              },
               { title: 'Minhas Vagas (Gestor)', href: '/gestor', icon: UserCheck, badge: 'Portal' },
               { title: 'Vagas', href: '/vagas', icon: Briefcase },
               { title: 'Candidatos', href: '/candidatos', icon: Users2 },
