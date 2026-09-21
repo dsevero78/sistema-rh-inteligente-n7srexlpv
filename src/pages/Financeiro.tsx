@@ -72,10 +72,26 @@ const MESES = [
 
 const ANOS = [2025, 2026, 2027]
 
+import { useSearchParams } from 'react-router-dom'
+
 export default function PainelFinanceiro() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { toast } = useToast()
   const { user } = useAuth()
   const isRH = user?.role === 'rh' || user?.role === 'admin'
+
+  const tabParam = searchParams.get('tab') || searchParams.get('aba')
+  const defaultTab =
+    tabParam === 'comparativo' && isRH
+      ? 'comparativo'
+      : tabParam || (isRH ? 'comparativo' : 'vagas')
+  const [activeTab, setActiveTab] = useState<string>(defaultTab)
+
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam)
+    }
+  }, [tabParam])
 
   const dataAtual = new Date()
   // Usar mês 9 ou mês atual conforme contexto dos seeds
@@ -596,7 +612,18 @@ export default function PainelFinanceiro() {
       </Card>
 
       {/* 3. Seção com Três Abas: Comparativo de Custo (RH), Cruzamento com Vagas & Composição por Prestador */}
-      <Tabs defaultValue={isRH ? 'comparativo' : 'vagas'} className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => {
+          setActiveTab(val)
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev)
+            next.set('tab', val)
+            return next
+          })
+        }}
+        className="space-y-4"
+      >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <TabsList className="bg-slate-100 p-1 border border-slate-200 flex-wrap">
             {isRH ? (

@@ -457,7 +457,7 @@ export function calcularPrazosContrato(
       diasDecorridos,
       percentualDecorrido,
       statusSemaforo: 'ambar',
-      statusTexto: `Atenção: ${diasRestantes} dias restantes`,
+      statusTexto: `Janela de renovação (${diasRestantes} dias)`,
     }
   }
 

@@ -203,8 +203,34 @@ cronAdd('monitorar_prestadores_pj_cron', '0 3 * * *', () => {
       console.log('Erro ao checar documentos PJ:', errDocs)
     }
 
-    // 2. MONITORAR CONTRATOS PJ VENCENDO EM ATÉ 30 DIAS
+    // 2. MONITORAR CONTRATOS PJ EM JANELA DE RENOVAÇÃO (<= 60 DIAS) COM DECISÃO DO COMPARATIVO
     try {
+      // Carregar todos os prestadores ativos para calcular a mediana do portfólio
+      const todosPrestadores = $app.findRecordsByFilter(
+        'prestadores_pj',
+        "status = 'Ativo' || status = 'Em renovação'",
+        '',
+        200,
+        0,
+      )
+
+      let valoresHora = []
+      for (let p = 0; p < todosPrestadores.length; p++) {
+        const valM = todosPrestadores[p].getInt('valor_mensal_atual') || 0
+        if (valM > 0) {
+          valoresHora.push(valM / 160)
+        }
+      }
+      valoresHora.sort((a, b) => a - b)
+      let medianaValorHora = 100
+      if (valoresHora.length > 0) {
+        const mid = Math.floor(valoresHora.length / 2)
+        medianaValorHora =
+          valoresHora.length % 2 !== 0
+            ? valoresHora[mid]
+            : (valoresHora[mid - 1] + valoresHora[mid]) / 2
+      }
+
       const contratos = $app.findRecordsByFilter(
         'contratos_pj',
         "status = 'Vigente' || status = 'Vencendo'",
@@ -212,30 +238,129 @@ cronAdd('monitorar_prestadores_pj_cron', '0 3 * * *', () => {
         200,
         0,
       )
+
       for (let c = 0; c < contratos.length; c++) {
         const ct = contratos[c]
-        const fimStr = ct.getString('data_fim')
-        if (!fimStr) continue
+        const prestId = ct.getString('prestador')
+        let dataFimEfetivaStr = ct.getString('data_fim')
+        let valorMensalEfetivo = ct.getInt('valor') || 0
 
-        const fimDate = new Date(fimStr)
+        // Verificar se há aditivo vigente de prorrogação ou reajuste financeiro
+        try {
+          const aditivosContrato = $app.findRecordsByFilter(
+            'aditivos_pj',
+            "prestador = '" + prestId + "' && status = 'Vigente'",
+            '-data_assinatura',
+            50,
+            0,
+          )
+          for (let adIdx = 0; adIdx < aditivosContrato.length; adIdx++) {
+            const adItem = aditivosContrato[adIdx]
+            const novaDataFim = adItem.getString('nova_data_fim')
+            if (novaDataFim && novaDataFim > dataFimEfetivaStr) {
+              dataFimEfetivaStr = novaDataFim
+            }
+            const novoValorM = adItem.getInt('novo_valor_mensal')
+            if (novoValorM > 0) {
+              valorMensalEfetivo = novoValorM
+            }
+          }
+        } catch (_) {}
+
+        if (!dataFimEfetivaStr) continue
+
+        const fimDate = new Date(dataFimEfetivaStr)
         const diffContrato = Math.ceil(
           (fimDate.getTime() - agora.getTime()) / (1000 * 60 * 60 * 24),
         )
 
-        if (diffContrato <= 30 && diffContrato > 0) {
+        // Janela de Renovação Inteligente: 60 dias ou menos
+        if (diffContrato <= 60 && diffContrato > 0) {
           if (ct.getString('status') !== 'Vencendo') {
             ct.set('status', 'Vencendo')
             $app.save(ct)
           }
 
-          const prestId = ct.getString('prestador')
           let prestNome = 'Prestador PJ'
           let prestMedia = 0
+          let prestValorMensal = valorMensalEfetivo
           try {
             const p = $app.findRecordById('prestadores_pj', prestId)
             prestNome = p.getString('nome_fantasia') || p.getString('razao_social')
             prestMedia = p.getFloat('media_avaliacao') || 0
+            if (p.getInt('valor_mensal_atual') > 0) {
+              prestValorMensal = p.getInt('valor_mensal_atual')
+            }
           } catch (_) {}
+
+          // Buscar última avaliação para checar recomendação explícita
+          let recomendacaoUltimaAvaliacao = ''
+          try {
+            const avs = $app.findRecordsByFilter(
+              'avaliacoes_prestador_pj',
+              "prestador = '" + prestId + "'",
+              '-data_avaliacao',
+              1,
+              0,
+            )
+            if (avs && avs.length > 0) {
+              recomendacaoUltimaAvaliacao = avs[0].getString('recomendacao') || ''
+            }
+          } catch (_) {}
+
+          // Buscar se há aditivo pendente de assinatura
+          let temAditivoPendente = false
+          try {
+            const adPendentes = $app.findRecordsByFilter(
+              'aditivos_pj',
+              "prestador = '" + prestId + "' && status = 'Pendente de assinatura'",
+              '',
+              1,
+              0,
+            )
+            if (adPendentes && adPendentes.length > 0) {
+              temAditivoPendente = true
+            }
+          } catch (_) {}
+
+          // Cálculo do Semáforo do Comparativo de Custo (idêntico a financeiroConsolidado.ts)
+          // 🟢 Renovar | 🟡 Renegociar | 🔴 Reavaliar
+          const valorHora = prestValorMensal > 0 ? prestValorMensal / 160 : 0
+          const custoPorPonto = prestMedia > 0 ? valorHora / prestMedia : valorHora / 5.0
+          const acimaDaMediana = valorHora > medianaValorHora
+
+          let tierSemaforo = 'RENOVAR'
+          let emojiSemaforo = '🟢'
+          let recomendacaoCurta = ''
+
+          if (
+            prestMedia < 8.0 ||
+            recomendacaoUltimaAvaliacao.toLowerCase().includes('não renovar')
+          ) {
+            tierSemaforo = 'REAVALIAR'
+            emojiSemaforo = '🔴'
+            recomendacaoCurta =
+              'Desempenho abaixo do padrão (nota ' +
+              prestMedia.toFixed(1) +
+              '/10). Abrir cotação no mercado para substituição ou plano de recuperação emergencial antes do término.'
+          } else if (
+            acimaDaMediana ||
+            prestMedia < 9.0 ||
+            temAditivoPendente ||
+            recomendacaoUltimaAvaliacao.toLowerCase().includes('ressalvas')
+          ) {
+            tierSemaforo = 'RENEGOCIAR'
+            emojiSemaforo = '🟡'
+            recomendacaoCurta =
+              'Custo-hora acima da média ou pendências de aditivo/avaliação. Renegociar escopo/taxas e tramitar aditivo formal antes da renovação definitiva.'
+          } else {
+            tierSemaforo = 'RENOVAR'
+            emojiSemaforo = '🟢'
+            recomendacaoCurta =
+              'Excelente entrega (nota ' +
+              prestMedia.toFixed(1) +
+              '/10) e custo por ponto competitivo. Recomendado prorrogar vigência mantendo bases vigentes.'
+          }
 
           let jaExisteCt = false
           try {
@@ -251,73 +376,142 @@ cronAdd('monitorar_prestadores_pj_cron', '0 3 * * *', () => {
                 alRecentes[0].getString('created') || alRecentes[0].getString('criado_em'),
               )
               const diffHoras = (agora.getTime() - criacaoAl.getTime()) / (1000 * 60 * 60)
-              if (diffHoras < 72) jaExisteCt = true
+              // Não duplicar alerta para o mesmo contrato na mesma janela de 30 dias
+              if (diffHoras < 24 * 30) jaExisteCt = true
             }
           } catch (_) {}
 
           if (!jaExisteCt) {
             const tituloCt = ct.getString('titulo')
-            const valorCt = ct.getInt('valor')
+            const valorCt = prestValorMensal || ct.getInt('valor')
             const resumoCt =
-              'Renovação Contratual: O contrato "' +
+              'Alerta de Renovação Inteligente: O contrato "' +
               tituloCt +
               '" com ' +
               prestNome +
               ' vence em ~' +
               diffContrato +
               ' dias (' +
-              fimStr.substring(0, 10) +
-              '). Valor: R$ ' +
-              (valorCt ? valorCt.toLocaleString('pt-BR') : '0') +
-              '. Média de avaliação do prestador: ' +
-              (prestMedia > 0 ? prestMedia + '/10' : 'Ainda não avaliado') +
-              '. Decida pela renovação ou encerramento com antecedência.'
+              dataFimEfetivaStr.substring(0, 10) +
+              '). Decisão do Comparativo: ' +
+              emojiSemaforo +
+              ' ' +
+              tierSemaforo +
+              '. Valor mensal atual: R$ ' +
+              valorCt.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) +
+              ' (R$ ' +
+              valorHora.toFixed(2) +
+              '/h base 160h, custo por ponto: R$ ' +
+              custoPorPonto.toFixed(2) +
+              '/pt vs mediana R$ ' +
+              medianaValorHora.toFixed(2) +
+              '/h). Nota média de avaliação: ' +
+              (prestMedia > 0 ? prestMedia.toFixed(1) + '/10' : 'Ainda não avaliado') +
+              '. Recomendação: ' +
+              recomendacaoCurta
 
             const alCt = new Record(alertasCol)
             alCt.set('prestador', prestId)
-            alCt.set('score', 90)
+            alCt.set('score', tierSemaforo === 'REAVALIAR' ? 95 : 90)
             alCt.set('tipo', 'contrato_pj_vencendo')
             alCt.set('status', 'Novo')
             alCt.set('resumo_ia', resumoCt)
             alCt.set('criado_em', agoraIso)
             $app.save(alCt)
 
-            // E-mail com destaque para renovação
+            // Registrar evento na linha do tempo do prestador
             try {
+              const timelineCol = $app.findCollectionByNameOrId('eventos_timeline_pj')
+              if (timelineCol) {
+                const ev = new Record(timelineCol)
+                ev.set('prestador', prestId)
+                ev.set('categoria', 'REGISTRO')
+                ev.set('titulo', 'Alerta de Renovação Contratual (' + diffContrato + ' dias):')
+                ev.set(
+                  'complemento',
+                  'Janela de 60 dias aberta. Parecer do Comparativo de Custo: ' +
+                    emojiSemaforo +
+                    ' ' +
+                    tierSemaforo +
+                    ' (R$ ' +
+                    valorHora.toFixed(2) +
+                    '/h, nota ' +
+                    (prestMedia > 0 ? prestMedia.toFixed(1) : 'S/N') +
+                    ', custo/pt R$ ' +
+                    custoPorPonto.toFixed(2) +
+                    ').',
+                )
+                ev.set('autor', 'sistema')
+                ev.set('origem', 'sistema')
+                ev.set('data_evento', agoraIso)
+                ev.set('referencia_tipo', 'contrato_renovacao')
+                ev.set('referencia_id', ct.id)
+                $app.save(ev)
+              }
+            } catch (errTimelineRenov) {
+              console.log('Falha ao gravar evento de renovação na timeline:', errTimelineRenov)
+            }
+
+            // E-mail institucional de alerta de renovação com o semáforo
+            try {
+              const badgeCor =
+                tierSemaforo === 'RENOVAR'
+                  ? '#16a34a'
+                  : tierSemaforo === 'RENEGOCIAR'
+                    ? '#d97706'
+                    : '#dc2626'
+
               const htmlCt =
                 '<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;">' +
                 '<div style="background-color: #0f172a; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 24px;">' +
                 '<h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700;">Gente & Gestão</h1>' +
-                '<p style="color: #94a3b8; margin: 4px 0 0 0; font-size: 13px;">Alerta de Renovação de Contrato PJ</p>' +
+                '<p style="color: #94a3b8; margin: 4px 0 0 0; font-size: 13px;">Alerta de Renovação Inteligente de Prestadores PJ</p>' +
                 '</div>' +
-                '<p style="color: #334155; font-size: 15px; line-height: 1.6;">O contrato do prestador abaixo está próximo da vigência final (restam <strong>' +
+                '<p style="color: #334155; font-size: 15px; line-height: 1.6;">O contrato do prestador abaixo entrou na janela prioritária de renovação contratual (restam <strong>' +
                 diffContrato +
-                ' dias</strong>).</p>' +
+                ' dias</strong> para o término da vigência).</p>' +
                 '<div style="background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px; margin: 20px 0;">' +
-                '<h3 style="color: #1d4ed8; margin: 0 0 10px 0; font-size: 15px;">' +
+                '<div style="display: inline-block; background-color: ' +
+                badgeCor +
+                '; color: #ffffff; font-size: 11px; font-weight: bold; text-transform: uppercase; padding: 4px 10px; border-radius: 4px; margin-bottom: 12px;">' +
+                'Decisão Sugerida: ' +
+                emojiSemaforo +
+                ' ' +
+                tierSemaforo +
+                '</div>' +
+                '<h3 style="color: #0f172a; margin: 0 0 10px 0; font-size: 16px;">' +
+                prestNome +
+                ' — ' +
                 tituloCt +
                 '</h3>' +
-                '<p style="margin: 4px 0; color: #1e293b; font-size: 14px;"><strong>Prestador:</strong> ' +
-                prestNome +
-                '</p>' +
-                '<p style="margin: 4px 0; color: #1e293b; font-size: 14px;"><strong>Valor:</strong> R$ ' +
-                valorCt.toLocaleString('pt-BR') +
+                '<p style="margin: 4px 0; color: #1e293b; font-size: 14px;"><strong>Valor Mensal Atual:</strong> R$ ' +
+                valorCt.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) +
+                ' (R$ ' +
+                valorHora.toFixed(2) +
+                '/h base 160h)</p>' +
+                '<p style="margin: 4px 0; color: #1e293b; font-size: 14px;"><strong>Custo por Ponto de Avaliação:</strong> R$ ' +
+                custoPorPonto.toFixed(2) +
+                '/pt (Mediana do portfólio: R$ ' +
+                medianaValorHora.toFixed(2) +
+                '/h)</p>' +
+                '<p style="margin: 4px 0; color: #475569; font-size: 13px;"><strong>Data de Término Efetiva:</strong> ' +
+                dataFimEfetivaStr.substring(0, 10) +
                 ' (' +
-                ct.getString('tipo') +
-                ')</p>' +
-                '<p style="margin: 4px 0; color: #475569; font-size: 13px;"><strong>Data de Término:</strong> ' +
-                fimStr.substring(0, 10) +
-                '</p>' +
+                diffContrato +
+                ' dias restantes)</p>' +
                 (prestMedia > 0
-                  ? '<p style="margin: 4px 0; color: #1e40af; font-size: 13px;"><strong>Média de Performance:</strong> ' +
-                    prestMedia +
+                  ? '<p style="margin: 4px 0; color: #1e40af; font-size: 13px;"><strong>Nota Média de Performance:</strong> ' +
+                    prestMedia.toFixed(1) +
                     '/10</p>'
                   : '') +
-                '<p style="margin: 12px 0 0 0; color: #475569; font-size: 13px; line-height: 1.5; background-color: #f1f5f9; padding: 10px; border-radius: 6px;">' +
-                resumoCt +
-                '</p>' +
+                '<div style="margin: 14px 0 0 0; color: #334155; font-size: 13px; line-height: 1.5; background-color: #f1f5f9; padding: 12px; border-radius: 6px; border-left: 4px solid ' +
+                badgeCor +
+                ';">' +
+                '<strong>Recomendação Estratégica:</strong> ' +
+                recomendacaoCurta +
                 '</div>' +
-                '<p style="color: #64748b; font-size: 12px;">Recomendamos convocar o gestor interno responsável para avaliar aditivo contratual ou formalização de rescisão/encerramento amigável.</p>' +
+                '</div>' +
+                '<p style="color: #64748b; font-size: 12px;">Para consultar a análise detalhada, acesse o painel Financeiro > Comparativo de Custo ou a ficha de detalhes do prestador no RH.</p>' +
                 '<p style="color: #334155; font-size: 14px; margin-top: 24px;">Atenciosamente,<br><strong>Sistema RH Inteligente — Gente & Gestão</strong></p>' +
                 '</div>'
 
@@ -325,18 +519,19 @@ cronAdd('monitorar_prestadores_pj_cron', '0 3 * * *', () => {
                 from: { address: senderAddress, name: senderName },
                 to: emailsRh.map((em) => ({ address: em })),
                 subject:
-                  '⏳ Contrato PJ Vencendo em ' +
-                  diffContrato +
-                  ' dias: ' +
+                  emojiSemaforo +
+                  ' [Renovação Contratual PJ] ' +
+                  tierSemaforo +
+                  ': ' +
                   prestNome +
                   ' (' +
-                  tituloCt +
-                  ')',
+                  diffContrato +
+                  ' dias restantes)',
                 html: htmlCt,
               })
               mailClient.send(msg)
             } catch (errEmailCt) {
-              console.log('Falha ao enviar e-mail de contrato PJ:', errEmailCt)
+              console.log('Falha ao enviar e-mail de renovação PJ:', errEmailCt)
             }
           }
         }
