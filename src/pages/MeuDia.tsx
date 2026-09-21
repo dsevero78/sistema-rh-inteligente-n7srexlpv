@@ -408,7 +408,7 @@ export default function MeuDia() {
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-            Urgentes ({dados?.totalUrgentes || 0})
+            Urgentes Hoje ({dados?.totalUrgentes || 0})
           </button>
 
           <button
@@ -420,7 +420,7 @@ export default function MeuDia() {
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            Atenção ({dados?.totalAtencao || 0})
+            Atenção Esta Semana ({dados?.totalAtencao || 0})
           </button>
 
           <button

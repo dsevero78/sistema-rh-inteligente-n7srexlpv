@@ -1,3 +1,41 @@
+/**
+ * Módulo Meu Dia — SouYess People Hub
+ * Regras de agregação, perfilamento e régua de severidade operacional.
+ *
+ * ============================================================================
+ * RÉGUA DE SEVERIDADE OFICIAL (AUDITADA):
+ * ============================================================================
+ * - URGENTE (ação hoje):
+ *   * Prazo vence hoje ou já expirou;
+ *   * Bloqueio direto de terceiros;
+ *   * Risco de conformidade iminente (ex: Parecer Jurídico no aditivo ADIT-2026-02);
+ *   * Onboarding <60% com admissão imediata (ex: Juliana Mendes Castro a 46%/54%);
+ *   * Entrevista agendada para hoje ou entrevista atrasada;
+ *   * Entrevista realizada sem avaliação/parecer formal registrado;
+ *   * Validação de vaga pendente pelo gestor contratante;
+ *   * Vaga aguardando retorno/aprovação do gestor há mais de 48h (cobrança ativa pelo RH);
+ *   * Parecer técnico de candidato com vídeo/análise IA pronta ou fit altíssimo aguardando decisão;
+ *   * Contrato PJ vencendo em <=20 dias ou prestador com recomendação REAVALIAR.
+ *
+ * - ATENÇÃO (esta semana):
+ *   * Vencimento em 1–7 dias;
+ *   * Acompanhamento de SLA entre áreas (RH aguardando jurídico para ADIT-2026-02);
+ *   * Gestor aguardado para aprovação de vaga há <48h;
+ *   * Decisão contratual em janela intermediária (21–45 dias);
+ *   * Candidatos quentes em triagem (fit IA >= 80%);
+ *   * Parecer técnico do gestor para candidatos sem urgência imediata;
+ *   * Onboarding >60% em andamento;
+ *   * Entrevistas agendadas para os próximos dias da semana.
+ *
+ * - ACOMPANHAR:
+ *   * Sem prazo imediato ou janela longa (>45–60 dias);
+ *   * Oportunidades proativas/IA: indicações internas novas, reaproveitamento de talentos
+ *     via Match Inteligente do Banco de Talentos;
+ *   * Aditivos PJ aguardando assinatura das partes;
+ *   * Renovação PJ saudável tier RENOVAR a 60 dias.
+ * ============================================================================
+ */
+
 import pb from '@/lib/pocketbase/client'
 import type { RecordModel } from 'pocketbase'
 import {
@@ -112,7 +150,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
   const isJuridico =
     usuario.cargo_funcao === 'Jurídico' ||
     usuario.cargo_funcao?.includes('Jurídico') ||
-    usuario.email?.includes('juridico')
+    usuario.email?.toLowerCase().includes('juridico')
   const isRhOuAdmin = !isGestor && !isJuridico
 
   const agora = new Date()
@@ -140,6 +178,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       indicacoes,
       alertas,
       feedbacksGestor,
+      analisesVideoIa,
     ] = await Promise.all([
       pb.collection('vagas').getFullList({ sort: '-created', expand: 'gestor_responsavel' }),
       pb.collection('entrevistas').getFullList({
@@ -180,14 +219,23 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       pb.collection('feedbacks_gestor').getFullList({
         sort: '-created',
       }),
+      pb.collection('analises_video_ia').getFullList({
+        sort: '-created',
+      }),
     ])
 
     // =========================================================================
-    // 2. REGRAS PARA O GESTOR CONTRATANTE
+    // 2. REGRAS PARA O GESTOR CONTRATANTE (gestor@empresa.com)
     // =========================================================================
+    // O Gestor Contratante NÃO recebe burocracia PJ/admissional (certidões fiscais,
+    // minutas de aditivos, documentos admissionais). Seu foco são decisões de vagas,
+    // pareceres técnicos de candidatos e entrevistas técnicas.
     if (isGestor) {
-      // 2.1 Vagas atribuídas ao gestor aguardando aprovação ou com ajustes
+      // 2.1 Vagas atribuídas ao gestor aguardando aprovação ou com ajustes solicitados
+      // (Redireciona para /gestor)
       const minhasVagas = vagas.filter((v) => v.gestor_responsavel === usuario.id)
+      const minhasVagasIds = new Set(minhasVagas.map((v) => v.id))
+
       for (const v of minhasVagas) {
         if (
           !v.status_aprovacao_gestor ||
@@ -203,10 +251,10 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             contexto: `Vaga de ${v.departamento || 'Tecnologia'} · Orçamento: ${v.faixa_salarial || 'A definir'}`,
             detalhe:
               v.parecer_gestor_vaga ||
-              'Aguardando sua validação formal para o RH iniciar a captação.',
+              'Aguardando sua validação formal para o RH iniciar a captação de talentos.',
             modulo: 'vagas',
-            moduloLabel: 'Vagas & Aprovação',
-            severidade: isAjustes ? 'urgente' : 'urgente',
+            moduloLabel: 'Validação de Vagas',
+            severidade: 'urgente',
             severidadeLabel: 'Urgente',
             dataLimiteLabel: 'Hoje',
             rotaDestino: `/gestor`,
@@ -216,35 +264,66 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
         }
       }
 
-      // 2.2 Candidatos da vaga do gestor aguardando seu feedback/parecer
-      const minhasVagasIds = new Set(minhasVagas.map((v) => v.id))
-      const candsMinhasVagas = candidatos.filter(
+      // 2.2 Candidatos em etapas decisórias aguardando feedback do gestor
+      // Etapas: "Match técnico/comportamental (IA)", "Entrevista com RH", "Entrevista técnica"
+      // Se não houver feedback registrado pelo gestor na tabela feedbacks_gestor:
+      // Gerar card direto no Meu Dia do Gestor.
+      // Candidatos com vídeo de apresentação e percepções de IA prontas (ex: Lucas Ferreira)
+      // vêm priorizados com o score semântico em destaque no card.
+      const candsDecisorios = candidatos.filter(
         (c) =>
+          !c.banco_talentos &&
           minhasVagasIds.has(c.vaga) &&
-          (c.status === 'Entrevista técnica' ||
-            c.status === 'Match técnico/comportamental (IA)' ||
-            c.status === 'Entrevista com RH'),
+          (c.status === 'Match técnico/comportamental (IA)' ||
+            c.status === 'Entrevista com RH' ||
+            c.status === 'Entrevista técnica'),
       )
 
-      for (const c of candsMinhasVagas) {
+      for (const c of candsDecisorios) {
         const jaAvaliou = feedbacksGestor.some(
           (f) => f.vaga === c.vaga && f.candidato === c.id && f.gestor === usuario.id,
         )
+
         if (!jaAvaliou) {
+          const analiseIa = analisesVideoIa.find(
+            (a) => a.candidato === c.id || (a.vaga === c.vaga && a.candidato === c.id),
+          )
+          const temVideoOuIa = Boolean(c.video_link || c.video_apresentacao || analiseIa)
           const vObj = minhasVagas.find((v) => v.id === c.vaga)
+          const score = c.score_semantico || 0
+
+          let tituloAcao = `Emitir parecer do candidato ${c.nome}`
+          let detalhe = `Candidato na etapa "${c.status}". Analise o perfil e emita sua recomendação para o avanço no processo.`
+
+          if (temVideoOuIa) {
+            tituloAcao = `Avaliar candidato ${c.nome} (Vídeo & Percepção IA prontos — Match ${score}%)`
+            detalhe = analiseIa?.resumo_executivo
+              ? `Síntese IA (${analiseIa.recomendacao_geral || 'Recomendado'}): ${analiseIa.resumo_executivo}`
+              : `Vídeo de apresentação e triagem semântica (${score}% fit) disponíveis para validação imediata do gestor.`
+          }
+
+          // Priorização: se tem vídeo/IA pronta ou fit >= 80%, régua urgente; senão atenção
+          const isUrgente = temVideoOuIa || score >= 80
+
           itens.push({
             id: `gestor-parecer-cand-${c.id}`,
-            tituloAcao: `Emitir parecer do candidato ${c.nome}`,
-            contexto: `Vaga: ${vObj?.titulo || 'Minha vaga'} · Score Fit: ${c.score_semantico || 0}%`,
-            detalhe: `Candidato no estágio "${c.status}". Assista ao vídeo de apresentação e emita a recomendação para o RH.`,
+            tituloAcao,
+            contexto: `Vaga: ${vObj?.titulo || 'Minha vaga'} · Score Semântico: ${score}% fit`,
+            detalhe,
             modulo: 'candidatos',
             moduloLabel: 'Parecer Técnico',
-            severidade: (c.score_semantico || 0) >= 80 ? 'urgente' : 'atencao',
-            severidadeLabel: (c.score_semantico || 0) >= 80 ? 'Urgente' : 'Atenção',
-            dataLimiteLabel: 'Esta semana',
+            severidade: isUrgente ? 'urgente' : 'atencao',
+            severidadeLabel: isUrgente ? 'Urgente' : 'Atenção',
+            dataLimiteLabel: isUrgente ? 'Hoje' : 'Esta semana',
             rotaDestino: `/gestor`,
             origemRecordId: c.id,
-            metaExtra: { candidatoId: c.id, vagaId: c.vaga },
+            metaExtra: {
+              candidatoId: c.id,
+              vagaId: c.vaga,
+              scoreSemantico: score,
+              temVideo: Boolean(c.video_link || c.video_apresentacao),
+              temAnaliseIa: Boolean(analiseIa),
+            },
           })
         }
       }
@@ -285,8 +364,11 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
     // =========================================================================
     // 3. REGRAS PARA O JURÍDICO
     // =========================================================================
+    // O Jurídico foca exclusivamente na conformidade contratual:
+    // - ADIT-2026-02 "Em análise pelo jurídico" = URGENTE (ação hoje)
+    // - Garantir que NÃO receba pendências operacionais de recrutamento (triagem, entrevistas, onboarding)
     if (isJuridico) {
-      // Aditivos aguardando parecer jurídico
+      // 3.1 Aditivos aguardando parecer jurídico (URGENTE — ação hoje)
       const aditivosJuridico = aditivos.filter((a) => a.status === 'Em análise pelo jurídico')
       for (const a of aditivosJuridico) {
         const prest =
@@ -294,7 +376,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
         itens.push({
           id: `juridico-aditivo-${a.id}`,
           tituloAcao: `Analisar e emitir parecer na minuta do aditivo ${a.numero_aditivo || 'PJ'}`,
-          contexto: `Prestador: ${prest} · Tipo: ${a.tipo || 'Alteração contratual'}`,
+          contexto: `Prestador: ${prest} · Tipo: ${a.tipo || 'Alteração contratual'} · Conformidade Jurídica`,
           detalhe:
             a.descricao ||
             'Minuta elaborada pelo RH aguardando parecer jurídico para prosseguir com assinaturas.',
@@ -308,7 +390,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
         })
       }
 
-      // Aditivos com ajustes solicitados
+      // 3.2 Aditivos com ajustes solicitados (Atenção esta semana)
       const aditivosAjustes = aditivos.filter((a) => a.status === 'Ajustes solicitados')
       for (const a of aditivosAjustes) {
         const prest =
@@ -317,6 +399,9 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
           id: `juridico-ajustes-${a.id}`,
           tituloAcao: `Acompanhar ajustes solicitados no aditivo ${a.numero_aditivo}`,
           contexto: `Prestador: ${prest} · Ajustes em conferência com o RH`,
+          detalhe:
+            a.parecer_juridico ||
+            'Aguardando adequação de redação ou cláusulas complementares pelo RH.',
           modulo: 'pj_aditivos',
           moduloLabel: 'Jurídico Contratual',
           severidade: 'atencao',
@@ -329,14 +414,12 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
     }
 
     // =========================================================================
-    // 4. REGRAS PARA RH / RECRUTADOR / ADMIN
+    // 4. REGRAS PARA RH / RECRUTADOR / ADMIN (severo.douglas2@gmail.com)
     // =========================================================================
     if (isRhOuAdmin) {
       // 4.1 Entrevistas agendadas para hoje ou pendentes de avaliação
       const entrevistasHojeOuAtrasadas = entrevistas.filter((e) => {
         if (e.status !== 'Agendada' && !e.avaliacao_realizada) return false
-        const d = new Date(e.data_hora)
-        // Agendada hoje ou nos próximos dias
         return (
           e.status === 'Agendada' ||
           (e.status === 'Realizada' && !e.avaliacao_realizada && !e.recomendacao_final)
@@ -389,7 +472,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
         }
       }
 
-      // 4.2 Onboarding em andamento (ex. Juliana Mendes a 46% ou pendências de admissão)
+      // 4.2 Onboarding em andamento (ex: Juliana Mendes Castro 54%/46% — urgente se <60% com admissão próxima)
       for (const onb of onboardings) {
         if (onb.status === 'Ativo') {
           const cand = onb.expand?.candidato
@@ -398,7 +481,6 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
           const candNome = cand?.nome || 'Novo Contratado'
           const vagaTitulo = vaga?.titulo || 'Posição'
 
-          // Verificar itens atrasados ou críticos na empresa
           let itensEmpresaAbertos = 0
           if (Array.isArray(onb.itens)) {
             itensEmpresaAbertos = onb.itens.filter(
@@ -406,18 +488,24 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             ).length
           }
 
+          const isUrgente = perc < 60
+
           itens.push({
             id: `rh-onboarding-${onb.id}`,
             tituloAcao: `Acompanhar onboarding de ${candNome} (${perc}% concluído)`,
-            contexto: `Vaga: ${vagaTitulo} · Data de Admissão: ${onb.data_admissao ? new Date(onb.data_admissao).toLocaleDateString('pt-BR') : 'A definir'}`,
+            contexto: `Vaga: ${vagaTitulo} · Data de Admissão: ${
+              onb.data_admissao
+                ? new Date(onb.data_admissao).toLocaleDateString('pt-BR')
+                : 'A definir'
+            }`,
             detalhe:
               onb.status_admissao === 'Em preenchimento'
-                ? `Candidato em preenchimento da ficha. Restam ${itensEmpresaAbertos} itens a cargo da empresa.`
-                : `Status admissional: ${onb.status_admissao || 'Em andamento'}. Libere acessos e kit de boas-vindas.`,
+                ? `Candidato em preenchimento da ficha admissional. Restam ${itensEmpresaAbertos} itens críticos a cargo da empresa.`
+                : `Status admissional: ${onb.status_admissao || 'Em andamento'}. Libere acessos corporativos e kit de boas-vindas.`,
             modulo: 'onboarding',
             moduloLabel: 'Onboarding & Dia 1',
-            severidade: perc < 60 ? 'urgente' : 'atencao',
-            severidadeLabel: perc < 60 ? 'Urgente' : 'Atenção',
+            severidade: isUrgente ? 'urgente' : 'atencao',
+            severidadeLabel: isUrgente ? 'Urgente' : 'Atenção',
             dataLimiteLabel: onb.data_admissao
               ? new Date(onb.data_admissao).toLocaleDateString('pt-BR', {
                   day: '2-digit',
@@ -431,9 +519,12 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       }
 
       // 4.3 Vagas com aprovação pendente ou ajustes solicitados
+      // NOVO REQUISITO: Vaga aguardando retorno/aprovação do gestor há mais de 48h
+      // deve aparecer como cobrança ativa: URGENTE se >48h, ATENÇÃO caso contrário.
       for (const v of vagas) {
         if (v.status === 'Ativa') {
           const gestorResp = v.expand?.gestor_responsavel?.name || 'Gestor'
+
           if (v.status_aprovacao_gestor === 'Ajustes solicitados') {
             itens.push({
               id: `rh-vaga-ajustes-${v.id}`,
@@ -454,28 +545,47 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             v.gestor_responsavel &&
             (!v.status_aprovacao_gestor || v.status_aprovacao_gestor === 'Aguardando aprovação')
           ) {
+            // Calcular tempo de espera desde a criação ou última atualização da vaga
+            const dataBaseVaga = new Date(v.created || v.updated || Date.now())
+            const horasAguardando = Math.max(
+              0,
+              Math.floor((agora.getTime() - dataBaseVaga.getTime()) / (1000 * 60 * 60)),
+            )
+            const maisDe48h = horasAguardando >= 48
+
             itens.push({
               id: `rh-vaga-cobrar-${v.id}`,
-              tituloAcao: `Cobrar aprovação do gestor na vaga ${v.titulo}`,
-              contexto: `Responsável: ${gestorResp} · Departamento: ${v.departamento}`,
-              detalhe:
-                'A vaga está aguardando retorno formal do gestor para prosseguir com a triagem.',
+              tituloAcao: maisDe48h
+                ? `Cobrança ativa: retorno do gestor há ${Math.floor(horasAguardando / 24)}d na vaga ${v.titulo}`
+                : `Acompanhar retorno do gestor na vaga ${v.titulo}`,
+              contexto: `Responsável: ${gestorResp} · Departamento: ${v.departamento || 'Geral'}`,
+              detalhe: maisDe48h
+                ? `A vaga está parada aguardando parecer do gestor há ${horasAguardando}h (>48h). Faça uma cobrança ativa para destravar a publicação.`
+                : 'A vaga aguarda retorno formal do gestor contratante dentro do prazo de SLA.',
               modulo: 'vagas',
               moduloLabel: 'Gestão de Vagas',
-              severidade: 'atencao',
-              severidadeLabel: 'Atenção',
-              dataLimiteLabel: 'Esta semana',
+              severidade: maisDe48h ? 'urgente' : 'atencao',
+              severidadeLabel: maisDe48h ? 'Urgente' : 'Atenção',
+              dataLimiteLabel: maisDe48h ? 'Cobrança Hoje' : 'Esta semana',
               rotaDestino: `/vagas/${v.id}`,
               origemRecordId: v.id,
+              metaExtra: { horasAguardando, maisDe48h },
             })
           }
         }
       }
 
-      // 4.4 Aditivos PJ em fluxo crítico (Em análise pelo jurídico, Ajustes solicitados, Minuta gerada)
+      // 4.4 Aditivos PJ
+      // ITEM 1 DO BRIEFING: Aditivos PJ em fase jurídica (ex: ADIT-2026-02 "Em análise pelo jurídico")
+      // NÃO devem mais aparecer como "Urgente — ação hoje" para o RH:
+      // Calibrar para "Atenção esta semana" (acompanhamento de SLA — o RH já cumpriu seu papel e aguarda parecer jurídico).
+      // Se houver "Ajustes solicitados", continua Urgente (pois a bola voltou para o RH).
+      // Se houver "Minuta gerada", é Urgente (RH precisa enviar ao jurídico).
+      // Se "Pendente de assinatura", entra em Acompanhar.
       for (const a of aditivos) {
         const prest =
           a.expand?.prestador?.nome_fantasia || a.expand?.prestador?.razao_social || 'Prestador PJ'
+
         if (a.status === 'Ajustes solicitados') {
           itens.push({
             id: `rh-aditivo-ajustes-${a.id}`,
@@ -489,20 +599,6 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             severidade: 'urgente',
             severidadeLabel: 'Urgente',
             dataLimiteLabel: 'Hoje',
-            rotaDestino: `/prestadores-pj`,
-            origemRecordId: a.id,
-          })
-        } else if (a.status === 'Em análise pelo jurídico') {
-          itens.push({
-            id: `rh-aditivo-juridico-acompanhar-${a.id}`,
-            tituloAcao: `Acompanhar parecer jurídico do aditivo ${a.numero_aditivo}`,
-            contexto: `Prestador: ${prest} · Em análise pelo Jurídico`,
-            detalhe: 'Minuta encaminhada para validação das cláusulas e novo teto financeiro.',
-            modulo: 'pj_aditivos',
-            moduloLabel: 'Contratos PJ',
-            severidade: 'atencao',
-            severidadeLabel: 'Atenção',
-            dataLimiteLabel: 'Esta semana',
             rotaDestino: `/prestadores-pj`,
             origemRecordId: a.id,
           })
@@ -521,6 +617,37 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             rotaDestino: `/prestadores-pj`,
             origemRecordId: a.id,
           })
+        } else if (a.status === 'Em análise pelo jurídico') {
+          // CALIBRADO PARA "ATENÇÃO ESTA SEMANA" (Acompanhamento de SLA)
+          itens.push({
+            id: `rh-aditivo-juridico-acompanhar-${a.id}`,
+            tituloAcao: `Acompanhar parecer jurídico do aditivo ${a.numero_aditivo}`,
+            contexto: `Prestador: ${prest} · Em análise pelo Jurídico (SLA)`,
+            detalhe:
+              'Minuta encaminhada para validação jurídica. O RH cumpriu a elaboração e agora monitora o prazo de retorno.',
+            modulo: 'pj_aditivos',
+            moduloLabel: 'Contratos PJ',
+            severidade: 'atencao',
+            severidadeLabel: 'Atenção',
+            dataLimiteLabel: 'Esta semana',
+            rotaDestino: `/prestadores-pj`,
+            origemRecordId: a.id,
+          })
+        } else if (a.status === 'Pendente de assinatura') {
+          itens.push({
+            id: `rh-aditivo-assinatura-${a.id}`,
+            tituloAcao: `Coletar assinaturas no aditivo ${a.numero_aditivo}`,
+            contexto: `Prestador: ${prest} · Minuta aprovada pelo Jurídico`,
+            detalhe:
+              'Parecer jurídico favorável emitido. Aguardando conclusão da coleta de assinaturas digitais.',
+            modulo: 'pj_aditivos',
+            moduloLabel: 'Contratos PJ',
+            severidade: 'acompanhar',
+            severidadeLabel: 'Acompanhar',
+            dataLimiteLabel: 'Acompanhar',
+            rotaDestino: `/prestadores-pj`,
+            origemRecordId: a.id,
+          })
         }
       }
 
@@ -534,7 +661,21 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
           prestadoresPj as PrestadorPJ[],
         )
         if (decisao && decisao.diasRestantes <= 60) {
-          const isUrgente = decisao.diasRestantes <= 20 || decisao.tier === 'REAVALIAR'
+          // Régua de severidade:
+          // Urgente se <= 20 dias ou se REAVALIAR
+          // Atenção se 21 a 45 dias
+          // Acompanhar se > 45 dias (janela longa saudável com tier RENOVAR)
+          let severidade: SeveridadeMeuDia = 'acompanhar'
+          let severidadeLabel: 'Urgente' | 'Atenção' | 'Acompanhar' = 'Acompanhar'
+
+          if (decisao.diasRestantes <= 20 || decisao.tier === 'REAVALIAR') {
+            severidade = 'urgente'
+            severidadeLabel = 'Urgente'
+          } else if (decisao.diasRestantes <= 45) {
+            severidade = 'atencao'
+            severidadeLabel = 'Atenção'
+          }
+
           itens.push({
             id: `rh-renovacao-pj-${p.id}`,
             tituloAcao: `Decisão de renovação: ${p.nome_fantasia || p.razao_social} (${decisao.tier})`,
@@ -542,8 +683,8 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             detalhe: decisao.recomendacaoCurta,
             modulo: 'pj_renovacoes',
             moduloLabel: 'Renovação PJ',
-            severidade: isUrgente ? 'urgente' : 'atencao',
-            severidadeLabel: isUrgente ? 'Urgente' : 'Atenção',
+            severidade,
+            severidadeLabel,
             dataLimiteLabel: `~${decisao.diasRestantes} dias`,
             rotaDestino: `/prestadores-pj`,
             origemRecordId: p.id,
@@ -551,7 +692,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
         }
       }
 
-      // 4.6 Candidatos parados no pipeline em Triagem ou Match de IA com alto fit
+      // 4.6 Candidatos parados no pipeline em Triagem ou Match de IA com alto fit (fit >= 80% = ATENÇÃO)
       const candsTriagemQuentes = candidatos.filter(
         (c) =>
           !c.banco_talentos &&
@@ -577,7 +718,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
         })
       }
 
-      // 4.7 Indicações novas aguardando avaliação
+      // 4.7 Indicações novas aguardando avaliação (ACOMPANHAR)
       const indicacoesNovas = indicacoes.filter((i) => i.status === 'Nova')
       for (const ind of indicacoesNovas.slice(0, 2)) {
         const vagaNome = ind.expand?.vaga?.titulo || 'Vaga'
@@ -596,7 +737,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
         })
       }
 
-      // 4.8 Alertas novos de reaproveitamento de talentos do banco
+      // 4.8 Alertas novos de reaproveitamento de talentos do banco (ACOMPANHAR)
       const alertasTalentos = alertas.filter(
         (a) => a.tipo === 'talento_para_vaga' && a.status === 'Novo',
       )
