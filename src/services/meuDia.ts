@@ -94,6 +94,8 @@ export interface MeuDiaDados {
   totalUrgentes: number
   totalAtencao: number
   totalAcompanhar: number
+  erro?: string | null
+  entidadesComFalha?: string[]
 }
 
 // Chave para persistir no localStorage itens concluídos manualmente quando não houver campo direto
@@ -168,77 +170,153 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
   // 1. CARREGAR DADOS CONCURRENTEMENTE DO POCKETBASE
   // =========================================================================
   try {
-    const [
-      vagas,
-      entrevistas,
-      candidatos,
-      aditivos,
-      onboardings,
-      contratosPj,
-      prestadoresPj,
-      avaliacoesPj,
-      indicacoes,
-      alertas,
-      feedbacksGestor,
-      analisesVideoIa,
-      janelasEntrevista,
-      documentosPessoas,
-      pessoas,
-    ] = await Promise.all([
-      pb.collection('vagas').getFullList({ sort: '-created', expand: 'gestor_responsavel' }),
-      pb.collection('entrevistas').getFullList({
-        sort: 'data_hora',
-        expand: 'candidato,vaga,responsavel_usuario',
-      }),
-      pb.collection('candidatos').getFullList({
-        sort: '-score_semantico',
-        expand: 'vaga',
-      }),
-      pb.collection('aditivos_pj').getFullList({
-        sort: '-created',
-        expand: 'contrato,prestador,aprovado_por',
-      }),
-      pb.collection('onboardings').getFullList({
-        sort: '-created',
-        expand: 'candidato,vaga',
-      }),
-      pb.collection('contratos_pj').getFullList({
-        sort: '-created',
-        expand: 'prestador',
-      }),
-      pb.collection('prestadores_pj').getFullList({
-        sort: '-created',
-      }),
-      pb.collection('avaliacoes_prestador_pj').getFullList({
-        sort: '-created',
-      }),
-      pb.collection('indicacoes').getFullList({
-        sort: '-created',
-        expand: 'vaga,indicador',
-      }),
-      pb.collection('alertas').getFullList({
-        filter: "status = 'Novo'",
-        sort: '-created',
-        expand: 'vaga,candidato,prestador',
-      }),
-      pb.collection('feedbacks_gestor').getFullList({
-        sort: '-created',
-      }),
-      pb.collection('analises_video_ia').getFullList({
-        sort: '-created',
-      }),
-      pb.collection('janelas_entrevista_candidato').getFullList({
-        sort: '-updated',
-        expand: 'candidato,vaga',
-      }),
-      pb.collection('documentos_pessoa').getFullList({
-        sort: '-created',
-        expand: 'pessoa',
-      }),
-      pb.collection('pessoas').getFullList({
-        sort: 'nome',
-      }),
-    ])
+    const queries = [
+      {
+        nome: 'vagas',
+        fn: () =>
+          pb.collection('vagas').getFullList({ sort: '-created', expand: 'gestor_responsavel' }),
+      },
+      {
+        nome: 'entrevistas',
+        fn: () =>
+          pb.collection('entrevistas').getFullList({
+            sort: 'data_hora',
+            expand: 'candidato,vaga,responsavel_usuario',
+          }),
+      },
+      {
+        nome: 'candidatos',
+        fn: () =>
+          pb.collection('candidatos').getFullList({
+            sort: '-score_semantico',
+            expand: 'vaga',
+          }),
+      },
+      {
+        nome: 'aditivos_pj',
+        fn: () =>
+          pb.collection('aditivos_pj').getFullList({
+            sort: '-sequencia',
+            expand: 'contrato,prestador,aprovado_por',
+          }),
+      },
+      {
+        nome: 'onboardings',
+        fn: () =>
+          pb.collection('onboardings').getFullList({
+            sort: '-created',
+            expand: 'candidato,vaga',
+          }),
+      },
+      {
+        nome: 'contratos_pj',
+        fn: () =>
+          pb.collection('contratos_pj').getFullList({
+            sort: '-created',
+            expand: 'prestador',
+          }),
+      },
+      {
+        nome: 'prestadores_pj',
+        fn: () =>
+          pb.collection('prestadores_pj').getFullList({
+            sort: '-created',
+          }),
+      },
+      {
+        nome: 'avaliacoes_prestador_pj',
+        fn: () =>
+          pb.collection('avaliacoes_prestador_pj').getFullList({
+            sort: '-created',
+          }),
+      },
+      {
+        nome: 'indicacoes',
+        fn: () =>
+          pb.collection('indicacoes').getFullList({
+            sort: '-created',
+            expand: 'vaga,indicador',
+          }),
+      },
+      {
+        nome: 'alertas',
+        fn: () =>
+          pb.collection('alertas').getFullList({
+            filter: "status = 'Novo'",
+            sort: '-created',
+            expand: 'vaga,candidato,prestador',
+          }),
+      },
+      {
+        nome: 'feedbacks_gestor',
+        fn: () =>
+          pb.collection('feedbacks_gestor').getFullList({
+            sort: '-created',
+          }),
+      },
+      {
+        nome: 'analises_video_ia',
+        fn: () =>
+          pb.collection('analises_video_ia').getFullList({
+            sort: '-created',
+          }),
+      },
+      {
+        nome: 'janelas_entrevista_candidato',
+        fn: () =>
+          pb.collection('janelas_entrevista_candidato').getFullList({
+            sort: '-updated',
+            expand: 'candidato,vaga',
+          }),
+      },
+      {
+        nome: 'documentos_pessoa',
+        fn: () =>
+          pb.collection('documentos_pessoa').getFullList({
+            sort: '-created',
+            expand: 'pessoa',
+          }),
+      },
+      {
+        nome: 'pessoas',
+        fn: () =>
+          pb.collection('pessoas').getFullList({
+            sort: 'nome',
+          }),
+      },
+    ]
+
+    const resultadosSettled = await Promise.allSettled(queries.map((q) => q.fn()))
+
+    const entidadesComFalha: string[] = []
+    const dadosMapeados: Record<string, RecordModel[]> = {}
+
+    queries.forEach((q, idx) => {
+      const res = resultadosSettled[idx]
+      if (res.status === 'fulfilled') {
+        dadosMapeados[q.nome] = res.value as RecordModel[]
+      } else {
+        console.warn(`[MeuDia] Falha não impeditiva ao consultar coleção "${q.nome}":`, res.reason)
+        entidadesComFalha.push(q.nome)
+        dadosMapeados[q.nome] = []
+      }
+    })
+
+    const vagas = dadosMapeados['vagas']
+    const entrevistas = dadosMapeados['entrevistas']
+    const candidatos = dadosMapeados['candidatos']
+    const aditivos = dadosMapeados['aditivos_pj']
+    const onboardings = dadosMapeados['onboardings']
+    const contratosPj = dadosMapeados['contratos_pj']
+    const prestadoresPj = dadosMapeados['prestadores_pj']
+    const avaliacoesPj = dadosMapeados['avaliacoes_prestador_pj']
+    const indicacoes = dadosMapeados['indicacoes']
+    const alertas = dadosMapeados['alertas']
+    const feedbacksGestor = dadosMapeados['feedbacks_gestor']
+    const analisesVideoIa = dadosMapeados['analises_video_ia']
+    const janelasEntrevista = dadosMapeados['janelas_entrevista_candidato']
+    const documentosPessoas = dadosMapeados['documentos_pessoa']
+    const pessoas = dadosMapeados['pessoas']
 
     // =========================================================================
     // 2. REGRAS PARA O GESTOR CONTRATANTE (gestor@empresa.com)
@@ -928,6 +1006,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       totalUrgentes: urgentesHoje,
       totalAtencao: atencaoSemana,
       totalAcompanhar: acompanharCount,
+      entidadesComFalha: entidadesComFalha.length > 0 ? entidadesComFalha : undefined,
     }
   } catch (err) {
     console.error('Erro ao consolidar pendências de Meu Dia:', err)
@@ -944,6 +1023,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       totalUrgentes: 0,
       totalAtencao: 0,
       totalAcompanhar: 0,
+      erro: err instanceof Error ? err.message : 'Erro ao conectar aos serviços da SouYess',
     }
   }
 }

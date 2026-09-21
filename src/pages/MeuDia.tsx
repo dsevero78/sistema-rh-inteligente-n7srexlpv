@@ -47,6 +47,7 @@ export default function MeuDia() {
 
   const [dados, setDados] = useState<MeuDiaDados | null>(null)
   const [loading, setLoading] = useState(true)
+  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null)
   const [filtroSeveridade, setFiltroSeveridade] = useState<'todas' | SeveridadeMeuDia>('todas')
   const [ocultarConcluidas, setOcultarConcluidas] = useState(false)
   const [recarregando, setRecarregando] = useState(false)
@@ -58,8 +59,19 @@ export default function MeuDia() {
     try {
       const res = await carregarMeuDia(user)
       setDados(res)
+      if (res.erro || res.kpis.focoPrincipal === 'Erro ao conectar aos serviços da SouYess') {
+        setErroCarregamento(
+          res.erro ||
+            'Não foi possível conectar aos serviços da SouYess para consolidar as pendências.',
+        )
+      } else {
+        setErroCarregamento(null)
+      }
     } catch (err) {
       console.error('Falha ao carregar Meu Dia:', err)
+      setErroCarregamento(
+        'Erro de comunicação com o servidor. Verifique sua conexão e tente novamente.',
+      )
       toast({
         title: 'Erro ao carregar Meu Dia',
         description: 'Tente recarregar a página.',
@@ -217,9 +229,65 @@ export default function MeuDia() {
   }
 
   const SaudacaoIcone = saudacaoInfo.Icone
+  const temErroGrave = !!erroCarregamento || !!dados?.erro
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-300 pb-12">
+      {/* =========================================================================
+          BANNER DE ERRO REAL DE CARREGAMENTO (COM BOTÃO TENTAR NOVAMENTE)
+          ========================================================================= */}
+      {temErroGrave && (
+        <div className="rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/50 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-rose-900 dark:text-rose-200 font-display">
+                Falha ao carregar suas pendências
+              </h3>
+              <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5 font-sans">
+                {erroCarregamento ||
+                  dados?.erro ||
+                  'Ocorreu um erro ao conectar aos serviços da SouYess. Os dados exibidos podem estar incompletos.'}
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => carregarRotina(false)}
+            disabled={recarregando}
+            className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs h-9 px-4 shadow-xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${recarregando ? 'animate-spin' : ''}`} />
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+
+      {/* AVISO RESILIENTE DE FALHA PARCIAL */}
+      {!temErroGrave && dados?.entidadesComFalha && dados.entidadesComFalha.length > 0 && (
+        <div className="rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 sm:p-4 flex items-center justify-between gap-3 text-xs text-amber-900 dark:text-amber-200">
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>
+              Algumas consultas secundárias ({dados.entidadesComFalha.join(', ')}) não responderam,
+              mas as pendências principais foram carregadas normalmente.
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => carregarRotina(true)}
+            disabled={recarregando}
+            className="h-7 text-xs text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50"
+          >
+            <RefreshCw className={`w-3 h-3 mr-1 ${recarregando ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+        </div>
+      )}
+
       {/* =========================================================================
           CABEÇALHO SOUYESS (Saudação Contextual + Data Completa em Montserrat)
           ========================================================================= */}
@@ -458,30 +526,55 @@ export default function MeuDia() {
           SEÇÕES DE TAREFAS AGRUPADAS POR SEVERIDADE
           ========================================================================= */}
       {itensFiltrados.length === 0 ? (
-        <Card className="border border-dashed border-slate-300 dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240] p-12 text-center rounded-2xl shadow-xs">
-          <CardContent className="space-y-3 p-0">
-            <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-xs">
-              <PartyPopper className="w-8 h-8" />
-            </div>
-            <h3 className="text-lg font-extrabold text-[#212B55] dark:text-[#F7F8FB] font-display">
-              Nada pendente por aqui. Aproveite o dia! 🎉
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-[#A8B0C9] max-w-md mx-auto">
-              Todas as pendências operacionais associadas ao seu papel no SouYess foram atendidas ou
-              não há ações imediatas requeridas no momento.
-            </p>
-            {ocultarConcluidas && (
+        temErroGrave ? (
+          <Card className="border border-dashed border-rose-300 dark:border-rose-900/60 bg-white dark:bg-[#1A2240] p-12 text-center rounded-2xl shadow-xs">
+            <CardContent className="space-y-3 p-0">
+              <div className="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto shadow-xs">
+                <AlertTriangle className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-extrabold text-[#212B55] dark:text-[#F7F8FB] font-display">
+                Não foi possível carregar as pendências
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-[#A8B0C9] max-w-md mx-auto">
+                Houve um problema de comunicação com o servidor. Clique no botão abaixo para tentar
+                reconectar.
+              </p>
               <Button
-                variant="outline"
                 size="sm"
-                onClick={() => setOcultarConcluidas(false)}
-                className="mt-2 text-xs font-semibold border-slate-200 dark:border-[#2E3A6E]"
+                onClick={() => carregarRotina(false)}
+                className="mt-2 text-xs font-semibold bg-[#E9530E] hover:bg-[#C5430A] text-white"
               >
-                Exibir itens já resolvidos
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                Tentar novamente
               </Button>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border border-dashed border-slate-300 dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240] p-12 text-center rounded-2xl shadow-xs">
+            <CardContent className="space-y-3 p-0">
+              <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-xs">
+                <PartyPopper className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-extrabold text-[#212B55] dark:text-[#F7F8FB] font-display">
+                Nada pendente por aqui. Aproveite o dia! 🎉
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-[#A8B0C9] max-w-md mx-auto">
+                Todas as pendências operacionais associadas ao seu papel no SouYess foram atendidas
+                ou não há ações imediatas requeridas no momento.
+              </p>
+              {ocultarConcluidas && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOcultarConcluidas(false)}
+                  className="mt-2 text-xs font-semibold border-slate-200 dark:border-[#2E3A6E]"
+                >
+                  Exibir itens já resolvidos
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )
       ) : (
         <div className="space-y-8">
           {/* SEÇÃO 1: URGENTE — REQUER AÇÃO HOJE */}
