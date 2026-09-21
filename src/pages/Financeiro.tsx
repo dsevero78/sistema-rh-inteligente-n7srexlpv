@@ -51,6 +51,9 @@ import {
   type SinteseFinanceiraIA,
 } from '@/services/financeiroConsolidado'
 import { SecaoMetasOrcamento } from '@/components/financeiro/SecaoMetasOrcamento'
+import { SecaoComparativoCusto } from '@/components/financeiro/SecaoComparativoCusto'
+import { useAuth } from '@/contexts/AuthContext'
+import { Scale, Lock } from 'lucide-react'
 
 const MESES = [
   { valor: 1, nome: 'Janeiro' },
@@ -71,6 +74,8 @@ const ANOS = [2025, 2026, 2027]
 
 export default function PainelFinanceiro() {
   const { toast } = useToast()
+  const { user } = useAuth()
+  const isRH = user?.role === 'rh' || user?.role === 'admin'
 
   const dataAtual = new Date()
   // Usar mês 9 ou mês atual conforme contexto dos seeds
@@ -590,10 +595,25 @@ export default function PainelFinanceiro() {
         </CardContent>
       </Card>
 
-      {/* 3. Seção com Duas Abas: Cruzamento com Vagas & Composição por Prestador */}
-      <Tabs defaultValue="vagas" className="space-y-4">
+      {/* 3. Seção com Três Abas: Comparativo de Custo (RH), Cruzamento com Vagas & Composição por Prestador */}
+      <Tabs defaultValue={isRH ? 'comparativo' : 'vagas'} className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <TabsList className="bg-slate-100 p-1 border border-slate-200">
+          <TabsList className="bg-slate-100 p-1 border border-slate-200 flex-wrap">
+            {isRH ? (
+              <TabsTrigger
+                value="comparativo"
+                className="text-xs font-semibold gap-1.5 data-[state=active]:bg-white data-[state=active]:text-blue-700"
+              >
+                <Scale className="w-3.5 h-3.5 text-blue-600" />
+                Comparativo de Custo
+                <Badge
+                  variant="secondary"
+                  className="text-[9px] py-0 px-1 ml-1 bg-blue-100 text-blue-800 font-bold"
+                >
+                  Só RH
+                </Badge>
+              </TabsTrigger>
+            ) : null}
             <TabsTrigger value="vagas" className="text-xs font-semibold gap-1.5">
               <Briefcase className="w-3.5 h-3.5" />
               Cruzamento com Orçamento das Vagas
@@ -624,6 +644,36 @@ export default function PainelFinanceiro() {
             </Select>
           </div>
         </div>
+
+        {/* ABA RH: Comparativo de Custo Entre Prestadores (Ranquear Valor-Hora vs. Nota de Avaliação para Decisão de Renovação) */}
+        {isRH ? (
+          <TabsContent value="comparativo" className="space-y-4 m-0">
+            {dados?.prestadoresRanqueados && dados.resumoComparativoCusto ? (
+              <SecaoComparativoCusto
+                prestadores={dados.prestadoresRanqueados}
+                resumo={dados.resumoComparativoCusto}
+                horizonteMeses={horizonteProjecao}
+              />
+            ) : (
+              <Card className="p-8 text-center text-xs text-slate-400">
+                Carregando comparativo de custo entre prestadores...
+              </Card>
+            )}
+          </TabsContent>
+        ) : (
+          <TabsContent value="comparativo" className="space-y-4 m-0">
+            <Card className="p-8 text-center bg-slate-50 border-slate-200">
+              <div className="flex flex-col items-center justify-center space-y-2 text-slate-500">
+                <Lock className="w-6 h-6 text-slate-400" />
+                <h3 className="font-bold text-slate-800 text-sm">Acesso Restrito ao RH</h3>
+                <p className="text-xs text-slate-500 max-w-sm">
+                  O comparativo de custo-benefício e semáforo de renovação de contratos de
+                  prestadores é de visualização exclusiva da equipe de Gente & Gestão.
+                </p>
+              </div>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* ABA 1: Cruzamento Vagas x Orçamento x Prestadores */}
         <TabsContent value="vagas" className="space-y-4 m-0">

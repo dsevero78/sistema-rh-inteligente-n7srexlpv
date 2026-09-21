@@ -47,6 +47,8 @@ export interface VagaCruzamentoFinanceiro {
   economiaEstimadaModelo: string
 }
 
+export type TierRenovacao = 'Renovar' | 'Renegociar' | 'Reavaliar'
+
 export interface PrestadorRanqueado {
   id: string
   nomeFantasia: string
@@ -64,6 +66,28 @@ export interface PrestadorRanqueado {
   contratoVigenciaFim?: string
   contratoStatus?: string
   temAditivoPendente: boolean
+  // Comparativo de Custo vs. Avaliação
+  custoPorPonto: number // valorHora160h / ultimaAvaliacaoNota (quanto menor, mais eficiente)
+  tierRenovacao: TierRenovacao // 'Renovar' | 'Renegociar' | 'Reavaliar'
+  justificativaTier: string
+  diasParaVencerContrato: number | null // <= 30 dias entra no radar de renovação
+  contratoVencendoEm30Dias: boolean
+  isMelhorCustoBeneficio: boolean
+  isPiorCustoBeneficio: boolean
+}
+
+export interface ResumoComparativoCusto {
+  valorHoraMedio: number
+  notaMediaGeral: number
+  custoPorPontoMedio: number
+  valorHoraMediana: number
+  potencialEconomiaMensal: number // Estimativa em R$/mês se prestadores com valor-hora acima da mediana fossem renegociados
+  potencialEconomiaHorizonte: number // potencial mensal * horizonte (3/6/12 meses)
+  totalPrestadores: number
+  prestadoresVencendo30Dias: number
+  totalRenovar: number
+  totalRenegociar: number
+  totalReavaliar: number
 }
 
 export interface AlertaFinanceiroItem {
@@ -108,6 +132,7 @@ export interface DadosFinanceirosConsolidados {
   serieProjecao: MesProjecao[]
   vagasCruzamento: VagaCruzamentoFinanceiro[]
   prestadoresRanqueados: PrestadorRanqueado[]
+  resumoComparativoCusto: ResumoComparativoCusto
   metasDepartamentos: MetaDepartamentoConsolidada[]
   alertasFinanceiros: AlertaFinanceiroItem[]
   totaisRodapePrestadores: {
@@ -719,6 +744,21 @@ export async function carregarDadosFinanceiros(
     const notaMedia = aval ? Number(aval.nota_media) : Number(p.media_avaliacao) || 9.0
     const recomendacao = aval ? aval.recomendacao : 'Continuar'
 
+    // Dias para vencer contrato
+    let diasParaVencer: number | null = null
+    let vencendoEm30Dias = false
+    if (ct?.data_fim) {
+      const agora = new Date()
+      const dataFim = new Date(ct.data_fim)
+      diasParaVencer = Math.ceil((dataFim.getTime() - agora.getTime()) / (1000 * 60 * 60 * 24))
+      if (diasParaVencer <= 30) {
+        vencendoEm30Dias = true
+      }
+    }
+
+    // Custo por ponto de avaliação (base 160h ÷ nota)
+    const custoPorPonto = notaMedia > 0 ? Math.round((hora160 / notaMedia) * 100) / 100 : hora160
+
     return {
       id: p.id,
       nomeFantasia: p.nome_fantasia || p.razao_social,
@@ -736,11 +776,103 @@ export async function carregarDadosFinanceiros(
       contratoVigenciaFim: ct?.data_fim,
       contratoStatus: ct?.status,
       temAditivoPendente: temAditPendente,
+      custoPorPonto,
+      tierRenovacao: 'Renovar' as TierRenovacao, // calculado a seguir com base no portfólio
+      justificativaTier: '',
+      diasParaVencerContrato: diasParaVencer,
+      contratoVencendoEm30Dias: vencendoEm30Dias,
+      isMelhorCustoBeneficio: false,
+      isPiorCustoBeneficio: false,
     }
   })
 
-  // Ordenar ranqueado por maior valor mensal
-  prestadoresRanqueados.sort((a, b) => b.valorMensal - a.valorMensal)
+  // Cálculos consolidados do portfólio para Tiers e Economia
+  const totalP = prestadoresRanqueados.length
+  const somaValorHora = prestadoresRanqueados.reduce((acc, p) => acc + p.valorHora160h, 0)
+  const somaNotas = prestadoresRanqueados.reduce((acc, p) => acc + p.ultimaAvaliacaoNota, 0)
+  const valorHoraMedio = totalP > 0 ? Math.round((somaValorHora / totalP) * 100) / 100 : 0
+  const notaMediaGeral = totalP > 0 ? Math.round((somaNotas / totalP) * 10) / 10 : 0
+
+  // Mediana do valor-hora do portfólio
+  const valoresHoraOrdenados = [...prestadoresRanqueados.map((p) => p.valorHora160h)].sort(
+    (a, b) => a - b,
+  )
+  let valorHoraMediana = 0
+  if (totalP > 0) {
+    const meio = Math.floor(totalP / 2)
+    valorHoraMediana =
+      totalP % 2 !== 0
+        ? valoresHoraOrdenados[meio]
+        : (valoresHoraOrdenados[meio - 1] + valoresHoraOrdenados[meio]) / 2
+    valorHoraMediana = Math.round(valorHoraMediana * 100) / 100
+  }
+
+  // Identificar melhor e pior custo por ponto
+  const minCustoPonto =
+    totalP > 0 ? Math.min(...prestadoresRanqueados.map((p) => p.custoPorPonto)) : 0
+  const maxCustoPonto =
+    totalP > 0 ? Math.max(...prestadoresRanqueados.map((p) => p.custoPorPonto)) : 0
+
+  // Classificar em Tiers de Renovação com critérios transparentes
+  prestadoresRanqueados.forEach((p) => {
+    if (totalP > 1 && p.custoPorPonto === minCustoPonto) {
+      p.isMelhorCustoBeneficio = true
+    }
+    if (totalP > 1 && p.custoPorPonto === maxCustoPonto) {
+      p.isPiorCustoBeneficio = true
+    }
+
+    // Regras de Decisão de Renovação:
+    // 1. "Reavaliar": Nota baixa (< 8.0) e/ou custo elevado por ponto com ressalvas na entrega
+    // 2. "Renegociar": Valor-hora acima da média com nota intermediária ou pendência contratual/aditivo
+    // 3. "Renovar": Bom custo-benefício (custo por ponto competitivo) e nota alta (>= 9.0 ou >= nota média)
+    if (p.ultimaAvaliacaoNota < 8.0 || p.ultimaAvaliacaoRecomendacao === 'Não renovar') {
+      p.tierRenovacao = 'Reavaliar'
+      p.justificativaTier = `Nota de avaliação (${p.ultimaAvaliacaoNota.toFixed(1)}) abaixo do limiar de excelência do portfólio.`
+    } else if (p.valorHora160h > valorHoraMedio && p.ultimaAvaliacaoNota < 9.2) {
+      p.tierRenovacao = 'Renegociar'
+      p.justificativaTier = `Valor-hora (R$ ${p.valorHora160h.toFixed(2)}) acima da média do portfólio (R$ ${valorHoraMedio.toFixed(2)}) com nota intermediária.`
+    } else if (p.ultimaAvaliacaoRecomendacao === 'Renovar com ressalvas') {
+      p.tierRenovacao = 'Renegociar'
+      p.justificativaTier =
+        'Recomendação técnica de renovação com ressalvas; readequar escopo e prazos.'
+    } else {
+      p.tierRenovacao = 'Renovar'
+      p.justificativaTier = `Excelente custo-benefício (R$ ${p.custoPorPonto.toFixed(2)}/ponto) e alto índice de aprovação nas entregas.`
+    }
+  })
+
+  // Potencial de economia: se prestadores cujo valor-hora está acima da mediana fossem renegociados para a mediana
+  // Economia mensal = (valorHora - valorHoraMediana) * 160h
+  let potencialEconomiaMensal = 0
+  prestadoresRanqueados.forEach((p) => {
+    if (p.valorHora160h > valorHoraMediana) {
+      const difHora = p.valorHora160h - valorHoraMediana
+      potencialEconomiaMensal += Math.round(difHora * 160)
+    }
+  })
+  const potencialEconomiaHorizonte = potencialEconomiaMensal * horizonteMeses
+
+  const somaCustoPonto = prestadoresRanqueados.reduce((acc, p) => acc + p.custoPorPonto, 0)
+  const custoPorPontoMedio = totalP > 0 ? Math.round((somaCustoPonto / totalP) * 100) / 100 : 0
+
+  const resumoComparativoCusto: ResumoComparativoCusto = {
+    valorHoraMedio,
+    notaMediaGeral,
+    custoPorPontoMedio,
+    valorHoraMediana,
+    potencialEconomiaMensal,
+    potencialEconomiaHorizonte,
+    totalPrestadores: totalP,
+    prestadoresVencendo30Dias: prestadoresRanqueados.filter((p) => p.contratoVencendoEm30Dias)
+      .length,
+    totalRenovar: prestadoresRanqueados.filter((p) => p.tierRenovacao === 'Renovar').length,
+    totalRenegociar: prestadoresRanqueados.filter((p) => p.tierRenovacao === 'Renegociar').length,
+    totalReavaliar: prestadoresRanqueados.filter((p) => p.tierRenovacao === 'Reavaliar').length,
+  }
+
+  // Ordenar ranqueado padrão por custo por ponto ascendente (melhor custo-benefício no topo)
+  prestadoresRanqueados.sort((a, b) => a.custoPorPonto - b.custoPorPonto)
 
   const totaisRodapePrestadores = {
     totalMensal: prestadoresRanqueados.reduce((acc, p) => acc + p.valorMensal, 0),
@@ -781,6 +913,7 @@ export async function carregarDadosFinanceiros(
     vagasCruzamento,
     metasDepartamentos,
     prestadoresRanqueados,
+    resumoComparativoCusto,
     alertasFinanceiros,
     totaisRodapePrestadores,
   }
@@ -1105,7 +1238,88 @@ export function exportarPainelFinanceiroPdf(dados: DadosFinanceirosConsolidados)
     </tbody>
   </table>
 
-  <h2>Composição de Custo por Prestador PJ</h2>
+  <h2>Comparativo de Custo Entre Prestadores (Decisões de Renovação)</h2>
+  <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 10px; margin-bottom: 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+    <div>
+      <div style="font-size: 8px; text-transform: uppercase; color: #64748B; font-weight: 700;">Valor-Hora Médio</div>
+      <div style="font-size: 13px; font-weight: 800; color: #0F172A;">R$ ${dados.resumoComparativoCusto.valorHoraMedio.toLocaleString('pt-BR')}/h</div>
+      <div style="font-size: 8px; color: #64748B;">Mediana: R$ ${dados.resumoComparativoCusto.valorHoraMediana.toLocaleString('pt-BR')}/h</div>
+    </div>
+    <div>
+      <div style="font-size: 8px; text-transform: uppercase; color: #64748B; font-weight: 700;">Nota Média Portfólio</div>
+      <div style="font-size: 13px; font-weight: 800; color: #0F172A;">${dados.resumoComparativoCusto.notaMediaGeral.toFixed(1)} / 10.0</div>
+      <div style="font-size: 8px; color: #15803D;">${dados.resumoComparativoCusto.totalRenovar} aptos à renovação</div>
+    </div>
+    <div>
+      <div style="font-size: 8px; text-transform: uppercase; color: #15803D; font-weight: 700;">Potencial de Economia</div>
+      <div style="font-size: 13px; font-weight: 800; color: #15803D;">R$ ${dados.resumoComparativoCusto.potencialEconomiaMensal.toLocaleString('pt-BR')}/mês</div>
+      <div style="font-size: 8px; color: #15803D;">R$ ${dados.resumoComparativoCusto.potencialEconomiaHorizonte.toLocaleString('pt-BR')} em ${dados.periodoProjecaoMeses}m</div>
+    </div>
+    <div>
+      <div style="font-size: 8px; text-transform: uppercase; color: #64748B; font-weight: 700;">Radar de Vencimento</div>
+      <div style="font-size: 13px; font-weight: 800; color: #D97706;">${dados.resumoComparativoCusto.prestadoresVencendo30Dias} vence(m) ≤ 30 dias</div>
+      <div style="font-size: 8px; color: #64748B;">${dados.resumoComparativoCusto.totalRenegociar} a renegociar</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Prestador / Razão Social</th>
+        <th>Valor Mensal</th>
+        <th>Valor-Hora (160h)</th>
+        <th>Nota Avaliação</th>
+        <th>Custo por Ponto</th>
+        <th>Decisão (Semáforo)</th>
+        <th>Vencimento do Contrato</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${dados.prestadoresRanqueados
+        .map(
+          (p) => `
+        <tr ${p.isMelhorCustoBeneficio ? 'style="background: #F0FDF4;"' : ''}>
+          <td>
+            <strong>${p.nomeFantasia}</strong> ${p.isMelhorCustoBeneficio ? '<span class="tag tag-green">★ Melhor Custo-Benefício</span>' : ''}<br />
+            <span style="font-size: 8px; color: #64748B;">${p.cnpj} • ${p.areaAtuacao}</span>
+          </td>
+          <td><strong>R$ ${p.valorMensal.toLocaleString('pt-BR')}</strong></td>
+          <td>R$ ${p.valorHora160h.toLocaleString('pt-BR')}/h</td>
+          <td><strong>★ ${p.ultimaAvaliacaoNota.toFixed(1)}</strong> / 10</td>
+          <td>
+            <strong style="color: #4338CA;">R$ ${p.custoPorPonto.toLocaleString('pt-BR')}/pt</strong>
+          </td>
+          <td>
+            <span class="tag ${
+              p.tierRenovacao === 'Renovar'
+                ? 'tag-green'
+                : p.tierRenovacao === 'Renegociar'
+                  ? 'tag-amber'
+                  : 'tag-red'
+            }">
+              ${p.tierRenovacao}
+            </span><br />
+            <span style="font-size: 8px; color: #64748B;">${p.justificativaTier}</span>
+          </td>
+          <td>
+            ${
+              p.contratoVigenciaFim
+                ? `${new Date(p.contratoVigenciaFim).toLocaleDateString('pt-BR')} ${
+                    p.contratoVencendoEm30Dias
+                      ? `<br /><span class="tag tag-red">Vence em ${p.diasParaVencerContrato}d</span>`
+                      : ''
+                  }`
+                : '<span style="color: #94A3B8;">Sem prazo</span>'
+            }
+          </td>
+        </tr>
+      `,
+        )
+        .join('')}
+    </tbody>
+  </table>
+
+  <h2>Composição Financeira Detalhada por Prestador PJ</h2>
   <table>
     <thead>
       <tr>
