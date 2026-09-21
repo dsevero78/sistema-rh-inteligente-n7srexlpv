@@ -416,7 +416,7 @@ export const PrestadoresPJ: React.FC = () => {
                   setPrestadorParaEditar(null)
                   setModalNovoOpen(true)
                 }}
-                className="h-9 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-xs"
+                className="h-9 text-xs bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5 mr-1.5" />
                 Novo Prestador PJ

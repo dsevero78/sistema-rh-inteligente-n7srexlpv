@@ -202,20 +202,31 @@ export default function Layout() {
     .toUpperCase()
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#0F172A] text-slate-200">
-      {/* Brand Header */}
-      <div className="h-16 px-6 flex items-center gap-3 border-b border-slate-800">
-        <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/20">
-          <Sparkles className="w-5 h-5 text-white" />
-        </div>
-        <div className="flex flex-col">
-          <span className="font-bold text-base text-white tracking-tight">Gente & Gestão</span>
-          <span className="text-[11px] text-slate-400 font-medium">Sistema RH Inteligente</span>
+    <div className="flex flex-col h-full bg-[#212B55] text-white">
+      {/* Brand Header SouYess */}
+      <div className="h-16 px-5 flex items-center justify-between border-b border-[#2E3A6E]">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-[#E9530E] flex items-center justify-center text-white shadow-[0_2px_8px_rgba(233,83,14,0.35)] shrink-0 font-extrabold text-sm tracking-wider">
+            SY
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1.5">
+              <span className="font-extrabold text-sm text-white tracking-wider uppercase">
+                SouYess
+              </span>
+              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#E9530E]/20 text-[#F19763] border border-[#E9530E]/30 uppercase">
+                RH
+              </span>
+            </div>
+            <span className="text-[10px] text-[#A8B0C9] font-medium tracking-wide">
+              Gente &amp; Gestão
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Nav List */}
-      <div className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto">
+      <div className="flex-1 py-5 px-3 space-y-1 overflow-y-auto">
         {(isGestorContratante
           ? [
               { title: 'Minhas Vagas', href: '/gestor', icon: Briefcase },
@@ -281,26 +292,32 @@ export default function Layout() {
               key={item.href}
               to={item.href}
               onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all group relative ${
+              className={`flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150 group relative ${
                 isActive
-                  ? 'bg-blue-600/15 text-blue-400 font-semibold'
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
+                  ? 'bg-[#FEF1EA] text-[#E9530E] shadow-xs'
+                  : 'text-[#D3D7E5] hover:text-white hover:bg-[#2E3A6E]/70'
               }`}
             >
               {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-blue-600 rounded-r-full" />
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#E9530E] rounded-r-full" />
               )}
               <Icon
-                className={`w-4 h-4 transition-colors ${isActive ? 'text-blue-400' : 'text-slate-400 group-hover:text-slate-200'}`}
+                className={`w-4 h-4 transition-colors shrink-0 ${isActive ? 'text-[#E9530E]' : 'text-[#A8B0C9] group-hover:text-white'}`}
               />
-              <span className="flex-1">{item.title}</span>
+              <span className="flex-1 truncate">{item.title}</span>
               {item.badge && (
-                <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                <span
+                  className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.2 rounded border ${
+                    isActive
+                      ? 'bg-[#E9530E] text-white border-transparent'
+                      : 'bg-[#2E3A6E] text-[#D3D7E5] border-[#4A567E]'
+                  }`}
+                >
                   {item.badge}
                 </span>
               )}
               {item.countKey === 'alertas' && alertasNovosCount > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white min-w-[20px] text-center shadow-xs">
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#E9530E] text-white min-w-[18px] text-center shadow-xs">
                   {alertasNovosCount}
                 </span>
               )}
@@ -310,52 +327,52 @@ export default function Layout() {
       </div>
 
       {/* User Footer Card */}
-      <div className="p-3 border-t border-slate-800">
+      <div className="p-3 border-t border-[#2E3A6E] bg-[#1A2240]">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-800/70 transition-colors text-left focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <Avatar className="h-9 w-9 border border-slate-700 bg-slate-800 text-slate-200 font-semibold text-xs">
+            <button className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#2E3A6E] transition-colors text-left focus:outline-none focus:ring-2 focus:ring-[#E9530E]">
+              <Avatar className="h-8 w-8 border border-[#4A567E] bg-[#212B55] text-white font-bold text-xs shrink-0">
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-semibold text-white truncate">
+                  <p className="text-xs font-bold text-white truncate">
                     {user?.name || 'Douglas Severo'}
                   </p>
                 </div>
-                <p className="text-[10px] text-blue-400 font-medium truncate">
+                <p className="text-[10px] text-[#F19763] font-medium truncate">
                   {user?.cargo_funcao ||
                     (isGestorContratante ? 'Gestor Contratante' : 'RH / Recrutador')}
                 </p>
-                <p className="text-[10px] text-slate-400 truncate">
-                  {user?.email || 'admin@empresa.com'}
+                <p className="text-[10px] text-[#A8B0C9] truncate">
+                  {user?.email || 'severo.douglas2@gmail.com'}
                 </p>
               </div>
-              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+              <ChevronDown className="w-4 h-4 text-[#A8B0C9] shrink-0" />
             </button>
           </DropdownMenuTrigger>{' '}
           <DropdownMenuContent
             align="end"
-            className="w-56 mb-2 bg-slate-900 border-slate-800 text-slate-200"
+            className="w-56 mb-2 bg-[#1A2240] border-[#2E3A6E] text-white"
           >
-            <DropdownMenuLabel className="text-xs text-slate-400">Minha Conta</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-[#A8B0C9]">Minha Conta</DropdownMenuLabel>
             <DropdownMenuItem
               onClick={() => {
                 setEditName(user?.name || '')
                 setProfileModalOpen(true)
               }}
-              className="hover:bg-slate-800 cursor-pointer text-xs"
+              className="hover:bg-[#2E3A6E] text-white cursor-pointer text-xs"
             >
-              <User className="w-3.5 h-3.5 mr-2" />
+              <User className="w-3.5 h-3.5 mr-2 text-[#F19763]" />
               Editar perfil
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-slate-800" />
+            <DropdownMenuSeparator className="bg-[#2E3A6E]" />
             <DropdownMenuItem
               onClick={() => {
                 logout()
                 navigate('/login')
               }}
-              className="text-red-400 hover:bg-slate-800 hover:text-red-300 cursor-pointer text-xs"
+              className="text-[#ff8a80] hover:bg-[#2E3A6E] hover:text-red-200 cursor-pointer text-xs"
             >
               <LogOut className="w-3.5 h-3.5 mr-2" />
               Sair da conta
@@ -367,9 +384,9 @@ export default function Layout() {
   )
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC]">
+    <div className="min-h-screen flex bg-[#F7F8FB]">
       {/* Desktop Sidebar (260px fixed) */}
-      <aside className="hidden md:flex flex-col w-[260px] fixed inset-y-0 left-0 z-30 shadow-md">
+      <aside className="hidden md:flex flex-col w-[260px] fixed inset-y-0 left-0 z-30 shadow-[0_4px_20px_rgba(17,22,43,0.12)]">
         {sidebarContent}
       </aside>
 
@@ -377,14 +394,14 @@ export default function Layout() {
       {mobileOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
           <div
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-[#11162B]/70 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileOpen(false)}
           />
           <div className="relative w-[280px] max-w-[80vw] h-full shadow-2xl z-10 animate-in slide-in-from-left duration-250">
             {sidebarContent}
             <button
               onClick={() => setMobileOpen(false)}
-              className="absolute top-4 right-3 text-slate-400 hover:text-white p-1 rounded-md"
+              className="absolute top-4 right-3 text-[#A8B0C9] hover:text-white p-1 rounded-md"
               aria-label="Fechar menu"
             >
               <X className="w-5 h-5" />
@@ -395,19 +412,24 @@ export default function Layout() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col md:pl-[260px] min-h-screen">
-        {/* Header (64px) */}
-        <header className="h-16 sticky top-0 z-20 bg-white border-b border-slate-200/80 px-4 sm:px-8 flex items-center justify-between shadow-xs">
+        {/* TopBar SouYess (64px) */}
+        <header className="h-16 sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-[#E7EAF0] px-4 sm:px-8 flex items-center justify-between shadow-[0_1px_3px_rgba(11,18,48,0.03)]">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileOpen(true)}
-              className="p-2 -ml-2 rounded-lg text-slate-600 hover:bg-slate-100 md:hidden"
+              className="p-2 -ml-2 rounded-lg text-[#4D5566] hover:bg-[#F2F4F8] hover:text-[#212B55] md:hidden"
               aria-label="Abrir menu"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 truncate">
-              {getPageTitle()}
-            </h1>
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#E9530E]">
+                SouYess People Hub
+              </div>
+              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-[#212B55] truncate">
+                {getPageTitle()}
+              </h1>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -416,30 +438,29 @@ export default function Layout() {
               href="/candidatar"
               target="_blank"
               rel="noreferrer"
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-[#1D4ED8] hover:bg-blue-100 transition-colors border border-blue-200"
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#FEF1EA] text-[#C5430A] hover:bg-[#FBDCC9] transition-colors border border-[#FBDCC9]"
             >
-              <Sparkles className="w-3.5 h-3.5 text-[#1D4ED8]" />
-              Ver Página de Candidatura Pública
+              <Sparkles className="w-3.5 h-3.5 text-[#E9530E]" />
+              Ver Página Pública de Candidatura
             </a>
 
             {/* Period selector */}
             <div className="hidden sm:flex items-center gap-2">
-              {' '}
               <Select
                 value={period}
                 onValueChange={(val) => setPeriod(val as '7d' | '30d' | '90d')}
               >
-                <SelectTrigger className="w-[160px] h-9 text-xs font-medium border-slate-200 bg-slate-50 text-slate-700">
+                <SelectTrigger className="w-[155px] h-9 text-xs font-semibold border-[#D7DCE6] bg-[#F7F8FB] text-[#212B55] rounded-lg">
                   <SelectValue placeholder="Período" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="7d" className="text-xs">
+                  <SelectItem value="7d" className="text-xs font-medium">
                     Últimos 7 dias
                   </SelectItem>
-                  <SelectItem value="30d" className="text-xs">
+                  <SelectItem value="30d" className="text-xs font-medium">
                     Últimos 30 dias
                   </SelectItem>
-                  <SelectItem value="90d" className="text-xs">
+                  <SelectItem value="90d" className="text-xs font-medium">
                     Últimos 90 dias
                   </SelectItem>
                 </SelectContent>
@@ -450,12 +471,12 @@ export default function Layout() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="relative p-2 rounded-lg text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="relative p-2 rounded-lg text-[#4D5566] hover:text-[#E9530E] hover:bg-[#FEF1EA] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E9530E]"
                   aria-label="Notificações e Alertas"
                 >
                   <Bell className="w-5 h-5" />
                   {alertasNovosCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+                    <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E9530E] px-1 text-[9px] font-extrabold text-white ring-2 ring-white">
                       {alertasNovosCount}
                     </span>
                   )}
@@ -463,24 +484,24 @@ export default function Layout() {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-84 sm:w-96 p-0 bg-white border border-slate-200 shadow-xl rounded-xl overflow-hidden"
+                className="w-84 sm:w-96 p-0 bg-white border border-[#E7EAF0] shadow-[0_16px_32px_rgba(11,18,48,0.12)] rounded-xl overflow-hidden"
               >
                 {/* Header do Dropdown */}
-                <div className="p-3.5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+                <div className="p-3.5 bg-[#212B55] text-white flex items-center justify-between border-b border-[#2E3A6E]">
                   <div className="flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-blue-400" />
-                    <span className="text-xs font-bold tracking-tight">
+                    <Bell className="w-4 h-4 text-[#F19763]" />
+                    <span className="text-xs font-bold tracking-wide uppercase">
                       Central de Notificações
                     </span>
                     {alertasNovosCount > 0 && (
-                      <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.2 rounded-full font-bold">
+                      <span className="text-[10px] bg-[#E9530E] text-white px-1.5 py-0.2 rounded-full font-bold">
                         {alertasNovosCount} novo(s)
                       </span>
                     )}
                   </div>
                   <Link
                     to="/alertas"
-                    className="text-[11px] font-semibold text-blue-300 hover:text-white transition-colors"
+                    className="text-[11px] font-semibold text-[#F19763] hover:text-white transition-colors"
                   >
                     Ver todos
                   </Link>
@@ -675,22 +696,22 @@ export default function Layout() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="rounded-full focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+                  className="rounded-full focus:outline-none focus:ring-2 focus:ring-[#E9530E] focus:ring-offset-2 transition-transform active:scale-95"
                   aria-label="Menu do usuário"
                 >
-                  <Avatar className="h-9 w-9 border border-slate-200 shadow-xs cursor-pointer bg-blue-50 text-blue-700 font-semibold text-xs">
+                  <Avatar className="h-9 w-9 border border-[#D7DCE6] shadow-xs cursor-pointer bg-[#FEF1EA] text-[#E9530E] font-bold text-xs hover:border-[#E9530E]">
                     <AvatarFallback>{userInitials}</AvatarFallback>
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 mt-1">
+              <DropdownMenuContent align="end" className="w-56 mt-1 border-[#E7EAF0] shadow-md">
                 <DropdownMenuLabel>
                   <div className="flex flex-col">
-                    <span className="font-semibold text-slate-900 text-xs">
+                    <span className="font-bold text-[#212B55] text-xs">
                       {user?.name || 'Douglas Severo'}
                     </span>
-                    <span className="text-[11px] text-slate-500 truncate">
-                      {user?.email || 'admin@empresa.com'}
+                    <span className="text-[11px] text-[#6B7384] truncate">
+                      {user?.email || 'severo.douglas2@gmail.com'}
                     </span>
                   </div>
                 </DropdownMenuLabel>
@@ -702,7 +723,7 @@ export default function Layout() {
                   }}
                   className="cursor-pointer text-xs"
                 >
-                  <User className="w-3.5 h-3.5 mr-2 text-slate-500" />
+                  <User className="w-3.5 h-3.5 mr-2 text-[#E9530E]" />
                   Editar perfil
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -711,7 +732,7 @@ export default function Layout() {
                     logout()
                     navigate('/login')
                   }}
-                  className="text-red-600 cursor-pointer text-xs focus:text-red-600 focus:bg-red-50"
+                  className="text-[#D5392C] cursor-pointer text-xs focus:text-[#D5392C] focus:bg-[#F8DDD9]"
                 >
                   <LogOut className="w-3.5 h-3.5 mr-2" />
                   Sair
@@ -733,25 +754,25 @@ export default function Layout() {
           <DialogHeader>
             <DialogTitle>Editar Perfil Institucional</DialogTitle>
             <DialogDescription>
-              Atualize as informações do seu usuário do time de Gente & Gestão.
+              Atualize as informações do seu usuário do time de Gente & Gestão SouYess.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-3">
             <div className="space-y-1.5">
-              <Label htmlFor="prof-email" className="text-xs font-semibold text-slate-600">
-                Email
+              <Label htmlFor="prof-email" className="text-xs font-semibold text-[#4D5566]">
+                Email institucional
               </Label>
               <Input
                 id="prof-email"
                 value={user?.email || ''}
                 disabled
-                className="bg-slate-50 text-slate-500"
+                className="bg-[#F2F4F8] text-[#6B7384]"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="prof-name" className="text-xs font-semibold text-slate-700">
+              <Label htmlFor="prof-name" className="text-xs font-semibold text-[#212B55]">
                 Nome completo
               </Label>
               <Input
@@ -768,7 +789,7 @@ export default function Layout() {
               Cancelar
             </Button>
             <Button
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-[#E9530E] hover:bg-[#C5430A] text-white"
               onClick={handleSaveProfile}
               disabled={savingProfile}
             >

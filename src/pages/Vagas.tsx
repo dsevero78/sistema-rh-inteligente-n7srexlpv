@@ -310,7 +310,7 @@ export default function Vagas() {
 
         <Button
           onClick={openCreateModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-xs h-10 text-xs px-4"
+          className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold shadow-xs h-10 text-xs px-4"
         >
           <Plus className="w-4 h-4 mr-2" />
           Nova Vaga
@@ -935,7 +935,7 @@ export default function Vagas() {
               <Button
                 type="submit"
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold"
               >
                 {saving ? (
                   <>

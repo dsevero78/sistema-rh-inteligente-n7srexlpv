@@ -1,7 +1,5 @@
 /* Global styles - Theme, font, utilities, animations and global components */
-
-/* CHANGE THE FONT BELOW TO WHATEVER YOU WANT */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Montserrat:ital,wght@0,300..800;1,300..800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,103 +7,170 @@
 
 @layer base {
   :root {
-    /* Change the colors to match the design system */
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* SouYess Design System tokens */
+    /* Laranja SouYess #E9530E (19 89% 48%) */
+    /* Azul Profundo SouYess #212B55 (228 44% 23%) */
+    /* Azul Aceso #345EA9 (218 53% 44%) */
+    /* Superfície / Off-White #F7F8FB (225 33% 98%) */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --background: 225 33% 98%; /* #F7F8FB off-white */
+    --foreground: 228 43% 12%; /* #11162B near-black deep ink */
+
+    --card: 0 0% 100%; /* #FFFFFF white surface */
+    --card-foreground: 228 43% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 228 43% 12%;
 
-    --primary: 222.2 84% 4.9%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary is SouYess Laranja #E9530E */
+    --primary: 19 89% 48%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 98%;
-    --secondary-foreground: 222.2 84% 4.9%;
+    /* Secondary is Navy 50 / Gray 100 subtle */
+    --secondary: 226 23% 94%; /* #ECEEF4 */
+    --secondary-foreground: 228 44% 23%; /* #212B55 */
 
-    --muted: 210 40% 98%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 20% 96%; /* #F2F4F8 */
+    --muted-foreground: 221 11% 47%; /* #6B7384 */
 
-    --accent: 210 40% 98%;
-    --accent-foreground: 222.2 84% 4.9%;
+    --accent: 22 92% 96%; /* #FEF1EA orange-50 tint */
+    --accent-foreground: 19 89% 41%; /* #C5430A */
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 5 66% 50%; /* #D5392C SouYess Danger */
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 220 18% 88%; /* #D7DCE6 */
+    --input: 220 18% 88%;
+    --ring: 19 89% 48%; /* SouYess orange ring */
 
-    --radius: 0.5rem;
+    --radius: 0.5rem; /* 8px standard SouYess */
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 222.2 84% 4.9%;
-
-    --sidebar-primary: 222.2 84% 4.9%;
-
+    /* Sidebar SouYess Navy-700 / Navy-800 */
+    --sidebar-background: 228 44% 23%; /* #212B55 */
+    --sidebar-foreground: 220 20% 96%;
+    --sidebar-primary: 19 89% 48%; /* #E9530E */
     --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 228 39% 30%; /* #2E3A6E */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 228 43% 18%; /* #1A2240 */
+    --sidebar-ring: 19 89% 48%;
 
-    --sidebar-accent: 210 40% 98%;
+    /* Charts mapped to SouYess palette */
+    --chart-1: 19 89% 48%; /* Laranja #E9530E */
+    --chart-2: 218 53% 44%; /* Azul Aceso #345EA9 */
+    --chart-3: 156 67% 37%; /* Verde Sucesso #1F9D6A */
+    --chart-4: 44 100% 45%; /* Amarelo Warning #E5A700 */
+    --chart-5: 228 44% 23%; /* Azul Profundo #212B55 */
 
-    --sidebar-accent-foreground: 222.2 84% 4.9%;
+    /* SouYess explicit tokens for direct CSS variables */
+    --orange-50: #fef1ea;
+    --orange-100: #fbdcc9;
+    --orange-200: #f6bc97;
+    --orange-300: #f19763;
+    --orange-400: #ed7338;
+    --orange-500: #e9530e;
+    --orange-600: #c5430a;
+    --orange-700: #9b340a;
+    --orange-800: #6f2608;
 
-    --sidebar-border: 214.3 31.8% 91.4%;
+    --navy-50: #eceef4;
+    --navy-100: #d3d7e5;
+    --navy-200: #a8b0c9;
+    --navy-300: #7480a6;
+    --navy-400: #4a567e;
+    --navy-600: #2e3a6e;
+    --navy-700: #212b55;
+    --navy-800: #1a2240;
+    --navy-900: #11162b;
 
-    --sidebar-ring: 222.2 84% 4.9%;
+    --blue-50: #edf2f9;
+    --blue-100: #d7e0f0;
+    --blue-400: #4f76bc;
+    --blue-500: #345ea9;
+    --blue-600: #2a4d8c;
 
-    --chart-1: 34 100% 44%;
-    --chart-2: 189 100% 38%;
-    --chart-3: 209 100% 32%;
-    --chart-4: 42 100% 50%;
-    --chart-5: 33 100% 50%;
+    --gray-50: #f2f4f8;
+    --gray-100: #e7eaf0;
+    --gray-200: #d7dce6;
+    --gray-300: #bfc5d2;
+    --gray-400: #98a0b0;
+    --gray-500: #6b7384;
+    --gray-600: #4d5566;
+    --gray-700: #353c4d;
+    --gray-800: #1f2435;
+
+    --success-500: #1f9d6a;
+    --success-100: #ddf3e8;
+    --warning-500: #e5a700;
+    --warning-100: #fbf1d2;
+    --danger-500: #d5392c;
+    --danger-100: #f8ddd9;
+    --info-500: #3b6fe0;
+    --info-100: #dce6fa;
+
+    --font-display:
+      'Gotham', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-body:
+      'Gotham', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   }
 
   .dark {
-    /* Change the colors to match the design system consistent with the dark mode */
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 228 43% 10%; /* #0D1122 */
+    --foreground: 220 20% 96%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 228 43% 14%;
+    --card-foreground: 220 20% 96%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 228 43% 14%;
+    --popover-foreground: 220 20% 96%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 84% 4.9%;
+    --primary: 19 89% 52%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 222.2 84% 4.9%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 228 35% 20%;
+    --secondary-foreground: 220 20% 96%;
 
-    --muted: 222.2 84% 4.9%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 228 35% 18%;
+    --muted-foreground: 220 15% 65%;
 
-    --accent: 222.2 84% 4.9%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 228 35% 24%;
+    --accent-foreground: 220 20% 96%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 5 66% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 222.2 84% 4.9%;
-    --input: 222.2 84% 4.9%;
-    --ring: 214.3 31.8% 91.4%;
-    --sidebar-background: 222.2 84% 4.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 222.2 84% 4.9%;
+    --border: 228 35% 22%;
+    --input: 228 35% 22%;
+    --ring: 19 89% 52%;
+
+    --sidebar-background: 228 43% 12%;
+    --sidebar-foreground: 220 20% 96%;
+    --sidebar-primary: 19 89% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222.2 84% 4.9%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222.2 84% 4.9%;
-    --sidebar-ring: 222.2 84% 4.9%;
+    --sidebar-accent: 228 35% 20%;
+    --sidebar-accent-foreground: 220 20% 96%;
+    --sidebar-border: 228 35% 20%;
+    --sidebar-ring: 19 89% 52%;
 
-    --chart-1: 270 100% 44%;
-    --chart-2: 164 100% 38%;
-    --chart-3: 43 100% 32%;
-    --chart-4: 340 100% 50%;
-    --chart-5: 10 100% 50%;
+    --chart-1: 19 89% 52%;
+    --chart-2: 218 53% 54%;
+    --chart-3: 156 67% 45%;
+    --chart-4: 44 100% 50%;
+    --chart-5: 228 44% 35%;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: #e9530e;
+    color: #ffffff;
   }
 
   /* NEVER REMOVE THIS */

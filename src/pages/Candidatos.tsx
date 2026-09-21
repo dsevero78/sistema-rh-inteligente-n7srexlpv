@@ -424,14 +424,13 @@ export default function Candidatos() {
             Gerencie perfis, analise o score inteligente e acompanhe o avanço nos processos
           </p>
         </div>
-
         <Button
           onClick={openCreateModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-xs h-10 text-xs px-4"
+          className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold shadow-xs h-10 text-xs px-4"
         >
           <Plus className="w-4 h-4 mr-2" />
           Adicionar Candidato
-        </Button>
+        </Button>{' '}
       </div>
 
       {/* Filter bar */}
@@ -1271,7 +1270,7 @@ export default function Candidatos() {
               <Button
                 type="submit"
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold"
               >
                 {saving ? (
                   <>

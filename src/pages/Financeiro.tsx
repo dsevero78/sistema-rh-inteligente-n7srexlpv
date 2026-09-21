@@ -235,7 +235,6 @@ export default function PainelFinanceiro() {
               </SelectContent>
             </Select>
           </div>
-
           {/* Seletor Ano */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
             <Select
@@ -254,7 +253,6 @@ export default function PainelFinanceiro() {
               </SelectContent>
             </Select>
           </div>
-
           {/* Horizonte Projeção */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
             <Select
@@ -277,7 +275,6 @@ export default function PainelFinanceiro() {
               </SelectContent>
             </Select>
           </div>
-
           {/* Botão Exportar PDF */}
           <Button
             variant="outline"
@@ -289,13 +286,12 @@ export default function PainelFinanceiro() {
             <Printer className="w-3.5 h-3.5 text-slate-500" />
             Exportar PDF
           </Button>
-
           {/* Botão Síntese IA */}
           <Button
             size="sm"
             onClick={handleGerarSinteseIA}
             disabled={!dados || loading || gerandoSintese}
-            className="h-9 gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+            className="h-9 gap-1.5 text-xs bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold shadow-xs"
           >
             {gerandoSintese ? (
               <>
@@ -304,11 +300,11 @@ export default function PainelFinanceiro() {
               </>
             ) : (
               <>
-                <Sparkles className="w-3.5 h-3.5 text-blue-200" />
-                Síntese Executiva IA
+                <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                Síntese com IA
               </>
             )}
-          </Button>
+          </Button>{' '}
         </div>
       </div>
 
@@ -1111,12 +1107,12 @@ export default function PainelFinanceiro() {
               <Button
                 size="sm"
                 onClick={handleGerarSinteseIA}
-                disabled={loading || gerandoSintese}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5"
+                disabled={!dados || loading || gerandoSintese}
+                className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold text-xs gap-1.5"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                Gerar Síntese Executiva Agora
-              </Button>
+                <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                Gerar Síntese IA
+              </Button>{' '}
             </div>
           )}
         </CardContent>

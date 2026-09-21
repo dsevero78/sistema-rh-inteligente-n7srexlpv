@@ -230,31 +230,32 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in-50 duration-300">
-      {/* Top Banner & Quick Actions */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs">
-        <div>
+      {/* Top Banner & Quick Actions SouYess */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#E7EAF0] shadow-[0_1px_3px_rgba(11,18,48,0.06)] relative overflow-hidden">
+        <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-[#E9530E]" />
+        <div className="pl-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs uppercase font-bold tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-              Visão Executiva
+            <span className="text-[10px] uppercase font-bold tracking-widest text-[#E9530E] bg-[#FEF1EA] px-2.5 py-0.5 rounded-full border border-[#FBDCC9]">
+              Visão Executiva · SouYess
             </span>
-            <span className="text-xs text-slate-500 font-medium">· {periodLabel}</span>
+            <span className="text-xs text-[#6B7384] font-medium">· {periodLabel}</span>
           </div>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-[#4D5566] mt-1.5">
             Acompanhe em tempo real as vagas estratégicas, o ritmo de entrevistas e a aderência de
             talentos via IA.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto pl-2 sm:pl-0">
           <Link to="/alertas">
             <Button
               variant="outline"
-              className="h-9 text-xs border-blue-200 bg-blue-50/70 text-blue-900 hover:bg-blue-100 font-semibold relative"
+              className="h-9 text-xs border-[#FBDCC9] bg-[#FEF1EA] text-[#C5430A] hover:bg-[#FBDCC9] font-semibold relative"
             >
-              <Bell className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
+              <Bell className="w-3.5 h-3.5 mr-1.5 text-[#E9530E]" />
               Alertas de Talentos
               {alertasNovos.length > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.2 text-[10px] bg-blue-600 text-white rounded-full font-bold">
+                <span className="ml-1.5 px-1.5 py-0.2 text-[10px] bg-[#E9530E] text-white rounded-full font-bold">
                   {alertasNovos.length}
                 </span>
               )}
@@ -264,9 +265,9 @@ export default function Dashboard() {
           <Link to="/banco-talentos">
             <Button
               variant="outline"
-              className="h-9 text-xs border-amber-300 bg-amber-50/70 text-amber-900 hover:bg-amber-100 font-semibold"
+              className="h-9 text-xs border-[#D7DCE6] bg-[#F7F8FB] text-[#212B55] hover:bg-[#ECEEF4] font-semibold"
             >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-600 fill-amber-500" />
+              <Sparkles className="w-3.5 h-3.5 mr-1.5 text-[#E9530E]" />
               Banco de Talentos
             </Button>
           </Link>
@@ -274,9 +275,9 @@ export default function Dashboard() {
           <Link to="/relatorio-executivo">
             <Button
               variant="outline"
-              className="h-9 text-xs border-slate-200 text-slate-700 hover:text-blue-600 font-semibold"
+              className="h-9 text-xs border-[#D7DCE6] text-[#212B55] hover:text-[#E9530E] font-semibold"
             >
-              <BarChart3 className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
+              <BarChart3 className="w-3.5 h-3.5 mr-1.5 text-[#345EA9]" />
               Relatório Executivo
             </Button>
           </Link>
@@ -284,14 +285,14 @@ export default function Dashboard() {
           <Link to="/vagas" className="flex-1 sm:flex-initial">
             <Button
               variant="outline"
-              className="w-full sm:w-auto h-9 text-xs border-slate-300 font-medium text-slate-700"
+              className="w-full sm:w-auto h-9 text-xs border-[#D7DCE6] font-semibold text-[#212B55]"
             >
               <Plus className="w-3.5 h-3.5 mr-1.5" />
               Nova Vaga
             </Button>
           </Link>
           <Link to="/candidatos" className="flex-1 sm:flex-initial">
-            <Button className="w-full sm:w-auto h-9 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-xs">
+            <Button className="w-full sm:w-auto h-9 text-xs bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold shadow-xs">
               <Plus className="w-3.5 h-3.5 mr-1.5" />
               Adicionar Candidato
             </Button>
@@ -301,26 +302,25 @@ export default function Dashboard() {
 
       {/* 4 Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Vagas Ativas */}
+        {/* Card 1: Vagas Ativas (accent bar SouYess) */}
         <Card
           onClick={() => navigate('/vagas')}
-          className="p-5 border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group"
+          className="p-5 border-[#E7EAF0] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group relative overflow-hidden"
         >
+          <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#E9530E]" />
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
               Vagas Ativas
             </span>
-            <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+            <div className="w-9 h-9 rounded-lg bg-[#FEF1EA] text-[#E9530E] flex items-center justify-center group-hover:bg-[#E9530E] group-hover:text-white transition-colors">
               <Briefcase className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
-              {vagasAtivas}
-            </span>
-            <span className="text-xs font-medium text-slate-500">de {vagas.length} totais</span>
+            <span className="text-3xl font-black text-[#212B55] tabular-nums">{vagasAtivas}</span>
+            <span className="text-xs font-medium text-[#6B7384]">de {vagas.length} totais</span>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-[#1F9D6A] font-semibold">
             <ArrowUpRight className="w-3.5 h-3.5" />
             <span>+12% vs. mês anterior</span>
           </div>
@@ -329,48 +329,48 @@ export default function Dashboard() {
         {/* Card 2: Candidatos em Análise */}
         <Card
           onClick={() => navigate('/candidatos')}
-          className="p-5 border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group"
+          className="p-5 border-[#E7EAF0] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group relative overflow-hidden"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
               Candidatos no Funil
             </span>
-            <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+            <div className="w-9 h-9 rounded-lg bg-[#EDF2F9] text-[#345EA9] flex items-center justify-center group-hover:bg-[#345EA9] group-hover:text-white transition-colors">
               <Users className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
+            <span className="text-3xl font-black text-[#212B55] tabular-nums">
               {candidatosEmAnalise}
             </span>
-            <span className="text-xs font-medium text-slate-500">em avaliação</span>
+            <span className="text-xs font-medium text-[#6B7384]">em avaliação</span>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-[#1F9D6A] font-semibold">
             <ArrowUpRight className="w-3.5 h-3.5" />
             <span>+18% no período</span>
           </div>
         </Card>
 
-        {/* Card 3: Entrevistas Marcadas (linka para a nova tela de Entrevistas) */}
+        {/* Card 3: Entrevistas Marcadas */}
         <Card
           onClick={() => navigate('/entrevistas')}
-          className="p-5 border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group"
+          className="p-5 border-[#E7EAF0] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group relative overflow-hidden"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
               Entrevistas na Semana
             </span>
-            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-colors">
+            <div className="w-9 h-9 rounded-lg bg-[#FBF1D2] text-[#875A00] flex items-center justify-center group-hover:bg-[#E5A700] group-hover:text-white transition-colors">
               <CalendarCheck className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
+            <span className="text-3xl font-black text-[#212B55] tabular-nums">
               {entrevistasMarcadas}
             </span>
-            <span className="text-xs font-medium text-slate-500">agendadas</span>
+            <span className="text-xs font-medium text-[#6B7384]">agendadas</span>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-blue-600 font-medium">
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-[#E9530E] font-semibold">
             <ArrowRight className="w-3.5 h-3.5" />
             <span>Ver calendário e lembretes</span>
           </div>
@@ -379,23 +379,23 @@ export default function Dashboard() {
         {/* Card 4: Taxa de Preenchimento */}
         <Card
           onClick={() => navigate('/vagas')}
-          className="p-5 border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group"
+          className="p-5 border-[#E7EAF0] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group relative overflow-hidden"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7384]">
               Taxa de Preenchimento
             </span>
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+            <div className="w-9 h-9 rounded-lg bg-[#DDF3E8] text-[#1F9D6A] flex items-center justify-center group-hover:bg-[#1F9D6A] group-hover:text-white transition-colors">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-slate-900 tabular-nums">
+            <span className="text-3xl font-black text-[#212B55] tabular-nums">
               {taxaPreenchimento}%
             </span>
-            <span className="text-xs font-medium text-slate-500">meta: 80%</span>
+            <span className="text-xs font-medium text-[#6B7384]">meta: 80%</span>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-[#1F9D6A] font-semibold">
             <ArrowUpRight className="w-3.5 h-3.5" />
             <span>Dentro da meta trimestral</span>
           </div>
@@ -504,26 +504,26 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Destaque de Alertas Automáticos de Talentos */}
+      {/* Destaque de Alertas Automáticos de Talentos SouYess */}
       {alertas.length > 0 && (
-        <Card className="border-blue-200 bg-linear-to-r from-blue-50/60 via-white to-white p-5 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-blue-100/80">
+        <Card className="border-[#FBDCC9] bg-gradient-to-r from-[#FEF1EA]/70 via-white to-white p-5 shadow-xs rounded-2xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#FBDCC9]/70">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
+              <div className="w-9 h-9 rounded-lg bg-[#E9530E] text-white flex items-center justify-center font-bold shadow-xs">
                 <Bell className="w-4 h-4" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-slate-900">
+                  <h3 className="text-sm font-bold text-[#212B55] uppercase tracking-wide">
                     Alertas Automáticos de Talentos Recém-Identificados
                   </h3>
                   {alertasNovos.length > 0 && (
-                    <Badge className="bg-blue-600 text-white text-[10px] font-bold">
+                    <Badge className="bg-[#E9530E] text-white text-[10px] font-bold">
                       {alertasNovos.length} novo(s)
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-[#6B7384]">
                   Candidatos qualificados do Banco de Talentos com alta compatibilidade para vagas
                   ativas.
                 </p>
@@ -533,10 +533,10 @@ export default function Dashboard() {
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs font-semibold border-blue-200 text-blue-700 hover:bg-blue-50"
+                className="text-xs font-semibold border-[#FBDCC9] text-[#E9530E] hover:bg-[#FEF1EA]"
               >
                 Ver todos os alertas
-                <ArrowRight className="w-3 h-3 ml-1" />
+                <ArrowRight className="w-3 h-3 ml-1 text-[#E9530E]" />
               </Button>
             </Link>
           </div>
