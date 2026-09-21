@@ -317,12 +317,6 @@ export default function Layout() {
                 badge: 'Promotores',
               },
               {
-                title: 'Prestadores PJ',
-                href: '/prestadores-pj',
-                icon: Handshake,
-                badge: 'PJ',
-              },
-              {
                 title: 'Banco de Talentos',
                 href: '/banco-talentos',
                 icon: Sparkles,
@@ -722,10 +716,12 @@ export default function Layout() {
                       const handleClickNotif = () => {
                         if (isAlertaMeta) {
                           navigate('/financeiro')
-                        } else if (isRenovacaoPj) {
-                          navigate('/prestadores-pj')
-                        } else if (isAlertaPj) {
-                          navigate('/prestadores-pj')
+                        } else if (isRenovacaoPj || isAlertaPj) {
+                          if (prest?.id) {
+                            navigate(`/prestadores-pj?id=${prest.id}`)
+                          } else {
+                            navigate('/pessoas')
+                          }
                         } else if (isAprovVaga && vaga) {
                           navigate(`/vagas/${vaga.id}`)
                         } else if (isParecerGestor && cand) {

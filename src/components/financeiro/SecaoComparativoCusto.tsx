@@ -11,6 +11,7 @@ import {
   DollarSign,
   Star,
   Award,
+  ExternalLink,
   ChevronDown,
   ChevronUp,
   Info,
@@ -649,9 +650,14 @@ export function SecaoComparativoCusto({
                           </span>
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-slate-900 text-xs">
+                              <a
+                                href={`/prestadores-pj?id=${p.id}`}
+                                className="font-bold text-slate-900 text-xs hover:text-blue-600 hover:underline transition-colors flex items-center gap-1"
+                                title="Ver ficha unificada da pessoa"
+                              >
                                 {p.nomeFantasia}
-                              </span>
+                                <ExternalLink className="w-2.5 h-2.5 text-slate-400" />
+                              </a>
                               {p.isMelhorCustoBeneficio && (
                                 <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] gap-1 py-0 h-4">
                                   <Award className="w-2.5 h-2.5" />

@@ -467,10 +467,20 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       for (const a of aditivosJuridico) {
         const prest =
           a.expand?.prestador?.nome_fantasia || a.expand?.prestador?.razao_social || 'Prestador PJ'
+        // Localizar a pessoa associada ao prestador para rota direta da ficha
+        const pessoaDestePrest = pessoas.find(
+          (p) =>
+            p.prestador_origem === a.prestador ||
+            (a.expand?.prestador?.cnpj && p.cpf_cnpj === a.expand?.prestador?.cnpj),
+        )
+        const rotaFicha = pessoaDestePrest
+          ? `/pessoas/${pessoaDestePrest.id}`
+          : `/prestadores-pj?id=${a.prestador}`
+
         itens.push({
           id: `juridico-aditivo-${a.id}`,
           tituloAcao: `Analisar e emitir parecer na minuta do aditivo ${a.numero_aditivo || 'PJ'}`,
-          contexto: `Prestador: ${prest} · Tipo: ${a.tipo || 'Alteração contratual'} · Conformidade Jurídica`,
+          contexto: `Pessoa/Prestador: ${pessoaDestePrest?.nome || prest} · Tipo: ${a.tipo || 'Alteração contratual'} · Conformidade Jurídica`,
           detalhe:
             a.descricao ||
             'Minuta elaborada pelo RH aguardando parecer jurídico para prosseguir com assinaturas.',
@@ -479,7 +489,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
           severidade: 'urgente',
           severidadeLabel: 'Urgente',
           dataLimiteLabel: 'Hoje',
-          rotaDestino: `/prestadores-pj`,
+          rotaDestino: rotaFicha,
           origemRecordId: a.id,
         })
       }
@@ -489,10 +499,19 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       for (const a of aditivosAjustes) {
         const prest =
           a.expand?.prestador?.nome_fantasia || a.expand?.prestador?.razao_social || 'Prestador PJ'
+        const pessoaDestePrest = pessoas.find(
+          (p) =>
+            p.prestador_origem === a.prestador ||
+            (a.expand?.prestador?.cnpj && p.cpf_cnpj === a.expand?.prestador?.cnpj),
+        )
+        const rotaFicha = pessoaDestePrest
+          ? `/pessoas/${pessoaDestePrest.id}`
+          : `/prestadores-pj?id=${a.prestador}`
+
         itens.push({
           id: `juridico-ajustes-${a.id}`,
           tituloAcao: `Acompanhar ajustes solicitados no aditivo ${a.numero_aditivo}`,
-          contexto: `Prestador: ${prest} · Ajustes em conferência com o RH`,
+          contexto: `Pessoa/Prestador: ${pessoaDestePrest?.nome || prest} · Ajustes em conferência com o RH`,
           detalhe:
             a.parecer_juridico ||
             'Aguardando adequação de redação ou cláusulas complementares pelo RH.',
@@ -501,7 +520,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
           severidade: 'atencao',
           severidadeLabel: 'Atenção',
           dataLimiteLabel: 'Esta semana',
-          rotaDestino: `/prestadores-pj`,
+          rotaDestino: rotaFicha,
           origemRecordId: a.id,
         })
       }
@@ -679,12 +698,20 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       for (const a of aditivos) {
         const prest =
           a.expand?.prestador?.nome_fantasia || a.expand?.prestador?.razao_social || 'Prestador PJ'
+        const pessoaDestePrest = pessoas.find(
+          (p) =>
+            p.prestador_origem === a.prestador ||
+            (a.expand?.prestador?.cnpj && p.cpf_cnpj === a.expand?.prestador?.cnpj),
+        )
+        const rotaFicha = pessoaDestePrest
+          ? `/pessoas/${pessoaDestePrest.id}`
+          : `/prestadores-pj?id=${a.prestador}`
 
         if (a.status === 'Ajustes solicitados') {
           itens.push({
             id: `rh-aditivo-ajustes-${a.id}`,
             tituloAcao: `Revisar minuta do aditivo ${a.numero_aditivo} (Jurídico pediu ajustes)`,
-            contexto: `Prestador: ${prest} · Tipo: ${a.tipo}`,
+            contexto: `Pessoa/Prestador: ${pessoaDestePrest?.nome || prest} · Tipo: ${a.tipo}`,
             detalhe:
               a.parecer_juridico ||
               'O parecer jurídico apontou correções necessárias na redação da minuta.',
@@ -693,14 +720,14 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             severidade: 'urgente',
             severidadeLabel: 'Urgente',
             dataLimiteLabel: 'Hoje',
-            rotaDestino: `/prestadores-pj`,
+            rotaDestino: rotaFicha,
             origemRecordId: a.id,
           })
         } else if (a.status === 'Minuta gerada') {
           itens.push({
             id: `rh-aditivo-minuta-${a.id}`,
             tituloAcao: `Enviar minuta do aditivo ${a.numero_aditivo} para o jurídico`,
-            contexto: `Prestador: ${prest} · Minuta pronta`,
+            contexto: `Pessoa/Prestador: ${pessoaDestePrest?.nome || prest} · Minuta pronta`,
             detalhe:
               'Minuta calculada pelo sistema aguardando seu envio formal para o departamento jurídico.',
             modulo: 'pj_aditivos',
@@ -708,7 +735,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             severidade: 'urgente',
             severidadeLabel: 'Urgente',
             dataLimiteLabel: 'Hoje',
-            rotaDestino: `/prestadores-pj`,
+            rotaDestino: rotaFicha,
             origemRecordId: a.id,
           })
         } else if (a.status === 'Em análise pelo jurídico') {
@@ -716,7 +743,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
           itens.push({
             id: `rh-aditivo-juridico-acompanhar-${a.id}`,
             tituloAcao: `Acompanhar parecer jurídico do aditivo ${a.numero_aditivo}`,
-            contexto: `Prestador: ${prest} · Em análise pelo Jurídico (SLA)`,
+            contexto: `Pessoa/Prestador: ${pessoaDestePrest?.nome || prest} · Em análise pelo Jurídico (SLA)`,
             detalhe:
               'Minuta encaminhada para validação jurídica. O RH cumpriu a elaboração e agora monitora o prazo de retorno.',
             modulo: 'pj_aditivos',
@@ -724,14 +751,14 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             severidade: 'atencao',
             severidadeLabel: 'Atenção',
             dataLimiteLabel: 'Esta semana',
-            rotaDestino: `/prestadores-pj`,
+            rotaDestino: rotaFicha,
             origemRecordId: a.id,
           })
         } else if (a.status === 'Pendente de assinatura') {
           itens.push({
             id: `rh-aditivo-assinatura-${a.id}`,
             tituloAcao: `Coletar assinaturas no aditivo ${a.numero_aditivo}`,
-            contexto: `Prestador: ${prest} · Minuta aprovada pelo Jurídico`,
+            contexto: `Pessoa/Prestador: ${pessoaDestePrest?.nome || prest} · Minuta aprovada pelo Jurídico`,
             detalhe:
               'Parecer jurídico favorável emitido. Aguardando conclusão da coleta de assinaturas digitais.',
             modulo: 'pj_aditivos',
@@ -739,7 +766,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             severidade: 'acompanhar',
             severidadeLabel: 'Acompanhar',
             dataLimiteLabel: 'Acompanhar',
-            rotaDestino: `/prestadores-pj`,
+            rotaDestino: rotaFicha,
             origemRecordId: a.id,
           })
         }
@@ -770,9 +797,16 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             severidadeLabel = 'Atenção'
           }
 
+          const pessoaDestePrest = pessoas.find(
+            (pessoa) => pessoa.prestador_origem === p.id || (p.cnpj && pessoa.cpf_cnpj === p.cnpj),
+          )
+          const rotaFicha = pessoaDestePrest
+            ? `/pessoas/${pessoaDestePrest.id}`
+            : `/prestadores-pj?id=${p.id}`
+
           itens.push({
             id: `rh-renovacao-pj-${p.id}`,
-            tituloAcao: `Decisão de renovação: ${p.nome_fantasia || p.razao_social} (${decisao.tier})`,
+            tituloAcao: `Decisão de renovação: ${pessoaDestePrest?.nome || p.nome_fantasia || p.razao_social} (${decisao.tier})`,
             contexto: `Vence em ~${decisao.diasRestantes} dias · R$ ${decisao.valorHora.toFixed(2)}/h · Nota ${decisao.notaMedia.toFixed(1)}/10`,
             detalhe: decisao.recomendacaoCurta,
             modulo: 'pj_renovacoes',
@@ -780,7 +814,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             severidade,
             severidadeLabel,
             dataLimiteLabel: `~${decisao.diasRestantes} dias`,
-            rotaDestino: `/prestadores-pj`,
+            rotaDestino: rotaFicha,
             origemRecordId: p.id,
           })
         }

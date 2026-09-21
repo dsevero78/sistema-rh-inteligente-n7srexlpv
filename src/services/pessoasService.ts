@@ -87,6 +87,43 @@ export interface PessoaUnificada {
   documentosVencendoCount?: number
 }
 
+export type TipoVinculo = 'PJ' | 'CLT' | 'Estágio' | 'Temporário'
+export type SituacaoVinculo =
+  | 'Vigente'
+  | 'Vencendo'
+  | 'Em integração'
+  | 'Renovado'
+  | 'Encerrado'
+  | 'Rescindido'
+  | 'Pausado'
+
+export interface VinculoPessoa {
+  id: string
+  pessoaId: string
+  tipo: TipoVinculo
+  origem: 'contratos_pj' | 'pessoas' | 'rotinas_integracao'
+  origemId: string
+  titulo: string
+  numeroContrato?: string
+  valorMensal: number
+  valorHora: number
+  horasMensaisBase: number
+  tipoRemuneracao?: 'Mensal' | 'Por hora' | 'Por projeto' | 'Salário Fixo'
+  dataInicio: string
+  dataFim?: string
+  situacao: SituacaoVinculo
+  prazoTipo?: PrazoTipoPessoa
+  gestorNome?: string
+  departamento?: string
+  cargoFuncao?: string
+  // Regras e dados estendidos PJ
+  prestadorPjId?: string
+  contadorAditivos?: number
+  clausulasResumo?: string
+  contratoAssinadoAnexo?: string
+  recordOriginal?: RecordModel
+}
+
 export interface NovaPessoaInput {
   nome: string
   tipo_pessoa: TipoPessoa
@@ -613,6 +650,123 @@ export const pessoasService = {
     eventos.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
 
     return eventos
+  },
+
+  /**
+   * Resolver vínculo PJ e carregar o PrestadorPJ correspondente à pessoa
+   */
+  async obterPrestadorVinculado(pessoa: PessoaUnificada): Promise<RecordModel | null> {
+    try {
+      if (pessoa.prestador_origem) {
+        return await pb.collection('prestadores_pj').getOne<RecordModel>(pessoa.prestador_origem)
+      }
+      if (pessoa.cpf_cnpj) {
+        const porCnpj = await pb
+          .collection('prestadores_pj')
+          .getFirstListItem<RecordModel>(`cnpj = '${pessoa.cpf_cnpj}'`)
+        return porCnpj
+      }
+      if (pessoa.email) {
+        const porEmail = await pb
+          .collection('prestadores_pj')
+          .getFirstListItem<RecordModel>(`contato_email = '${pessoa.email}'`)
+        return porEmail
+      }
+    } catch {
+      /* not found */
+    }
+    return null
+  },
+
+  /**
+   * Listar todos os vínculos da pessoa (CLT e PJ, ativos e encerrados).
+   * Consolida:
+   * 1. Contratos formais PJ em `contratos_pj` (se houver prestador_origem ou PJ com mesmo CNPJ)
+   * 2. Vínculo CLT registrado na ficha da pessoa
+   * 3. Vínculos adicionais de rotinas de integração se houver
+   */
+  async listarVinculosPessoa(pessoa: PessoaUnificada): Promise<VinculoPessoa[]> {
+    const vinculos: VinculoPessoa[] = []
+
+    // 1. Vínculo principal direto da ficha de Pessoa
+    const horasBase = pessoa.horas_mensais_base || 160
+    const vTotal = pessoa.valor_contratado || 0
+    const vHora = pessoa.valor_hora || (horasBase > 0 ? Number((vTotal / horasBase).toFixed(2)) : 0)
+
+    vinculos.push({
+      id: `ficha-${pessoa.id}`,
+      pessoaId: pessoa.id,
+      tipo: (pessoa.modalidade as TipoVinculo) || 'CLT',
+      origem: 'pessoas',
+      origemId: pessoa.id,
+      titulo: `Vínculo Principal — ${pessoa.modalidade} (${pessoa.cargo_funcao})`,
+      valorMensal: vTotal,
+      valorHora: vHora,
+      horasMensaisBase: horasBase,
+      tipoRemuneracao: pessoa.modalidade === 'PJ' ? 'Mensal' : 'Salário Fixo',
+      dataInicio: pessoa.data_inicio,
+      dataFim: pessoa.data_fim || pessoa.data_renovacao,
+      situacao: (pessoa.situacao_contrato as SituacaoVinculo) || 'Vigente',
+      prazoTipo: pessoa.prazo_tipo,
+      gestorNome: pessoa.gestor_nome,
+      departamento: pessoa.departamento,
+      cargoFuncao: pessoa.cargo_funcao,
+      prestadorPjId: pessoa.prestador_origem,
+    })
+
+    // 2. Se for PJ ou possuir prestador_origem / cnpj associado, carregar contratos de `contratos_pj`
+    try {
+      let prestId = pessoa.prestador_origem
+      if (!prestId && pessoa.cpf_cnpj) {
+        const pj = await pb
+          .collection('prestadores_pj')
+          .getFirstListItem<RecordModel>(`cnpj = '${pessoa.cpf_cnpj}'`)
+        prestId = pj.id
+      }
+
+      if (prestId) {
+        const contratos = await pb.collection('contratos_pj').getFullList<RecordModel>({
+          filter: `prestador = '${prestId}'`,
+          sort: '-data_inicio',
+        })
+
+        for (const c of contratos) {
+          const valor = Number(c.valor || 0)
+          const vh = horasBase > 0 ? Number((valor / horasBase).toFixed(2)) : 0
+
+          // Evita duplicar se for ID idêntico
+          vinculos.push({
+            id: `contrato-${c.id}`,
+            pessoaId: pessoa.id,
+            tipo: 'PJ',
+            origem: 'contratos_pj',
+            origemId: c.id,
+            titulo: c.titulo || `Contrato PJ ${c.numero_contrato || ''}`,
+            numeroContrato: c.numero_contrato,
+            valorMensal: valor,
+            valorHora: vh,
+            horasMensaisBase: horasBase,
+            tipoRemuneracao: c.tipo || 'Mensal',
+            dataInicio: c.data_inicio,
+            dataFim: c.data_fim,
+            situacao: (c.status as SituacaoVinculo) || 'Vigente',
+            prazoTipo: 'Determinado',
+            gestorNome: c.gestor_nome || pessoa.gestor_nome,
+            departamento: pessoa.departamento,
+            cargoFuncao: pessoa.cargo_funcao,
+            prestadorPjId: prestId,
+            contadorAditivos: c.contador_aditivos,
+            clausulasResumo: c.clausulas_resumo,
+            contratoAssinadoAnexo: c.contrato_assinado_anexo,
+            recordOriginal: c,
+          })
+        }
+      }
+    } catch {
+      /* ignore error when loading extra contracts */
+    }
+
+    return vinculos
   },
 
   /**

@@ -887,13 +887,17 @@ export function Alertas() {
                           <div className="mt-1 flex items-baseline gap-2 flex-wrap">
                             {alerta.tipo?.includes('pj') ? (
                               <Link
-                                to="/prestadores-pj"
+                                to={
+                                  alerta.expand?.prestador?.id
+                                    ? `/prestadores-pj?id=${alerta.expand.prestador.id}`
+                                    : '/pessoas'
+                                }
                                 className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors flex items-center gap-1.5"
                               >
                                 <Building2 className="w-4 h-4 text-amber-600" />
                                 {alerta.expand?.prestador?.nome_fantasia ||
                                   alerta.expand?.prestador?.razao_social ||
-                                  'Prestador PJ'}
+                                  'Pessoa / Prestador PJ'}
                               </Link>
                             ) : alerta.tipo === 'aprovacao_vaga_gestor' ? (
                               <Link
@@ -940,14 +944,20 @@ export function Alertas() {
                         {alerta.tipo === 'renovacao_contrato_pj' ||
                         alerta.tipo === 'contrato_pj_vencendo' ? (
                           <>
-                            <Link to="/prestadores-pj">
+                            <Link
+                              to={
+                                alerta.expand?.prestador?.id
+                                  ? `/prestadores-pj?id=${alerta.expand.prestador.id}`
+                                  : '/pessoas'
+                              }
+                            >
                               <Button
                                 variant="outline"
                                 size="sm"
                                 className="h-8 text-xs font-bold border-indigo-200 text-indigo-900 bg-indigo-50/50 hover:bg-indigo-100/70"
                               >
                                 <Building2 className="w-3.5 h-3.5 mr-1 text-indigo-700" />
-                                Ficha do Prestador
+                                Ficha da Pessoa (Vínculo PJ)
                               </Button>
                             </Link>
                             <Link to="/financeiro?tab=comparativo">
@@ -960,14 +970,20 @@ export function Alertas() {
                             </Link>
                           </>
                         ) : alerta.tipo?.includes('pj') ? (
-                          <Link to="/prestadores-pj">
+                          <Link
+                            to={
+                              alerta.expand?.prestador?.id
+                                ? `/prestadores-pj?id=${alerta.expand.prestador.id}`
+                                : '/pessoas'
+                            }
+                          >
                             <Button
                               variant="outline"
                               size="sm"
                               className="h-8 text-xs font-medium border-amber-200 text-amber-800 hover:bg-amber-50"
                             >
                               <Building2 className="w-3.5 h-3.5 mr-1 text-amber-600" />
-                              Ver Prestador PJ
+                              Ver Ficha da Pessoa
                             </Button>
                           </Link>
                         ) : alerta.tipo === 'aprovacao_vaga_gestor' && vaga ? (

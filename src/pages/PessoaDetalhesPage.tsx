@@ -66,7 +66,16 @@ import {
   type DocumentoPessoa,
   type EventoTimelineUnificada,
   type TipoDocumentoPessoa,
+  type VinculoPessoa,
 } from '@/services/pessoasService'
+import {
+  type PrestadorPJ,
+  type ContratoPJ,
+  type AditivoPJ,
+  type MarcoLifecyclePJ,
+  prestadoresService,
+} from '@/services/prestadoresPj'
+import { SecaoContratosEVinculos } from '@/components/pessoas/SecaoContratosEVinculos'
 
 export default function PessoaDetalhesPage() {
   const { id } = useParams<{ id: string }>()
@@ -77,6 +86,11 @@ export default function PessoaDetalhesPage() {
   const [pessoa, setPessoa] = useState<PessoaUnificada | null>(null)
   const [documentos, setDocumentos] = useState<DocumentoPessoa[]>([])
   const [eventos, setEventos] = useState<EventoTimelineUnificada[]>([])
+  const [vinculos, setVinculos] = useState<VinculoPessoa[]>([])
+  const [prestadorPj, setPrestadorPj] = useState<PrestadorPJ | null>(null)
+  const [contratosPj, setContratosPj] = useState<ContratoPJ[]>([])
+  const [aditivosPj, setAditivosPj] = useState<AditivoPJ[]>([])
+  const [marcosLifecycle, setMarcosLifecycle] = useState<MarcoLifecyclePJ[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('dados')
 
@@ -128,14 +142,35 @@ export default function PessoaDetalhesPage() {
       setPessoa(p)
       setEditForm({ ...p })
 
-      // Carregar documentos e linha do tempo em paralelo
-      const [docs, timeline] = await Promise.all([
+      // Carregar documentos, linha do tempo e vínculos em paralelo
+      const [docs, timeline, vinculosList, prestadorRecord] = await Promise.all([
         pessoasService.listarDocumentos(p.id),
         pessoasService.carregarLinhaDoTempoUnificada(p),
+        pessoasService.listarVinculosPessoa(p),
+        pessoasService.obterPrestadorVinculado(p),
       ])
 
       setDocumentos(docs)
       setEventos(timeline)
+      setVinculos(vinculosList)
+
+      // Se houver prestador PJ vinculado, carregar contratos, aditivos e marcos
+      if (prestadorRecord) {
+        setPrestadorPj(prestadorRecord as unknown as PrestadorPJ)
+        const [contratos, aditivos, marcos] = await Promise.all([
+          prestadoresService.listarContratos(prestadorRecord.id),
+          prestadoresService.listarAditivos({ prestadorId: prestadorRecord.id }),
+          prestadoresService.listarMarcosLifecycle(prestadorRecord.id),
+        ])
+        setContratosPj(contratos)
+        setAditivosPj(aditivos)
+        setMarcosLifecycle(marcos)
+      } else {
+        setPrestadorPj(null)
+        setContratosPj([])
+        setAditivosPj([])
+        setMarcosLifecycle([])
+      }
     } catch (err) {
       console.error('Erro ao carregar detalhes da pessoa:', err)
       toast({
@@ -508,13 +543,20 @@ export default function PessoaDetalhesPage() {
 
       {/* Tabs Principais da Ficha da Pessoa */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="bg-card border border-border/80 p-1 rounded-xl">
+        <TabsList className="bg-card border border-border/80 p-1 rounded-xl flex-wrap">
           <TabsTrigger
             value="dados"
             className="text-xs font-bold font-sans gap-1.5 data-[state=active]:bg-[#FEF1EA] data-[state=active]:text-[#E9530E] dark:data-[state=active]:bg-[#212B55]"
           >
             <Building2 className="w-3.5 h-3.5" />
-            Dados Cadastrais & Contratuais
+            Dados Cadastrais
+          </TabsTrigger>
+          <TabsTrigger
+            value="vinculos"
+            className="text-xs font-bold font-sans gap-1.5 data-[state=active]:bg-[#FEF1EA] data-[state=active]:text-[#E9530E] dark:data-[state=active]:bg-[#212B55]"
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            Contratos & Vínculos ({vinculos.length})
           </TabsTrigger>
           <TabsTrigger
             value="timeline"
@@ -531,6 +573,20 @@ export default function PessoaDetalhesPage() {
             Cofre de Documentos ({documentos.length})
           </TabsTrigger>
         </TabsList>
+
+        {/* ABA NOVA: CONTRATOS & VÍNCULOS UNIFICADOS */}
+        <TabsContent value="vinculos" className="space-y-4">
+          <SecaoContratosEVinculos
+            pessoa={pessoa}
+            vinculos={vinculos}
+            prestadorPj={prestadorPj}
+            contratosPj={contratosPj}
+            aditivosPj={aditivosPj}
+            marcosLifecycle={marcosLifecycle}
+            documentosCofre={documentos}
+            onAtualizar={carregarFicha}
+          />
+        </TabsContent>
 
         {/* ABA A: DADOS CADASTRAIS */}
         <TabsContent value="dados" className="space-y-4">

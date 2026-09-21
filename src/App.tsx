@@ -45,6 +45,7 @@ import ExperienciaPublica from '@/pages/ExperienciaPublica'
 import IndicarPublica from '@/pages/IndicarPublica'
 import Indicacoes from '@/pages/Indicacoes'
 import PrestadoresPJ from '@/pages/PrestadoresPJ'
+import RedirecionamentoPrestadorParaPessoa from '@/pages/RedirecionamentoPrestadorParaPessoa'
 import NotFound from '@/pages/NotFound'
 
 import { Toaster } from '@/components/ui/toaster'
@@ -123,7 +124,14 @@ export default function App() {
                 <Route path="integracao" element={<RotinaIntegracaoPage />} />
                 <Route path="experiencia" element={<ExperienciaCandidato />} />{' '}
                 <Route path="indicacoes" element={<Indicacoes />} />
-                <Route path="prestadores-pj" element={<PrestadoresPJ />} />
+                {/* Redirecionamento unificado: Prestadores PJ -> Pessoas */}
+                <Route path="prestadores" element={<RedirecionamentoPrestadorParaPessoa />} />
+                <Route path="prestadores/:id" element={<RedirecionamentoPrestadorParaPessoa />} />
+                <Route path="prestadores-pj" element={<RedirecionamentoPrestadorParaPessoa />} />
+                <Route
+                  path="prestadores-pj/:id"
+                  element={<RedirecionamentoPrestadorParaPessoa />}
+                />
                 <Route path="banco-talentos" element={<BancoTalentos />} />{' '}
                 <Route path="alertas" element={<Alertas />} />{' '}
                 <Route path="entrevistas" element={<Entrevistas />} />
