@@ -302,6 +302,14 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             expand: 'pessoa,fechamento',
           }),
       },
+      {
+        nome: 'contratos_unificados',
+        fn: () =>
+          pb.collection('contratos').getFullList({
+            sort: '-created',
+            expand: 'pessoa,prestador_pj',
+          }),
+      },
     ]
 
     const resultadosSettled = await Promise.allSettled(queries.map((q) => q.fn()))
@@ -337,6 +345,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
     const pessoas = dadosMapeados['pessoas']
     const fechamentosComp = dadosMapeados['fechamentos_competencia'] || []
     const notasFiscais = dadosMapeados['notas_fiscais'] || []
+    const contratosUnificados = dadosMapeados['contratos_unificados'] || []
 
     // =========================================================================
     // 2. REGRAS PARA O GESTOR CONTRATANTE (gestor@empresa.com)
@@ -828,6 +837,74 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             rotaDestino: rotaFicha,
             origemRecordId: a.id,
           })
+        }
+      }
+
+      // 4.4.1 Contratos Unificados (PJ e CLT) vencendo ou em janela de renovação (60d PJ / 15d CLT)
+      for (const ct of contratosUnificados as any[]) {
+        if (ct.status === 'Encerrado' || ct.status === 'Rescindido') continue
+
+        const pObj = ct.expand?.pessoa || pessoas.find((p) => p.id === ct.pessoa)
+        const pNome = pObj?.nome || 'Colaborador/Prestador'
+        const isClt = ct.modalidade === 'CLT'
+        const diasAlerta = ct.dias_antecedencia_alerta || (isClt ? 15 : 60)
+
+        // Se o contrato estiver em "Em assinatura", gerar card para o RH acompanhar / assinar
+        if (ct.status === 'Em assinatura') {
+          itens.push({
+            id: `rh-contrato-em-assinatura-${ct.id}`,
+            tituloAcao: `Coletar assinaturas no contrato ${ct.codigo_contrato} (${pNome})`,
+            contexto: `${pNome} (${ct.modalidade}) · ${ct.titulo} · Versão v${ct.versao_atual || 1}.0`,
+            detalhe: 'Minuta gerada e encaminhada para coleta de assinaturas internas auditáveis.',
+            modulo: 'pj_aditivos',
+            moduloLabel: 'Contratos Digitais',
+            severidade: 'atencao',
+            severidadeLabel: 'Atenção',
+            dataLimiteLabel: 'Esta semana',
+            rotaDestino: `/pessoas/${ct.pessoa || pObj?.id}`,
+            origemRecordId: ct.id,
+          })
+        }
+
+        // Se houver data_fim, calcular dias restantes até o término
+        if (ct.data_fim) {
+          const agoraZero = new Date(agora)
+          agoraZero.setHours(0, 0, 0, 0)
+          const dFim = new Date(ct.data_fim)
+          dFim.setHours(0, 0, 0, 0)
+
+          const diffDias = Math.ceil((dFim.getTime() - agoraZero.getTime()) / (1000 * 60 * 60 * 24))
+
+          if (diffDias <= diasAlerta) {
+            let severidade: SeveridadeMeuDia = 'acompanhar'
+            let severidadeLabel: 'Urgente' | 'Atenção' | 'Acompanhar' = 'Acompanhar'
+
+            if (diffDias <= (isClt ? 7 : 20)) {
+              severidade = 'urgente'
+              severidadeLabel = 'Urgente'
+            } else if (diffDias <= (isClt ? 15 : 45)) {
+              severidade = 'atencao'
+              severidadeLabel = 'Atenção'
+            }
+
+            const tipoDesc = isClt ? 'Término de Experiência CLT' : 'Vencimento de Contrato PJ'
+
+            itens.push({
+              id: `rh-contrato-vencendo-${ct.id}`,
+              tituloAcao: `${tipoDesc}: ${pNome} (Vence em ${diffDias} dias)`,
+              contexto: `${pNome} (${ct.modalidade}) · ${ct.codigo_contrato} · R$ ${(ct.valor_mensal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês`,
+              detalhe: isClt
+                ? `O contrato de trabalho de ${pNome} atinge o término em ${dFim.toLocaleDateString('pt-BR')}. Avalie a rotina 30-60-90 para efetivação ou término do período experimental.`
+                : `O contrato de prestação de serviços expira em ${diffDias} dias. Inicie a renovação assistida ou formalize o termo aditivo de prorrogação.`,
+              modulo: isClt ? 'onboarding' : 'pj_renovacoes',
+              moduloLabel: isClt ? 'Renovação CLT' : 'Renovação PJ',
+              severidade,
+              severidadeLabel,
+              dataLimiteLabel: `Em ${diffDias}d`,
+              rotaDestino: `/pessoas/${ct.pessoa || pObj?.id}`,
+              origemRecordId: ct.id,
+            })
+          }
         }
       }
 

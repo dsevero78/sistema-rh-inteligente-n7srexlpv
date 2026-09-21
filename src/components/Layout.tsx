@@ -8,6 +8,7 @@ import { notificacoesRhService, type NotificacaoRH } from '@/services/notificaco
 import {
   LayoutDashboard,
   Sunrise,
+  FileSignature,
   Briefcase,
   Users,
   Clock,
@@ -147,6 +148,8 @@ export default function Layout() {
   useEffect(() => {
     carregarAlertas()
     carregarPendenciasMeuDia()
+    // Verificação proativa de contratos vencendo/em renovação para disparo de notificações e e-mails
+    notificacoesRhService.verificarEDispararAlertasContratosVencendo().catch(() => {})
 
     const handleAtualizacaoMeuDia = () => {
       carregarPendenciasMeuDia()
@@ -203,6 +206,7 @@ export default function Layout() {
     if (path.startsWith('/ofertas')) return 'Ofertas e Propostas Salariais'
     if (path.startsWith('/onboarding')) return 'Onboarding do Contratado (Dia 1)'
     if (path.startsWith('/experiencia')) return 'Experiência do Candidato (Candidate Experience)'
+    if (path.startsWith('/contratos')) return 'Gestão Centralizada de Contratos'
     if (path.startsWith('/indicacoes')) return 'Programa de Indicação de Talentos'
     if (path.startsWith('/prestadores')) return 'Pessoas — Gestão de Pessoas e Vínculos'
     if (path.startsWith('/banco-talentos')) return 'Banco de Talentos & Reaproveitamento'
@@ -287,6 +291,12 @@ export default function Layout() {
           : [
               { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
               { title: 'Meu Dia', href: '/meu-dia', icon: Sunrise, countKey: 'meudia' as const },
+              {
+                title: 'Contratos',
+                href: '/contratos',
+                icon: FileSignature,
+                badge: 'PJ & CLT',
+              },
               {
                 title: 'Horas & Competências',
                 href: '/horas-competencias',

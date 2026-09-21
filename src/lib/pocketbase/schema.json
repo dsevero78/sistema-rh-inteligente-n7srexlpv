@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T16:11:49.620Z",
+  "generatedAt": "2026-09-21T16:31:15.786Z",
   "collections": [
     {
       "name": "users",
@@ -4311,6 +4311,463 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "contratos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "pessoa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pessoas"
+        },
+        {
+          "name": "prestador_pj",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "prestadores_pj"
+        },
+        {
+          "name": "contrato_pj_legado",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "contratos_pj"
+        },
+        {
+          "name": "codigo_contrato",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "modalidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["PJ", "CLT"]
+        },
+        {
+          "name": "tipo_modelo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "PJ_PRESTACAO_SERVICOS",
+            "PJ_HORISTA",
+            "CLT_EXPERIENCIA",
+            "CLT_INDETERMINADO",
+            "CLT_TELETRABALHO",
+            "OUTRO"
+          ]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Minuta",
+            "Em assinatura",
+            "Vigente",
+            "Vencendo",
+            "Renovado",
+            "Encerrado",
+            "Rescindido"
+          ]
+        },
+        {
+          "name": "data_inicio",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_fim",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_renovacao_alerta",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dias_antecedencia_alerta",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_mensal",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_hora",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "horas_mensais_base",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_tipo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Indeterminado",
+            "Determinado",
+            "Experiencia 45+45",
+            "Projeto Especifico"
+          ]
+        },
+        {
+          "name": "departamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "centro_custo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cargo_funcao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gestor_responsavel",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "gestor_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "versao_atual",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conteudo_atual_md",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo_vigente",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_preenchimento",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "clausulas_especiais",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_revisao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_ct_unif_pessoa ON contratos (pessoa)",
+        "CREATE INDEX idx_ct_unif_status ON contratos (status)",
+        "CREATE INDEX idx_ct_unif_modalidade ON contratos (modalidade)",
+        "CREATE INDEX idx_ct_unif_codigo ON contratos (codigo_contrato)",
+        "CREATE INDEX idx_ct_unif_data_fim ON contratos (data_fim)",
+        "CREATE INDEX idx_ct_unif_renovacao ON contratos (data_renovacao_alerta)"
+      ]
+    },
+    {
+      "name": "contrato_versoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "contrato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "contratos"
+        },
+        {
+          "name": "numero_versao",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "rotulo_versao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "conteudo_texto",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "resumo_mudancas",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo_versao",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por_usuario",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "status_versao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Minuta",
+            "Aguardando Assinaturas",
+            "Assinada",
+            "Substituída",
+            "Cancelada"
+          ]
+        },
+        {
+          "name": "hash_conteudo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_versoes_contrato ON contrato_versoes (contrato)",
+        "CREATE INDEX idx_versoes_num ON contrato_versoes (contrato, numero_versao)"
+      ]
+    },
+    {
+      "name": "contrato_assinaturas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "contrato",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "contratos"
+        },
+        {
+          "name": "versao",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "contrato_versoes"
+        },
+        {
+          "name": "papel_signatario",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Contratado",
+            "Representante Empresa",
+            "Testemunha 1",
+            "Testemunha 2",
+            "Gestor"
+          ]
+        },
+        {
+          "name": "nome_signatario",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "email_signatario",
+          "type": "email",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "documento_identificacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_assinatura",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Pendente", "Assinado", "Recusado"]
+        },
+        {
+          "name": "data_solicitacao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_assinatura",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ip_assinatura",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "user_agent",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "hash_documento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "manifestacao_aceite",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_recusa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadados_auditoria",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_ass_contrato ON contrato_assinaturas (contrato)",
+        "CREATE INDEX idx_ass_versao ON contrato_assinaturas (versao)",
+        "CREATE INDEX idx_ass_status ON contrato_assinaturas (status_assinatura)"
+      ]
     }
   ]
 }

@@ -46,6 +46,7 @@ import IndicarPublica from '@/pages/IndicarPublica'
 import Indicacoes from '@/pages/Indicacoes'
 import RedirecionamentoPrestadorParaPessoa from '@/pages/RedirecionamentoPrestadorParaPessoa'
 import HorasCompetenciasPage from '@/pages/HorasCompetenciasPage'
+import ContratosDashboardPage from '@/pages/ContratosDashboardPage'
 import NotFound from '@/pages/NotFound'
 
 import { Toaster } from '@/components/ui/toaster'
@@ -111,8 +112,9 @@ export default function App() {
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="meu-dia" element={<MeuDia />} />
+                <Route path="contratos" element={<ContratosDashboardPage />} />
                 <Route path="horas-competencias" element={<HorasCompetenciasPage />} />
-                <Route path="pessoas" element={<PessoasListaPage />} />
+                <Route path="pessoas" element={<PessoasListaPage />} />{' '}
                 <Route path="pessoas/:id" element={<PessoaDetalhesPage />} />
                 <Route path="gestor" element={<GestorPortal />} />
                 <Route path="vagas" element={<Vagas />} />
