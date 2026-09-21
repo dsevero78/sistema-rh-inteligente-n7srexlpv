@@ -26,12 +26,13 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import {
   contratosService,
-  CriarContratoInput,
-  ModalidadeContrato,
+  type CriarContratoInput,
+  type ModalidadeContrato,
 } from '@/services/contratosService'
 import { modelosContratoService } from '@/services/modelosContratoService'
-import { TemplateContrato } from '@/services/templatesContrato'
-import { PessoaUnificada } from '@/services/pessoasService'
+import { type TemplateContrato } from '@/services/templatesContrato'
+import { type PessoaUnificada } from '@/services/pessoasService'
+import { empresasService, type Empresa, type Area } from '@/services/empresasService'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface ModalNovoContratoTemplateProps {
@@ -110,6 +111,26 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
   )
   const [carregando, setCarregando] = useState(false)
 
+  // Seleção de Empresa e Área para o contrato gerado
+  const [empresasCadastradas, setEmpresasCadastradas] = useState<Empresa[]>([])
+  const [areasCadastradas, setAreasCadastradas] = useState<Area[]>([])
+  const [empresaContratoId, setEmpresaContratoId] = useState<string>(pessoa.empresa || '')
+  const [areaContratoId, setAreaContratoId] = useState<string>(pessoa.area || '')
+
+  useEffect(() => {
+    if (open) {
+      empresasService.listarEmpresas().then((list) => {
+        setEmpresasCadastradas(list)
+        if (!empresaContratoId && pessoa.empresa) {
+          setEmpresaContratoId(pessoa.empresa)
+        } else if (!empresaContratoId && list.length > 0) {
+          setEmpresaContratoId(list[0].id)
+        }
+      })
+      empresasService.listarAreas().then(setAreasCadastradas)
+    }
+  }, [open, pessoa.empresa])
+
   // Ao mudar de modalidade, atualiza o template padrão
   const handleTrocaModalidade = (novaMod: ModalidadeContrato) => {
     setModalidade(novaMod)
@@ -153,6 +174,8 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
         valorMensal: Number(valorMensal) || 0,
         horasMensaisBase: Number(horasBase) || 160,
         prazoTipo,
+        empresaId: empresaContratoId || pessoa.empresa || undefined,
+        areaId: areaContratoId || pessoa.area || undefined,
         departamento: pessoa.departamento,
         centroCusto: pessoa.centro_custo,
         cargoFuncao: pessoa.cargo_funcao,
@@ -352,6 +375,51 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
                   onChange={(e) => setTitulo(e.target.value)}
                   className="h-8 text-xs font-medium"
                 />
+              </div>
+
+              {/* Empresa Contratante (Holding / BU) */}
+              <div className="space-y-1">
+                <Label className="text-[11px] font-semibold">
+                  Empresa Contratante (Holding ou BU)
+                </Label>
+                <select
+                  value={empresaContratoId}
+                  onChange={(e) => {
+                    setEmpresaContratoId(e.target.value)
+                    setAreaContratoId('')
+                  }}
+                  className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs font-medium"
+                >
+                  <option value="">Selecione a empresa...</option>
+                  {empresasCadastradas.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.sigla ? `[${emp.sigla}] ` : ''}
+                      {emp.nome_fantasia} ({emp.tipo === 'Holding / Matriz' ? 'Holding' : 'BU'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Área / Unidade da Empresa */}
+              <div className="space-y-1">
+                <Label className="text-[11px] font-semibold">Área / Unidade da Empresa</Label>
+                <select
+                  value={areaContratoId}
+                  onChange={(e) => setAreaContratoId(e.target.value)}
+                  disabled={!empresaContratoId}
+                  className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50"
+                >
+                  <option value="">
+                    {empresaContratoId ? 'Selecione a área...' : 'Escolha a empresa primeiro'}
+                  </option>
+                  {areasCadastradas
+                    .filter((a) => a.empresa === empresaContratoId)
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.nome}
+                      </option>
+                    ))}
+                </select>
               </div>
 
               <div className="space-y-1">

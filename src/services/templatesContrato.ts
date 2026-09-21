@@ -23,7 +23,7 @@ export interface TemplateContrato {
 export interface PlaceholderInfo {
   token: string
   descricao: string
-  categoria: 'Geral' | 'Pessoa / PJ' | 'Financeiro & Prazo' | 'Especiais'
+  categoria: 'Geral' | 'Pessoa / PJ' | 'Empresa / BU' | 'Financeiro & Prazo' | 'Especiais'
   exemplo: string
 }
 
@@ -57,6 +57,42 @@ export const PLACEHOLDERS_SUPORTADOS: PlaceholderInfo[] = [
     descricao: 'Telefone de contato da pessoa',
     categoria: 'Pessoa / PJ',
     exemplo: '(11) 98765-4321',
+  },
+  {
+    token: '{{EMPRESA_NOME_FANTASIA}}',
+    descricao: 'Nome fantasia da empresa contratante do grupo (Holding ou BU)',
+    categoria: 'Empresa / BU',
+    exemplo: 'SouYess Tecnologia',
+  },
+  {
+    token: '{{EMPRESA_RAZAO_SOCIAL}}',
+    descricao: 'Razão Social oficial da empresa do grupo econômico contratante',
+    categoria: 'Empresa / BU',
+    exemplo: 'SouYess Tecnologia e Gestão de Software S.A.',
+  },
+  {
+    token: '{{EMPRESA_CNPJ}}',
+    descricao: 'CNPJ formatado da empresa contratante (Holding ou BU)',
+    categoria: 'Empresa / BU',
+    exemplo: '11.222.333/0002-62',
+  },
+  {
+    token: '{{EMPRESA_TIPO}}',
+    descricao: 'Tipo societário no grupo (Holding / Matriz ou BU / Filial)',
+    categoria: 'Empresa / BU',
+    exemplo: 'BU / Filial',
+  },
+  {
+    token: '{{EMPRESA_CIDADE_UF}}',
+    descricao: 'Cidade e UF da sede da empresa contratante',
+    categoria: 'Empresa / BU',
+    exemplo: 'Curitiba/PR',
+  },
+  {
+    token: '{{AREA}}',
+    descricao: 'Área ou unidade organizacional cadastrada na empresa',
+    categoria: 'Empresa / BU',
+    exemplo: 'Engenharia de Software & Cloud',
   },
   {
     token: '{{PRESTADOR_RAZAO_SOCIAL}}',
@@ -190,7 +226,7 @@ CONTRATO NÚMERO: {{CODIGO_CONTRATO}}
 Pelo presente instrumento particular, de um lado:
 
 CONTRATANTE:
-SOUYESS TECNOLOGIA E SERVIÇOS S/A, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 12.345.678/0001-90, com sede na Avenida Paulista, nº 1000, 14º andar, Bela Vista, São Paulo/SP, neste ato representada na forma de seu Estatuto Social por seu gestor responsável {{GESTOR_NOME}};
+{{EMPRESA_RAZAO_SOCIAL}}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº {{EMPRESA_CNPJ}}, com sede em {{EMPRESA_CIDADE_UF}}, neste ato representada na forma de seus atos constitutivos por seu gestor responsável {{GESTOR_NOME}};
 
 E, de outro lado:
 
@@ -200,7 +236,7 @@ CONTRATADA:
 Têm entre si, justo e acordado, o presente Contrato de Prestação de Serviços, mediante as seguintes cláusulas:
 
 CLÁUSULA PRIMEIRA — DO OBJETO E ESCOPO
-1.1. O presente instrumento tem por objeto a prestação, pela CONTRATADA à CONTRATANTE, de serviços especializados de {{CARGO_FUNCAO}}, atuando perante a área de {{DEPARTAMENTO}}, com centro de custo vinculado {{CENTRO_CUSTO}}.
+1.1. O presente instrumento tem por objeto a prestação, pela CONTRATADA à CONTRATANTE, de serviços especializados de {{CARGO_FUNCAO}}, atuando perante a área de {{AREA}} ({{DEPARTAMENTO}}), com centro de custo vinculado {{CENTRO_CUSTO}}.
 1.2. As atividades serão desenvolvidas com plena autonomia técnica, gerencial e operacional, sem subordinação hierárquica, exclusividade ou controle rígido de jornada, balizando-se por metas, entregáveis e SLAs de qualidade acordados.
 
 CLÁUSULA SEGUNDA — DA VIGÊNCIA E RENOVAÇÃO
@@ -231,7 +267,7 @@ E por estarem justas e contratadas, as partes firmam o presente instrumento por 
 São Paulo/SP, {{DATA_EXTENSO}}.
 
 ______________________________________
-CONTRATANTE: SOUYESS TECNOLOGIA E SERVIÇOS S/A
+CONTRATANTE: {{EMPRESA_RAZAO_SOCIAL}} (CNPJ {{EMPRESA_CNPJ}})
 Gestor Responsável: {{GESTOR_NOME}}
 
 ______________________________________
@@ -251,10 +287,10 @@ Representante Legal: {{PESSOA_NOME}} ({{PESSOA_DOCUMENTO}})`,
     conteudoPadrao: `INSTRUMENTO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS POR DEMANDA E HORAS HOMOLOGADAS
 CONTRATO NÚMERO: {{CODIGO_CONTRATO}}
 
-Pelo presente instrumento, de um lado SOUYESS TECNOLOGIA E SERVIÇOS S/A (CONTRATANTE), e de outro lado {{PRESTADOR_RAZAO_SOCIAL}} (CONTRATADA), representada por {{PESSOA_NOME}}:
+Pelo presente instrumento, de um lado {{EMPRESA_RAZAO_SOCIAL}}, inscrita no CNPJ sob o nº {{EMPRESA_CNPJ}} (CONTRATANTE), e de outro lado {{PRESTADOR_RAZAO_SOCIAL}} (CONTRATADA), representada por {{PESSOA_NOME}}:
 
 CLÁUSULA PRIMEIRA — DO ESCOPO FLEXÍVEL
-1.1. A CONTRATADA prestará consultoria técnica sob demanda para {{CARGO_FUNCAO}} no departamento de {{DEPARTAMENTO}}, centro de custo {{CENTRO_CUSTO}}.
+1.1. A CONTRATADA prestará consultoria técnica sob demanda para {{CARGO_FUNCAO}} vinculada à área {{AREA}} ({{DEPARTAMENTO}}), centro de custo {{CENTRO_CUSTO}}.
 
 CLÁUSULA SEGUNDA — DA REMUNERAÇÃO POR HORA E APONTAMENTO
 2.1. A remuneração será apurada com base nas horas efetivamente aprovadas no ciclo mensal, à razão de R$ {{VALOR_HORA}} por hora prestada, até o teto estimado de {{HORAS_BASE}} horas/mês (estimativa total de R$ {{VALOR_MENSAL}}).
@@ -284,7 +320,7 @@ CÓDIGO INTERNO: {{CODIGO_CONTRATO}}
 Por este instrumento particular de contrato de trabalho, de um lado:
 
 EMPREGADORA:
-SOUYESS TECNOLOGIA E SERVIÇOS S/A, inscrita no CNPJ sob o nº 12.345.678/0001-90, sediada na Avenida Paulista, nº 1000, 14º andar, Bela Vista, São Paulo/SP;
+{{EMPRESA_RAZAO_SOCIAL}}, inscrita no CNPJ sob o nº {{EMPRESA_CNPJ}}, sediada em {{EMPRESA_CIDADE_UF}};
 
 E, de outro lado:
 
@@ -294,7 +330,7 @@ EMPREGADA(O):
 Celebram o presente CONTRATO DE TRABALHO A TÍTULO DE EXPERIÊNCIA, regido pelo Decreto-Lei nº 5.452/1943 (Consolidação das Leis do Trabalho - CLT), sob as seguintes cláusulas:
 
 CLÁUSULA PRIMEIRA — DO CARGO E LOTAÇÃO
-1.1. O(A) EMPREGADO(A) é admitido(a) na data de {{DATA_INICIO}} para exercer as funções inerentes ao cargo de {{CARGO_FUNCAO}}, integrando a equipe de {{DEPARTAMENTO}}, com lotação vinculada ao Centro de Custo {{CENTRO_CUSTO}}, sob gestão direta de {{GESTOR_NOME}}.
+1.1. O(A) EMPREGADO(A) é admitido(a) na data de {{DATA_INICIO}} para exercer as funções inerentes ao cargo de {{CARGO_FUNCAO}}, integrando a equipe da área de {{AREA}} ({{DEPARTAMENTO}}), com lotação vinculada ao Centro de Custo {{CENTRO_CUSTO}}, sob gestão direta de {{GESTOR_NOME}}.
 
 CLÁUSULA SEGUNDA — DA VIGÊNCIA E PRORROGAÇÃO
 2.1. O presente contrato tem caráter experimental com duração inicial de 45 (quarenta e cinco) dias, com término previsto do 1º período em {{DATA_PRIMEIRO_PERIODO}}.
@@ -321,7 +357,7 @@ E por estarem de pleno e comum acordo, assinam digitalmente o presente instrumen
 São Paulo/SP, {{DATA_EXTENSO}}.
 
 ______________________________________
-EMPREGADORA: SOUYESS TECNOLOGIA E SERVIÇOS S/A
+EMPREGADORA: {{EMPRESA_RAZAO_SOCIAL}} (CNPJ {{EMPRESA_CNPJ}})
 Representante Legal / RH: {{GESTOR_NOME}}
 
 ______________________________________
@@ -341,11 +377,11 @@ CPF: {{PESSOA_DOCUMENTO}}`,
     conteudoPadrao: `CONTRATO INDIVIDUAL DE TRABALHO POR PRAZO INDETERMINADO
 REGISTRO: {{CODIGO_CONTRATO}}
 
-EMPREGADORA: SOUYESS TECNOLOGIA E SERVIÇOS S/A (CNPJ 12.345.678/0001-90)
+EMPREGADORA: {{EMPRESA_RAZAO_SOCIAL}} (CNPJ {{EMPRESA_CNPJ}})
 EMPREGADO(A): {{PESSOA_NOME}} (CPF {{PESSOA_DOCUMENTO}})
 
 CLÁUSULA 1 — ADMISSÃO E FUNÇÃO
-O(A) empregado(a) é admitido(a) a partir de {{DATA_INICIO}} para exercer o cargo de {{CARGO_FUNCAO}} no departamento {{DEPARTAMENTO}}, com reporte a {{GESTOR_NOME}}.
+O(A) empregado(a) é admitido(a) a partir de {{DATA_INICIO}} para exercer o cargo de {{CARGO_FUNCAO}} vinculado à área de {{AREA}} ({{DEPARTAMENTO}}), com reporte a {{GESTOR_NOME}}.
 
 CLÁUSULA 2 — VIGÊNCIA
 O presente contrato é firmado por prazo indeterminado, vigorando a partir da data de início supra indicada.

@@ -11,6 +11,7 @@ import {
   FileSignature,
   Briefcase,
   Users,
+  Building2,
   Clock,
   Users2,
   GitPullRequest,
@@ -196,6 +197,7 @@ export default function Layout() {
   const getPageTitle = () => {
     const path = location.pathname
     if (path.startsWith('/meu-dia')) return 'Meu Dia — Rotina & Pendências'
+    if (path.startsWith('/empresas')) return 'Gestão Multi-Empresa & Unidades (Holding + BUs)'
     if (path.startsWith('/gestor')) return 'Portal do Gestor Contratante (Minhas Vagas)'
     if (path.startsWith('/dashboard')) return 'Painel Geral de Recrutamento'
     if (path.startsWith('/vagas/')) return 'Detalhes da Vaga'
@@ -297,6 +299,12 @@ export default function Layout() {
           : [
               { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
               { title: 'Meu Dia', href: '/meu-dia', icon: Sunrise, countKey: 'meudia' as const },
+              {
+                title: 'Empresas & Unidades',
+                href: '/empresas',
+                icon: Building2,
+                badge: 'Holding',
+              },
               {
                 title: 'Contratos',
                 href: '/contratos',

@@ -25,6 +25,8 @@ export type TipoModeloContrato =
 export interface ContratoUnificado extends RecordModel {
   pessoa: string
   prestador_pj?: string
+  empresa?: string
+  area?: string
   contrato_pj_legado?: string
   codigo_contrato: string
   titulo: string
@@ -56,6 +58,8 @@ export interface ContratoUnificado extends RecordModel {
     pessoa?: any
     prestador_pj?: any
     gestor_responsavel?: any
+    empresa?: any
+    area?: any
   }
 }
 
@@ -105,6 +109,8 @@ export interface CriarContratoInput {
   templateId: string
   titulo: string
   modalidade: ModalidadeContrato
+  empresaId?: string
+  areaId?: string
   dataInicio: string
   dataFim?: string
   valorMensal?: number
@@ -196,6 +202,12 @@ export function preencherTemplate(
     valorMensal: number
     valorHora: number
     horasBase: number
+    empresaNomeFantasia?: string
+    empresaRazaoSocial?: string
+    empresaCnpj?: string
+    empresaTipo?: string
+    empresaCidadeUf?: string
+    areaNome?: string
     clausulasEspeciais?: string
   },
 ): string {
@@ -236,6 +248,13 @@ export function preencherTemplate(
     '{{DEPARTAMENTO}}': dados.departamento || 'Operações & Tecnologia',
     '{{CENTRO_CUSTO}}': dados.centroCusto || 'CC-GERAL-01',
     '{{GESTOR_NOME}}': dados.gestorNome || 'Douglas Severo (Gente & Gestão)',
+    '{{EMPRESA_NOME_FANTASIA}}': dados.empresaNomeFantasia || 'SouYess Tecnologia',
+    '{{EMPRESA_RAZAO_SOCIAL}}':
+      dados.empresaRazaoSocial || 'SouYess Tecnologia e Gestão de Software S.A.',
+    '{{EMPRESA_CNPJ}}': dados.empresaCnpj || '11.222.333/0002-62',
+    '{{EMPRESA_TIPO}}': dados.empresaTipo || 'BU / Filial',
+    '{{EMPRESA_CIDADE_UF}}': dados.empresaCidadeUf || 'Curitiba/PR',
+    '{{AREA}}': dados.areaNome || dados.departamento || 'Tecnologia & Operações',
     '{{DATA_INICIO}}': dataInicioFormatada,
     '{{DATA_FIM}}': dataFimFormatada,
     '{{DATA_PRIMEIRO_PERIODO}}': dataPrimeiroPeriodoFormatada,
@@ -326,6 +345,8 @@ export const contratosService = {
 
   async listarContratos(filtros?: {
     pessoaId?: string
+    empresaId?: string
+    areaId?: string
     modalidade?: ModalidadeContrato
     status?: StatusContratoUnificado
     departamento?: string
@@ -335,6 +356,12 @@ export const contratosService = {
 
       if (filtros?.pessoaId) {
         filterParts.push(`pessoa = '${filtros.pessoaId}'`)
+      }
+      if (filtros?.empresaId) {
+        filterParts.push(`empresa = '${filtros.empresaId}'`)
+      }
+      if (filtros?.areaId) {
+        filterParts.push(`area = '${filtros.areaId}'`)
       }
       if (filtros?.modalidade) {
         filterParts.push(`modalidade = '${filtros.modalidade}'`)
@@ -351,7 +378,7 @@ export const contratosService = {
       const records = await pb.collection('contratos').getFullList<ContratoUnificado>({
         filter: filter || undefined,
         sort: '-created',
-        expand: 'pessoa,prestador_pj,gestor_responsavel',
+        expand: 'pessoa,prestador_pj,gestor_responsavel,empresa,area',
       })
 
       return records
@@ -364,7 +391,7 @@ export const contratosService = {
   async obterContratoPorId(id: string): Promise<ContratoUnificado | null> {
     try {
       return await pb.collection('contratos').getOne<ContratoUnificado>(id, {
-        expand: 'pessoa,prestador_pj,gestor_responsavel',
+        expand: 'pessoa,prestador_pj,gestor_responsavel,empresa,area',
       })
     } catch (err) {
       console.error('Erro ao buscar contrato por ID:', err)
@@ -411,10 +438,10 @@ export const contratosService = {
         this.getTemplateById(input.templateId) ||
         TEMPLATES_CONTRATUAIS[0]
 
-      // Buscar dados da pessoa e prestador
+      // Buscar dados da pessoa, prestador e empresa/área
       const pessoaRecord = await pb
         .collection('pessoas')
-        .getOne(input.pessoaId)
+        .getOne(input.pessoaId, { expand: 'empresa,area' })
         .catch(() => null)
       let prestadorRecord = null
       if (input.prestadorPjId) {
@@ -440,6 +467,26 @@ export const contratosService = {
         input.modalidade === 'PJ' ? `CT-PJ-${ano}-${randomSufixo}` : `CT-CLT-${ano}-${randomSufixo}`
 
       const diasAlerta = template.diasAlertaPadrao || (input.modalidade === 'PJ' ? 60 : 15)
+
+      // Resolver dados da Empresa do contrato
+      const empresaIdFinal = input.empresaId || pessoaRecord?.empresa
+      const areaIdFinal = input.areaId || pessoaRecord?.area
+
+      let empresaData: any = null
+      let areaData: any = null
+
+      if (empresaIdFinal) {
+        empresaData = await pb
+          .collection('empresas')
+          .getOne(empresaIdFinal)
+          .catch(() => null)
+      }
+      if (areaIdFinal) {
+        areaData = await pb
+          .collection('areas')
+          .getOne(areaIdFinal)
+          .catch(() => null)
+      }
 
       // Calcular data_renovacao_alerta se houver dataFim
       let dataRenovacaoAlerta: string | undefined = undefined
@@ -470,6 +517,15 @@ export const contratosService = {
         valorMensal,
         valorHora,
         horasBase,
+        empresaNomeFantasia: empresaData?.nome_fantasia,
+        empresaRazaoSocial: empresaData?.razao_social,
+        empresaCnpj: empresaData?.cnpj,
+        empresaTipo: empresaData?.tipo,
+        empresaCidadeUf:
+          empresaData?.endereco_cidade && empresaData?.endereco_uf
+            ? `${empresaData.endereco_cidade}/${empresaData.endereco_uf}`
+            : empresaData?.endereco_cidade,
+        areaNome: areaData?.nome,
         clausulasEspeciais: input.clausulasEspeciais,
       })
 
@@ -479,6 +535,8 @@ export const contratosService = {
       const contratoCriado = await pb.collection('contratos').create<ContratoUnificado>({
         pessoa: input.pessoaId,
         prestador_pj: input.prestadorPjId || prestadorRecord?.id || undefined,
+        empresa: empresaIdFinal || undefined,
+        area: areaIdFinal || undefined,
         codigo_contrato: codigoContrato,
         titulo: input.titulo || template.titulo,
         modalidade: input.modalidade,

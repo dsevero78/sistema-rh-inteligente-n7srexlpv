@@ -405,7 +405,6 @@ export default function PessoaDetalhesPage() {
               >
                 {pessoa.nome.substring(0, 2).toUpperCase()}
               </div>
-
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl sm:text-2xl font-extrabold text-[#212B55] dark:text-[#F7F8FB] tracking-tight truncate font-display">
@@ -414,6 +413,16 @@ export default function PessoaDetalhesPage() {
                   <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-mono">
                     {pessoa.cpf_cnpj || 'Sem CPF/CNPJ'}
                   </span>
+                  {(pessoa.empresa_nome || pessoa.area_nome) && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-orange-100/70 text-[#E9530E] dark:bg-orange-950/40 dark:text-orange-300 border border-orange-200 dark:border-orange-900/50 text-[11px] font-semibold"
+                    >
+                      <Building2 className="w-3 h-3 mr-1" />
+                      {pessoa.empresa_nome || 'Empresa'}
+                      {pessoa.area_nome ? ` · ${pessoa.area_nome}` : ''}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-0.5">
                   {pessoa.cargo_funcao} · {pessoa.departamento || 'Sem departamento'} · Gestor:{' '}
@@ -421,7 +430,7 @@ export default function PessoaDetalhesPage() {
                     {pessoa.gestor_nome || 'Não atribuído'}
                   </span>
                 </p>
-              </div>
+              </div>{' '}
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
@@ -708,10 +717,19 @@ export default function PessoaDetalhesPage() {
 
                   <div>
                     <span className="text-muted-foreground block text-[11px] uppercase font-semibold">
-                      Departamento
+                      Empresa do Grupo
                     </span>
-                    <span className="text-foreground text-sm block mt-0.5">
-                      {pessoa.departamento || 'Não atribuído'}
+                    <span className="font-bold text-[#E9530E] text-sm block mt-0.5">
+                      {pessoa.empresa_nome || 'Não vinculada'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-muted-foreground block text-[11px] uppercase font-semibold">
+                      Área / Unidade
+                    </span>
+                    <span className="font-semibold text-foreground text-sm block mt-0.5">
+                      {pessoa.area_nome || pessoa.departamento || 'Não vinculada'}
                     </span>
                   </div>
 

@@ -47,6 +47,7 @@ import Indicacoes from '@/pages/Indicacoes'
 import RedirecionamentoPrestadorParaPessoa from '@/pages/RedirecionamentoPrestadorParaPessoa'
 import HorasCompetenciasPage from '@/pages/HorasCompetenciasPage'
 import ContratosDashboardPage from '@/pages/ContratosDashboardPage'
+import { EmpresasUnidadesPage } from '@/pages/EmpresasUnidadesPage'
 import NotFound from '@/pages/NotFound'
 
 import { Toaster } from '@/components/ui/toaster'
@@ -112,6 +113,7 @@ export default function App() {
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="meu-dia" element={<MeuDia />} />
+                <Route path="empresas" element={<EmpresasUnidadesPage />} />
                 <Route path="contratos" element={<ContratosDashboardPage />} />
                 <Route path="horas-competencias" element={<HorasCompetenciasPage />} />
                 <Route path="pessoas" element={<PessoasListaPage />} />{' '}

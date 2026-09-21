@@ -78,6 +78,10 @@ export interface PessoaUnificada {
   prestador_origem?: string
   candidato_origem?: string
   rotina_origem?: string
+  empresa?: string
+  empresa_nome?: string
+  area?: string
+  area_nome?: string
   created: string
   updated: string
   // Campos agregados na visualização
@@ -115,6 +119,10 @@ export interface VinculoPessoa {
   prazoTipo?: PrazoTipoPessoa
   gestorNome?: string
   departamento?: string
+  empresaId?: string
+  empresaNome?: string
+  areaId?: string
+  areaNome?: string
   cargoFuncao?: string
   // Regras e dados estendidos PJ
   prestadorPjId?: string
@@ -151,6 +159,8 @@ export interface NovaPessoaInput {
   prestador_origem?: string
   candidato_origem?: string
   rotina_origem?: string
+  empresa?: string
+  area?: string
 }
 
 export function calcularStatusDocumento(dataVencimento?: string): {
@@ -193,9 +203,26 @@ export const pessoasService = {
    * Listar todas as pessoas unificadas
    */
   async listar(): Promise<PessoaUnificada[]> {
-    const records = await pb.collection('pessoas').getFullList<RecordModel>({
-      sort: '-created',
-    })
+    const [records, empresasList, areasList] = await Promise.all([
+      pb.collection('pessoas').getFullList<RecordModel>({
+        sort: '-created',
+        expand: 'empresa,area',
+      }),
+      pb
+        .collection('empresas')
+        .getFullList<RecordModel>()
+        .catch(() => []),
+      pb
+        .collection('areas')
+        .getFullList<RecordModel>()
+        .catch(() => []),
+    ])
+
+    const empresasMap = new Map<string, string>()
+    empresasList.forEach((e) => empresasMap.set(e.id, e.nome_fantasia || e.razao_social))
+
+    const areasMap = new Map<string, string>()
+    areasList.forEach((a) => areasMap.set(a.id, a.nome))
 
     // Buscar contagem de documentos para alimentar alertas de topo
     let docsList: RecordModel[] = []
@@ -206,6 +233,12 @@ export const pessoasService = {
     }
 
     return records.map((r) => {
+      const expEmp = r.expand?.empresa as
+        | { nome_fantasia?: string; razao_social?: string }
+        | undefined
+      const expArea = r.expand?.area as { nome?: string } | undefined
+      const empNome = expEmp?.nome_fantasia || (r.empresa ? empresasMap.get(r.empresa) : undefined)
+      const arNome = expArea?.nome || (r.area ? areasMap.get(r.area) : undefined)
       const docsPessoa = docsList.filter((d) => d.pessoa === r.id)
       let vencidos = 0
       let vencendo = 0
@@ -247,6 +280,10 @@ export const pessoasService = {
         prestador_origem: r.prestador_origem || '',
         candidato_origem: r.candidato_origem || '',
         rotina_origem: r.rotina_origem || '',
+        empresa: r.empresa || '',
+        empresa_nome: empNome,
+        area: r.area || '',
+        area_nome: arNome,
         created: r.created,
         updated: r.updated,
         diasAteRenovacao,
@@ -262,10 +299,17 @@ export const pessoasService = {
    */
   async obterPorId(id: string): Promise<PessoaUnificada | null> {
     try {
-      const r = await pb.collection('pessoas').getOne<RecordModel>(id)
+      const r = await pb.collection('pessoas').getOne<RecordModel>(id, {
+        expand: 'empresa,area',
+      })
       const docsPessoa = await pb.collection('documentos_pessoa').getFullList<RecordModel>({
         filter: `pessoa = '${id}'`,
       })
+
+      const expEmp = r.expand?.empresa as
+        | { nome_fantasia?: string; razao_social?: string }
+        | undefined
+      const expArea = r.expand?.area as { nome?: string } | undefined
 
       let vencidos = 0
       let vencendo = 0
@@ -306,6 +350,10 @@ export const pessoasService = {
         prestador_origem: r.prestador_origem || '',
         candidato_origem: r.candidato_origem || '',
         rotina_origem: r.rotina_origem || '',
+        empresa: r.empresa || '',
+        empresa_nome: expEmp?.nome_fantasia || expEmp?.razao_social,
+        area: r.area || '',
+        area_nome: expArea?.nome,
         created: r.created,
         updated: r.updated,
         diasAteRenovacao,
@@ -710,6 +758,10 @@ export const pessoasService = {
       prazoTipo: pessoa.prazo_tipo,
       gestorNome: pessoa.gestor_nome,
       departamento: pessoa.departamento,
+      empresaId: pessoa.empresa,
+      empresaNome: pessoa.empresa_nome,
+      areaId: pessoa.area,
+      areaNome: pessoa.area_nome,
       cargoFuncao: pessoa.cargo_funcao,
       prestadorPjId: pessoa.prestador_origem,
     })
@@ -753,6 +805,10 @@ export const pessoasService = {
             prazoTipo: 'Determinado',
             gestorNome: c.gestor_nome || pessoa.gestor_nome,
             departamento: pessoa.departamento,
+            empresaId: c.empresa || pessoa.empresa,
+            empresaNome: pessoa.empresa_nome,
+            areaId: c.area || pessoa.area,
+            areaNome: pessoa.area_nome,
             cargoFuncao: pessoa.cargo_funcao,
             prestadorPjId: prestId,
             contadorAditivos: c.contador_aditivos,

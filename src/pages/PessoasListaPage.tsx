@@ -52,6 +52,7 @@ import {
   type SituacaoContratoPessoa,
   type NovaPessoaInput,
 } from '@/services/pessoasService'
+import { empresasService, type Empresa, type Area } from '@/services/empresasService'
 import pb from '@/lib/pocketbase/client'
 
 export default function PessoasListaPage() {
@@ -64,6 +65,12 @@ export default function PessoasListaPage() {
   const [busca, setBusca] = useState('')
   const [filtroModalidade, setFiltroModalidade] = useState<string>('todas')
   const [filtroSituacao, setFiltroSituacao] = useState<string>('todas')
+  const [filtroEmpresa, setFiltroEmpresa] = useState<string>('todas')
+  const [filtroArea, setFiltroArea] = useState<string>('todas')
+
+  // Lista de empresas e áreas cadastradas no sistema
+  const [empresasCadastradas, setEmpresasCadastradas] = useState<Empresa[]>([])
+  const [areasCadastradas, setAreasCadastradas] = useState<Area[]>([])
 
   // Modais de Criação & Importação
   const [modalNovoAberto, setModalNovoAberto] = useState(false)
@@ -101,13 +108,21 @@ export default function PessoasListaPage() {
     prazo_tipo: 'Indeterminado',
     percentual_integracao: 0,
     observacoes: '',
+    empresa: '',
+    area: '',
   })
 
   const carregarDados = async () => {
     try {
       setLoading(true)
-      const data = await pessoasService.listar()
+      const [data, emps, ars] = await Promise.all([
+        pessoasService.listar(),
+        empresasService.listarEmpresas(),
+        empresasService.listarAreas(),
+      ])
       setPessoas(data)
+      setEmpresasCadastradas(emps)
+      setAreasCadastradas(ars)
     } catch (err) {
       console.error('Erro ao carregar pessoas:', err)
       toast({
@@ -302,9 +317,19 @@ export default function PessoasListaPage() {
 
       const matchSituacao = filtroSituacao === 'todas' || p.situacao_contrato === filtroSituacao
 
-      return matchBusca && matchModalidade && matchSituacao
+      const matchEmpresa = filtroEmpresa === 'todas' || p.empresa === filtroEmpresa
+
+      const matchArea = filtroArea === 'todas' || p.area === filtroArea
+
+      return matchBusca && matchModalidade && matchSituacao && matchEmpresa && matchArea
     })
-  }, [pessoas, busca, filtroModalidade, filtroSituacao])
+  }, [pessoas, busca, filtroModalidade, filtroSituacao, filtroEmpresa, filtroArea])
+
+  // Áreas filtradas pela empresa selecionada no form
+  const areasFiltradasForm = useMemo(() => {
+    if (!form.empresa) return []
+    return areasCadastradas.filter((a) => a.empresa === form.empresa)
+  }, [areasCadastradas, form.empresa])
 
   // Métricas de cabeçalho
   const metricas = useMemo(() => {
@@ -376,6 +401,8 @@ export default function PessoasListaPage() {
                 prazo_tipo: 'Indeterminado',
                 percentual_integracao: 0,
                 observacoes: '',
+                empresa: empresasCadastradas[0]?.id || '',
+                area: '',
               })
               setModalNovoAberto(true)
             }}
@@ -520,6 +547,50 @@ export default function PessoasListaPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="flex items-center gap-1.5 min-w-[170px]">
+              <span className="text-[11px] text-muted-foreground font-medium font-sans">
+                Empresa:
+              </span>
+              <Select
+                value={filtroEmpresa}
+                onValueChange={(val) => {
+                  setFiltroEmpresa(val)
+                  setFiltroArea('todas')
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas as Empresas</SelectItem>
+                  {empresasCadastradas.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.nome_fantasia}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-1.5 min-w-[150px]">
+              <span className="text-[11px] text-muted-foreground font-medium font-sans">Área:</span>
+              <Select value={filtroArea} onValueChange={setFiltroArea}>
+                <SelectTrigger className="h-8 text-xs bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas as Áreas</SelectItem>
+                  {areasCadastradas
+                    .filter((a) => filtroEmpresa === 'todas' || a.empresa === filtroEmpresa)
+                    .map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.nome}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -593,6 +664,19 @@ export default function PessoasListaPage() {
                           {p.nome}
                         </Link>
                         <p className="text-xs text-muted-foreground truncate">{p.cargo_funcao}</p>
+                        {(p.empresa_nome || p.area_nome) && (
+                          <div className="flex items-center gap-1 mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 font-sans">
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">
+                              {p.empresa_nome || 'Empresa'}
+                            </span>
+                            {p.area_nome && (
+                              <>
+                                <span>•</span>
+                                <span>{p.area_nome}</span>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -986,8 +1070,69 @@ export default function PessoasListaPage() {
                 />
               </div>
 
+              {/* Seleção de Empresa e Área (Requisito Multi-Empresa) */}
               <div className="space-y-1">
-                <Label htmlFor="departamento">Departamento</Label>
+                <Label>Empresa do Grupo (Holding ou BU) *</Label>
+                <Select
+                  value={form.empresa || ''}
+                  onValueChange={(val) => {
+                    const emp = empresasCadastradas.find((e) => e.id === val)
+                    setForm({
+                      ...form,
+                      empresa: val,
+                      area: '',
+                    })
+                  }}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Selecione a empresa contratante..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {empresasCadastradas.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.sigla ? `[${e.sigla}] ` : ''}
+                        {e.nome_fantasia} ({e.tipo === 'Holding / Matriz' ? 'Holding' : 'BU'})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Área / Unidade da Empresa</Label>
+                <Select
+                  value={form.area || ''}
+                  onValueChange={(val) => {
+                    const aObj = areasCadastradas.find((a) => a.id === val)
+                    setForm({
+                      ...form,
+                      area: val,
+                      departamento: aObj?.nome || form.departamento,
+                    })
+                  }}
+                  disabled={!form.empresa}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue
+                      placeholder={
+                        form.empresa
+                          ? 'Selecione a área vinculada...'
+                          : 'Escolha a empresa primeiro'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {areasFiltradasForm.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="departamento">Departamento / Descrição Lotação</Label>
                 <Input
                   id="departamento"
                   value={form.departamento || ''}

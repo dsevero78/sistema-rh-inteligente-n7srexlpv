@@ -38,8 +38,9 @@ import {
   StatusContratoUnificado,
 } from '@/services/contratosService'
 import { pessoasService, PessoaUnificada } from '@/services/pessoasService'
-import { ModalDetalhesContratoVersionado } from '@/components/contratos/ModalDetalhesContratoVersionado'
+import { empresasService, Empresa } from '@/services/empresasService'
 import { ModalNovoContratoTemplate } from '@/components/contratos/ModalNovoContratoTemplate'
+import { ModalDetalhesContratoVersionado } from '@/components/contratos/ModalDetalhesContratoVersionado'
 import { GerenciadorModelosContrato } from '@/components/contratos/GerenciadorModelosContrato'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
@@ -61,6 +62,8 @@ export const ContratosDashboardPage: React.FC = () => {
   const [filtroStatus, setFiltroStatus] = useState<string>(searchParams.get('status') || 'TODOS')
   const [filtroArea, setFiltroArea] = useState<string>('TODAS')
   const [filtroPeriodo, setFiltroPeriodo] = useState<string>('todos')
+  const [filtroEmpresa, setFiltroEmpresa] = useState<string>('TODAS')
+  const [empresasCadastradas, setEmpresasCadastradas] = useState<Empresa[]>([])
 
   // Modais
   const [contratoSelecionado, setContratoSelecionado] = useState<ContratoUnificado | null>(null)
@@ -72,12 +75,14 @@ export const ContratosDashboardPage: React.FC = () => {
   const carregarDados = async () => {
     setCarregando(true)
     try {
-      const [cts, pss] = await Promise.all([
+      const [cts, pss, emps] = await Promise.all([
         contratosService.listarContratos(),
         pessoasService.listar(),
+        empresasService.listarEmpresas(),
       ])
       setContratos(cts)
       setPessoas(pss)
+      setEmpresasCadastradas(emps)
     } catch {
       toast({
         title: 'Erro ao carregar contratos',
@@ -128,6 +133,11 @@ export const ContratosDashboardPage: React.FC = () => {
         return false
       }
 
+      // Filtro Empresa
+      if (filtroEmpresa !== 'TODAS' && c.empresa !== filtroEmpresa) {
+        return false
+      }
+
       // Filtro Área
       if (filtroArea !== 'TODAS' && c.departamento !== filtroArea) {
         return false
@@ -152,7 +162,15 @@ export const ContratosDashboardPage: React.FC = () => {
 
       return true
     })
-  }, [contratos, termoBusca, filtroModalidade, filtroStatus, filtroArea, filtroPeriodo])
+  }, [
+    contratos,
+    termoBusca,
+    filtroModalidade,
+    filtroStatus,
+    filtroEmpresa,
+    filtroArea,
+    filtroPeriodo,
+  ])
 
   // KPIs Estratégicos
   const kpis = useMemo(() => {
@@ -413,6 +431,26 @@ export const ContratosDashboardPage: React.FC = () => {
                 onChange={(e) => setTermoBusca(e.target.value)}
                 className="pl-8 h-8 text-xs"
               />
+            </div>
+
+            {/* Empresa do Grupo */}
+            <div>
+              <Select value={filtroEmpresa} onValueChange={setFiltroEmpresa}>
+                <SelectTrigger className="h-8 text-xs font-medium">
+                  <SelectValue placeholder="Empresa / BU" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TODAS" className="text-xs">
+                    Todas as Empresas / BUs
+                  </SelectItem>
+                  {empresasCadastradas.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id} className="text-xs">
+                      {emp.sigla ? `[${emp.sigla}] ` : ''}
+                      {emp.nome_fantasia}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Modalidade */}
