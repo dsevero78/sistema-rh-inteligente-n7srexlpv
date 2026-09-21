@@ -77,14 +77,13 @@ import { useSearchParams } from 'react-router-dom'
 export default function PainelFinanceiro() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { toast } = useToast()
-  const { user } = useAuth()
-  const isRH = user?.role === 'rh' || user?.role === 'admin'
+  const { user, isRH, empresa, empresa_nome } = useAuth()
 
   const tabParam = searchParams.get('tab') || searchParams.get('aba')
   const defaultTab =
-    tabParam === 'comparativo' && isRH
+    tabParam === 'comparativo' && (isRH || user?.role === 'admin')
       ? 'comparativo'
-      : tabParam || (isRH ? 'comparativo' : 'vagas')
+      : tabParam || 'visao-bu'
   const [activeTab, setActiveTab] = useState<string>(defaultTab)
 
   useEffect(() => {
@@ -112,7 +111,14 @@ export default function PainelFinanceiro() {
   const carregarPainel = async () => {
     setLoading(true)
     try {
-      const res = await carregarDadosFinanceiros(mesSelecionado, anoSelecionado, horizonteProjecao)
+      // Se não for RH e tiver BU/empresa associada, filtrar apenas a BU do gestor
+      const empresaFiltro = !isRH && empresa ? empresa : undefined
+      const res = await carregarDadosFinanceiros(
+        mesSelecionado,
+        anoSelecionado,
+        horizonteProjecao,
+        empresaFiltro,
+      )
       setDados(res)
     } catch (err: unknown) {
       console.error('Falha ao carregar painel financeiro:', err)
@@ -352,132 +358,388 @@ export default function PainelFinanceiro() {
         </div>
       )}
 
-      {/* 1. KPIs do Topo */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-        {/* KPI 1: Comprometido Mensal PJ */}
-        <Card className="border-slate-200/80 shadow-xs hover:border-slate-300 transition-colors">
+      {/* 1. KPIs do Topo com Decomposição por BU e Separação Explícita PJ × CLT */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI 1: Comprometido PJ (Mês) — DECOMPOSTO POR BU COM TOTAL EM DESTAQUE */}
+        <Card className="border-blue-200/80 bg-white shadow-xs hover:border-blue-300 transition-all flex flex-col justify-between">
           <CardHeader className="p-4 pb-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                Comprometido PJ (Mês)
-              </span>
+              <div className="flex items-center gap-1.5">
+                <Badge
+                  variant="outline"
+                  className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-bold px-1.5 py-0"
+                >
+                  PJ
+                </Badge>
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+                  Comprometido PJ (Mês)
+                </span>
+              </div>
               <span className="p-1.5 rounded-md bg-blue-50 text-blue-600">
                 <Building2 className="w-4 h-4" />
               </span>
             </div>
-            <CardTitle className="text-xl font-extrabold text-slate-900 mt-1">
-              {loading ? '...' : formatarMoeda(dados?.kpis.comprometidoMensalPj || 0)}
-            </CardTitle>
+            <div className="mt-2">
+              <div className="text-xs text-slate-500 font-medium">TOTAL CONSOLIDADO GRUPO</div>
+              <CardTitle className="text-2xl font-black text-blue-900 tracking-tight">
+                {loading
+                  ? '...'
+                  : formatarMoeda(
+                      dados?.kpis.decompComprometidoPj?.total ??
+                        dados?.kpis.comprometidoMensalPj ??
+                        0,
+                    )}
+              </CardTitle>
+            </div>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-[11px] text-slate-500 flex items-center gap-1">
-              <span>Média:</span>
+          <CardContent className="p-4 pt-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 border-t border-slate-100 pt-2 flex items-center justify-between">
+              <span>Decomposição por BU:</span>
+              <span className="text-slate-500 font-normal">
+                {dados?.kpis.prestadoresPjCount || 0} prestador(es)
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {dados?.kpis.decompComprometidoPj?.decomposicaoBu.map((bu) => (
+                <div
+                  key={bu.empresaId}
+                  className="flex items-center justify-between text-xs bg-slate-50/80 hover:bg-slate-100/80 px-2 py-1 rounded-md transition-colors"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: bu.cor }}
+                    />
+                    <span
+                      className="font-semibold text-slate-700 truncate text-[11px]"
+                      title={bu.nome}
+                    >
+                      {bu.sigla || bu.nome}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-bold text-slate-900 text-xs">
+                      {formatarMoeda(bu.valor)}
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="text-[9px] px-1 py-0 h-4 font-mono bg-white text-slate-600 border border-slate-200"
+                    >
+                      {bu.percentual}%
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-2.5 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+              <span>Valor-hora médio PJ:</span>
               <span className="font-semibold text-slate-700">
-                {loading ? '...' : formatarMoeda(dados?.kpis.valorHoraMedioPj || 0)}/h
+                {loading ? '...' : formatarMoeda(dados?.kpis.valorHoraMedioPj || 0)}/h (160h)
               </span>
-              <span className="text-[10px] text-slate-400">(base 160h)</span>
             </p>
           </CardContent>
         </Card>
 
-        {/* KPI 2: Total Pago no Período */}
-        <Card className="border-slate-200/80 shadow-xs hover:border-slate-300 transition-colors">
+        {/* KPI 2: Comprometido CLT (Mês) — FOLHA + CONTRATAÇÕES */}
+        <Card className="border-purple-200/80 bg-white shadow-xs hover:border-purple-300 transition-all flex flex-col justify-between">
           <CardHeader className="p-4 pb-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                Total Pago (Período)
-              </span>
-              <span className="p-1.5 rounded-md bg-emerald-50 text-emerald-600">
-                <CheckCircle2 className="w-4 h-4" />
-              </span>
-            </div>
-            <CardTitle className="text-xl font-extrabold text-emerald-700 mt-1">
-              {loading ? '...' : formatarMoeda(dados?.kpis.totalPagoPeriodo || 0)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-[11px] text-slate-500">
-              <span className="font-semibold text-slate-700">{dados?.kpis.nfsPagasCount || 0}</span>{' '}
-              NF(s) liquidadas em {MESES.find((m) => m.valor === mesSelecionado)?.nome}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* KPI 3: A Pagar / Em Aberto */}
-        <Card className="border-slate-200/80 shadow-xs hover:border-slate-300 transition-colors">
-          <CardHeader className="p-4 pb-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                A Pagar / Em Aberto
-              </span>
-              <span className="p-1.5 rounded-md bg-amber-50 text-amber-600">
-                <Clock className="w-4 h-4" />
-              </span>
-            </div>
-            <CardTitle className="text-xl font-extrabold text-amber-700 mt-1">
-              {loading ? '...' : formatarMoeda(dados?.kpis.aPagarPeriodo || 0)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            {dados && dados.kpis.totalAtrasado > 0 ? (
-              <p className="text-[11px] font-semibold text-red-600 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" />
-                {formatarMoeda(dados.kpis.totalAtrasado)} em atraso
-              </p>
-            ) : (
-              <p className="text-[11px] text-slate-500">Sem pendências vencidas</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* KPI 4: Projeção 3 Meses */}
-        <Card className="border-slate-200/80 shadow-xs hover:border-slate-300 transition-colors">
-          <CardHeader className="p-4 pb-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                Projeção (3 Meses)
-              </span>
-              <span className="p-1.5 rounded-md bg-indigo-50 text-indigo-600">
-                <TrendingUp className="w-4 h-4" />
-              </span>
-            </div>
-            <CardTitle className="text-xl font-extrabold text-indigo-700 mt-1">
-              {loading ? '...' : formatarMoeda(dados?.kpis.projecaoProximos3Meses || 0)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-[11px] text-slate-500">Contratos vigentes + NFs programadas</p>
-          </CardContent>
-        </Card>
-
-        {/* KPI 5: Folha Estimada de Contratações */}
-        <Card className="border-slate-200/80 shadow-xs hover:border-slate-300 transition-colors">
-          <CardHeader className="p-4 pb-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                Folha Contratações
-              </span>
+              <div className="flex items-center gap-1.5">
+                <Badge
+                  variant="outline"
+                  className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold px-1.5 py-0"
+                >
+                  CLT
+                </Badge>
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+                  Comprometido CLT (Mês)
+                </span>
+              </div>
               <span className="p-1.5 rounded-md bg-purple-50 text-purple-600">
                 <Users className="w-4 h-4" />
               </span>
             </div>
-            <CardTitle className="text-xl font-extrabold text-purple-700 mt-1">
-              {loading ? '...' : formatarMoeda(dados?.kpis.folhaContratacoesMes || 0)}
-            </CardTitle>
+            <div className="mt-2">
+              <div className="text-xs text-slate-500 font-medium">TOTAL FOLHA CLT CONSOLIDADA</div>
+              <CardTitle className="text-2xl font-black text-purple-900 tracking-tight">
+                {loading
+                  ? '...'
+                  : formatarMoeda(
+                      dados?.kpis.decompComprometidoClt?.total ??
+                        dados?.kpis.comprometidoCltMensal ??
+                        0,
+                    )}
+              </CardTitle>
+            </div>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-[11px] text-slate-500">
-              <span className="font-semibold text-slate-700">
-                {dados?.kpis.propostasAceitasCount || 0}
-              </span>{' '}
-              oferta(s) +{' '}
-              <span className="font-semibold text-slate-700">
-                {dados?.kpis.onboardingsAtivosCount || 0}
-              </span>{' '}
-              onboarding
+          <CardContent className="p-4 pt-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 border-t border-slate-100 pt-2 flex items-center justify-between">
+              <span>Decomposição por BU:</span>
+              <span className="text-slate-500 font-normal">
+                {dados?.kpis.colaboradoresCltCount || 0} colaborador(es)
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {dados?.kpis.decompComprometidoClt?.decomposicaoBu.map((bu) => (
+                <div
+                  key={bu.empresaId}
+                  className="flex items-center justify-between text-xs bg-slate-50/80 hover:bg-slate-100/80 px-2 py-1 rounded-md transition-colors"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: bu.cor }}
+                    />
+                    <span
+                      className="font-semibold text-slate-700 truncate text-[11px]"
+                      title={bu.nome}
+                    >
+                      {bu.sigla || bu.nome}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-bold text-slate-900 text-xs">
+                      {formatarMoeda(bu.valor)}
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="text-[9px] px-1 py-0 h-4 font-mono bg-white text-slate-600 border border-slate-200"
+                    >
+                      {bu.percentual}%
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-2.5 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+              <span>Novas admissões no mês:</span>
+              <span className="font-semibold text-purple-700">
+                {dados?.kpis.propostasAceitasCount || 0} oferta(s) +{' '}
+                {dados?.kpis.onboardingsAtivosCount || 0} onboarding
+              </span>
             </p>
           </CardContent>
         </Card>
+
+        {/* KPI 3: NFs Pagas no Período (PJ) */}
+        <Card className="border-emerald-200/80 bg-white shadow-xs hover:border-emerald-300 transition-all flex flex-col justify-between">
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Badge
+                  variant="outline"
+                  className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-bold px-1.5 py-0"
+                >
+                  PJ
+                </Badge>
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+                  Total Pago no Período
+                </span>
+              </div>
+              <span className="p-1.5 rounded-md bg-emerald-50 text-emerald-600">
+                <CheckCircle2 className="w-4 h-4" />
+              </span>
+            </div>
+            <div className="mt-2">
+              <div className="text-xs text-slate-500 font-medium">NFS QUITADAS NO MÊS</div>
+              <CardTitle className="text-2xl font-black text-emerald-800 tracking-tight">
+                {loading
+                  ? '...'
+                  : formatarMoeda(
+                      dados?.kpis.decompTotalPago?.total ?? dados?.kpis.totalPagoPeriodo ?? 0,
+                    )}
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 border-t border-slate-100 pt-2 flex items-center justify-between">
+              <span>Decomposição por BU:</span>
+              <span className="text-slate-500 font-normal">
+                {dados?.kpis.nfsPagasCount || 0} NF(s)
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {dados?.kpis.decompTotalPago?.decomposicaoBu.map((bu) => (
+                <div
+                  key={bu.empresaId}
+                  className="flex items-center justify-between text-xs bg-slate-50/80 hover:bg-slate-100/80 px-2 py-1 rounded-md transition-colors"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: bu.cor }}
+                    />
+                    <span
+                      className="font-semibold text-slate-700 truncate text-[11px]"
+                      title={bu.nome}
+                    >
+                      {bu.sigla || bu.nome}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-bold text-slate-900 text-xs">
+                      {formatarMoeda(bu.valor)}
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="text-[9px] px-1 py-0 h-4 font-mono bg-white text-slate-600 border border-slate-200"
+                    >
+                      {bu.percentual}%
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-2.5 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+              <span>Horas faturadas:</span>
+              <span className="font-semibold text-slate-700">
+                {dados?.kpis.decompHorasApontadas?.total || 0}h apontadas
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* KPI 4: A Pagar / Em Aberto (PJ) com Destaque de Atraso */}
+        <Card className="border-amber-200/80 bg-white shadow-xs hover:border-amber-300 transition-all flex flex-col justify-between">
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Badge
+                  variant="outline"
+                  className="bg-amber-50 text-amber-800 border-amber-200 text-[10px] font-bold px-1.5 py-0"
+                >
+                  PJ
+                </Badge>
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+                  A Pagar / Em Aberto
+                </span>
+              </div>
+              <span className="p-1.5 rounded-md bg-amber-50 text-amber-600">
+                <Clock className="w-4 h-4" />
+              </span>
+            </div>
+            <div className="mt-2">
+              <div className="text-xs text-slate-500 font-medium">NFS EM ABERTO + ATRASADAS</div>
+              <CardTitle className="text-2xl font-black text-amber-800 tracking-tight">
+                {loading
+                  ? '...'
+                  : formatarMoeda(
+                      dados?.kpis.decompTotalAPagar?.total ?? dados?.kpis.aPagarPeriodo ?? 0,
+                    )}
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 border-t border-slate-100 pt-2 flex items-center justify-between">
+              <span>Decomposição por BU:</span>
+              {dados && dados.kpis.totalAtrasado > 0 ? (
+                <span className="text-red-600 font-bold flex items-center gap-1">
+                  <AlertTriangle className="w-2.5 h-2.5" />
+                  {formatarMoeda(dados.kpis.totalAtrasado)} em atraso
+                </span>
+              ) : (
+                <span className="text-emerald-700 font-semibold text-[10px]">Em dia</span>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              {dados?.kpis.decompTotalAPagar?.decomposicaoBu.map((bu) => (
+                <div
+                  key={bu.empresaId}
+                  className="flex items-center justify-between text-xs bg-slate-50/80 hover:bg-slate-100/80 px-2 py-1 rounded-md transition-colors"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: bu.cor }}
+                    />
+                    <span
+                      className="font-semibold text-slate-700 truncate text-[11px]"
+                      title={bu.nome}
+                    >
+                      {bu.sigla || bu.nome}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-bold text-slate-900 text-xs">
+                      {formatarMoeda(bu.valor)}
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="text-[9px] px-1 py-0 h-4 font-mono bg-white text-slate-600 border border-slate-200"
+                    >
+                      {bu.percentual}%
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-2.5 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+              <span>Projeção (3 Meses):</span>
+              <span className="font-semibold text-indigo-700">
+                {formatarMoeda(dados?.kpis.projecaoProximos3Meses || 0)}
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* BANNER TOTAL CONSOLIDADO DO GRUPO (PJ + CLT) */}
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-700">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-300">
+              Total Comprometido do Grupo (Mês)
+            </span>
+            <Badge className="bg-indigo-600 text-white text-[10px] font-bold">
+              Consolidado Geral
+            </Badge>
+          </div>
+          <div className="text-2xl font-black tracking-tight text-white flex items-baseline gap-2">
+            <span>{loading ? '...' : formatarMoeda(dados?.kpis.comprometidoTotalGrupo || 0)}</span>
+            <span className="text-xs font-normal text-slate-400">mensal</span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 border-t md:border-t-0 md:border-l border-slate-700/80 pt-3 md:pt-0 md:pl-5 text-xs">
+          <div className="bg-slate-800/80 border border-blue-500/30 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-1.5 text-blue-300 font-bold text-[11px]">
+              <span className="w-2 h-2 rounded-full bg-blue-400" />
+              Comprometido PJ:
+            </div>
+            <div className="font-extrabold text-white text-sm mt-0.5">
+              {formatarMoeda(dados?.kpis.comprometidoMensalPj || 0)}
+            </div>
+            <div className="text-[10px] text-slate-400">
+              {dados?.kpis.prestadoresPjCount || 0} prestadores ativos
+            </div>
+          </div>
+
+          <div className="bg-slate-800/80 border border-purple-500/30 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-1.5 text-purple-300 font-bold text-[11px]">
+              <span className="w-2 h-2 rounded-full bg-purple-400" />
+              Comprometido CLT:
+            </div>
+            <div className="font-extrabold text-white text-sm mt-0.5">
+              {formatarMoeda(dados?.kpis.comprometidoCltMensal || 0)}
+            </div>
+            <div className="text-[10px] text-slate-400">
+              {dados?.kpis.colaboradoresCltCount || 0} vínculos CLT + ofertas
+            </div>
+          </div>
+
+          <div className="bg-slate-800/80 border border-emerald-500/30 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-[11px]">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              Quitado em NFs:
+            </div>
+            <div className="font-extrabold text-white text-sm mt-0.5">
+              {formatarMoeda(dados?.kpis.totalPagoPeriodo || 0)}
+            </div>
+            <div className="text-[10px] text-slate-400">
+              {dados?.kpis.nfsPagasCount || 0} nota(s) paga(s)
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 1.1 Metas de Orçamento por Departamento com Semáforo e Alertas */}
@@ -622,6 +884,19 @@ export default function PainelFinanceiro() {
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <TabsList className="bg-slate-100 p-1 border border-slate-200 flex-wrap">
+            <TabsTrigger
+              value="visao-bu"
+              className="text-xs font-bold gap-1.5 data-[state=active]:bg-white data-[state=active]:text-indigo-700"
+            >
+              <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+              Visão por BU (PJ × CLT)
+              <Badge
+                variant="secondary"
+                className="text-[9px] py-0 px-1 ml-1 bg-indigo-100 text-indigo-800 font-bold"
+              >
+                Novo
+              </Badge>
+            </TabsTrigger>
             {isRH ? (
               <TabsTrigger
                 value="comparativo"
@@ -642,7 +917,7 @@ export default function PainelFinanceiro() {
               Cruzamento com Orçamento das Vagas
             </TabsTrigger>
             <TabsTrigger value="prestadores" className="text-xs font-semibold gap-1.5">
-              <Building2 className="w-3.5 h-3.5" />
+              <Users className="w-3.5 h-3.5" />
               Composição de Custos por Prestador PJ
             </TabsTrigger>
           </TabsList>
@@ -667,6 +942,204 @@ export default function PainelFinanceiro() {
             </Select>
           </div>
         </div>
+
+        {/* ABA NOVA: Visão por BU (Linhas = BUs, Colunas = Indicadores PJ e CLT) */}
+        <TabsContent value="visao-bu" className="space-y-4 m-0">
+          <Card className="border-slate-200/80 shadow-xs overflow-hidden">
+            <CardHeader className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-sm font-bold text-slate-900">
+                      Matriz Financeira por Unidade de Negócio (BU) — PJ × CLT
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-bold"
+                    >
+                      {isRH
+                        ? 'Consolidado Todas as BUs'
+                        : `Escopo Restrito: ${empresa_nome || 'Minha BU'}`}
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs text-slate-500 mt-0.5">
+                    Decomposição dos valores de cada BU com separação explícita entre PJ
+                    (prestadores, valor/hora e NFs) e CLT (folha e admissões), além do total
+                    combinado.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-700 font-bold">
+                    <th className="p-3.5 pl-5">BU / Unidade</th>
+                    <th className="p-3.5 bg-blue-50/60 text-blue-900 border-l border-blue-100">
+                      <div className="flex items-center gap-1">
+                        <Badge className="bg-blue-600 text-white text-[9px] px-1 py-0">PJ</Badge>
+                        <span>Comprometido Mês</span>
+                      </div>
+                    </th>
+                    <th className="p-3.5 bg-blue-50/40 text-blue-900">
+                      <span>NFs Pagas (Mês)</span>
+                    </th>
+                    <th className="p-3.5 bg-blue-50/40 text-blue-900">
+                      <span>NFs A Pagar / Aberto</span>
+                    </th>
+                    <th className="p-3.5 bg-blue-50/40 text-blue-900">
+                      <span>Horas PJ (Mês)</span>
+                    </th>
+                    <th className="p-3.5 bg-purple-50/60 text-purple-900 border-l border-purple-100">
+                      <div className="flex items-center gap-1">
+                        <Badge className="bg-purple-600 text-white text-[9px] px-1 py-0">CLT</Badge>
+                        <span>Folha Mensal</span>
+                      </div>
+                    </th>
+                    <th className="p-3.5 bg-purple-50/40 text-purple-900">
+                      <span>Colaboradores CLT</span>
+                    </th>
+                    <th className="p-3.5 bg-indigo-50/80 text-indigo-950 font-black border-l border-indigo-100 pr-5">
+                      <div className="flex items-center gap-1">
+                        <Badge className="bg-indigo-700 text-white text-[9px] px-1 py-0">
+                          TOTAL
+                        </Badge>
+                        <span>Comprometido BU</span>
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {dados && dados.kpis.visaoPorBu && dados.kpis.visaoPorBu.length > 0 ? (
+                    dados.kpis.visaoPorBu.map((bu) => (
+                      <tr key={bu.empresaId} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="p-3.5 pl-5">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: bu.cor }}
+                            />
+                            <div>
+                              <div className="font-bold text-slate-900 text-xs">{bu.nome}</div>
+                              <div className="text-[10px] text-slate-400 font-mono">
+                                Sigla: {bu.sigla} • {bu.tipo}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* PJ: Comprometido */}
+                        <td className="p-3.5 bg-blue-50/20 border-l border-blue-50 font-bold text-slate-900">
+                          <div>{formatarMoeda(bu.comprometidoPjMes)}</div>
+                          <div className="text-[10px] text-slate-400 font-normal">
+                            {bu.prestadoresPjCount} prestador(es) PJ
+                          </div>
+                        </td>
+
+                        {/* PJ: NFs Pagas */}
+                        <td className="p-3.5 bg-blue-50/10">
+                          <span className="font-bold text-emerald-700">
+                            {formatarMoeda(bu.nfsPagasPj)}
+                          </span>
+                        </td>
+
+                        {/* PJ: NFs A Pagar */}
+                        <td className="p-3.5 bg-blue-50/10">
+                          <div
+                            className={`font-bold ${bu.nfsAtrasadasPj > 0 ? 'text-red-600' : 'text-amber-800'}`}
+                          >
+                            {formatarMoeda(bu.nfsAbertoPj)}
+                          </div>
+                          {bu.nfsAtrasadasPj > 0 && (
+                            <span className="text-[10px] text-red-600 font-semibold">
+                              ({formatarMoeda(bu.nfsAtrasadasPj)} atraso)
+                            </span>
+                          )}
+                        </td>
+
+                        {/* PJ: Horas */}
+                        <td className="p-3.5 bg-blue-50/10 text-slate-800 font-semibold">
+                          <div className="flex items-center gap-1.5">
+                            <span>{bu.horasApontadasPj}h</span>
+                            <a
+                              href="/horas-competencias?comp=2026-09"
+                              className="text-[10px] text-orange-600 hover:underline font-mono font-bold"
+                              title="Ver módulo de Horas & Competências"
+                            >
+                              [Horas]
+                            </a>
+                          </div>
+                        </td>
+
+                        {/* CLT: Folha */}
+                        <td className="p-3.5 bg-purple-50/20 border-l border-purple-50 font-bold text-purple-900">
+                          <div>{formatarMoeda(bu.folhaCltMes)}</div>
+                          {bu.novasContratacoesClt > 0 && (
+                            <div className="text-[10px] text-purple-600 font-normal">
+                              +{bu.novasContratacoesClt} nova(s) vaga(s)
+                            </div>
+                          )}
+                        </td>
+
+                        {/* CLT: Contagem */}
+                        <td className="p-3.5 bg-purple-50/10 text-slate-800">
+                          <span className="font-bold">{bu.colaboradoresCltCount}</span>
+                          <span className="text-[10px] text-slate-400 ml-1">colaborador(es)</span>
+                        </td>
+
+                        {/* TOTAL GERAL DA BU */}
+                        <td className="p-3.5 bg-indigo-50/40 border-l border-indigo-100 pr-5">
+                          <div className="font-black text-indigo-950 text-sm">
+                            {formatarMoeda(bu.totalComprometidoGeral)}
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-medium">
+                            PJ: {formatarMoeda(bu.comprometidoPjMes)} | CLT:{' '}
+                            {formatarMoeda(bu.folhaCltMes)}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="p-6 text-center text-xs text-slate-400">
+                        Nenhum dado por BU disponível no momento.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+                {/* Rodapé Consolidado */}
+                {dados && (
+                  <tfoot>
+                    <tr className="bg-slate-200/90 font-black border-t-2 border-slate-300 text-slate-900">
+                      <td className="p-3.5 pl-5">TOTAL CONSOLIDADO GRUPO</td>
+                      <td className="p-3.5 bg-blue-100/80 border-l border-blue-200 text-blue-950">
+                        {formatarMoeda(dados.kpis.comprometidoMensalPj)}
+                      </td>
+                      <td className="p-3.5 bg-blue-100/60 text-emerald-800">
+                        {formatarMoeda(dados.kpis.totalPagoPeriodo)}
+                      </td>
+                      <td className="p-3.5 bg-blue-100/60 text-amber-900">
+                        {formatarMoeda(dados.kpis.aPagarPeriodo)}
+                      </td>
+                      <td className="p-3.5 bg-blue-100/60 text-slate-800">
+                        {dados.kpis.decompHorasApontadas?.total || 0}h
+                      </td>
+                      <td className="p-3.5 bg-purple-100/80 border-l border-purple-200 text-purple-950">
+                        {formatarMoeda(dados.kpis.comprometidoCltMensal)}
+                      </td>
+                      <td className="p-3.5 bg-purple-100/60 text-slate-800">
+                        {dados.kpis.colaboradoresCltCount} colaboradores
+                      </td>
+                      <td className="p-3.5 bg-indigo-200/80 border-l border-indigo-200 pr-5 text-indigo-950 text-sm font-black">
+                        {formatarMoeda(dados.kpis.comprometidoTotalGrupo)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </Card>
+        </TabsContent>
 
         {/* ABA RH: Comparativo de Custo Entre Prestadores (Ranquear Valor-Hora vs. Nota de Avaliação para Decisão de Renovação) */}
         {isRH ? (
@@ -880,7 +1353,24 @@ export default function PainelFinanceiro() {
                     dados.prestadoresRanqueados.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="p-3.5 pl-5">
-                          <div className="font-bold text-slate-900">{p.nomeFantasia}</div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-slate-900">{p.nomeFantasia}</span>
+                            <a
+                              href={`/horas-competencias?comp=2026-09`}
+                              className="text-[10px] text-orange-600 hover:text-orange-700 hover:underline font-mono font-bold"
+                              title="Ver apontamentos e fechamento de horas do prestador"
+                            >
+                              [Horas]
+                            </a>
+                            <a
+                              href={`/pessoas/${p.id}`}
+                              className="text-[10px] text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-0.5"
+                              title="Ver ficha cadastral unificada da pessoa"
+                            >
+                              <ExternalLink className="w-2.5 h-2.5" />
+                              Ficha
+                            </a>
+                          </div>
                           <div className="text-[11px] text-slate-400">{p.razaoSocial}</div>
                           <div className="text-[10px] text-slate-400">CNPJ: {p.cnpj}</div>
                           {p.temAditivoPendente && (

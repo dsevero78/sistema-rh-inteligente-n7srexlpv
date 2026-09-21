@@ -1,6 +1,41 @@
 import pb from '@/lib/pocketbase/client'
 import type { RecordModel } from 'pocketbase'
 
+export interface BuItemValor {
+  empresaId: string
+  sigla: string
+  nome: string
+  cor: string
+  valor: number
+  percentual: number // % sobre o total consolidado
+}
+
+export interface BuKpiDecomposto {
+  total: number
+  decomposicaoBu: BuItemValor[]
+}
+
+export interface BuVisaoLinha {
+  empresaId: string
+  sigla: string
+  nome: string
+  cor: string
+  tipo: string // 'Holding / Matriz' | 'BU / Filial'
+  // PJ
+  comprometidoPjMes: number
+  nfsPagasPj: number
+  nfsAbertoPj: number
+  nfsAtrasadasPj: number
+  horasApontadasPj: number
+  prestadoresPjCount: number
+  // CLT
+  folhaCltMes: number
+  colaboradoresCltCount: number
+  novasContratacoesClt: number
+  // Total
+  totalComprometidoGeral: number
+}
+
 export interface KpisFinanceiros {
   comprometidoMensalPj: number
   valorHoraMedioPj: number
@@ -14,6 +49,21 @@ export interface KpisFinanceiros {
   folhaContratacoesMes: number
   propostasAceitasCount: number
   onboardingsAtivosCount: number
+  // Separação PJ x CLT explícita
+  comprometidoTotalGrupo: number // PJ + CLT
+  comprometidoCltMensal: number // Vínculos CLT ativos + novas contratações
+  colaboradoresCltCount: number
+  prestadoresPjCount: number
+  // Decomposição por BU
+  decompComprometidoPj: BuKpiDecomposto
+  decompComprometidoClt: BuKpiDecomposto
+  decompComprometidoGeral: BuKpiDecomposto
+  decompTotalPago: BuKpiDecomposto
+  decompTotalAPagar: BuKpiDecomposto
+  decompTotalAtrasado: BuKpiDecomposto
+  decompHorasApontadas: BuKpiDecomposto
+  // Visão resumida por BU (linhas = BUs, colunas = indicadores PJ e CLT)
+  visaoPorBu: BuVisaoLinha[]
 }
 
 export interface MesProjecao {
@@ -88,6 +138,7 @@ export interface ResumoComparativoCusto {
   totalRenovar: number
   totalRenegociar: number
   totalReavaliar: number
+  empresaFiltroId?: string
 }
 
 export interface AlertaFinanceiroItem {
@@ -181,6 +232,7 @@ export async function carregarDadosFinanceiros(
   mes: number,
   ano: number,
   horizonteMeses: number = 6,
+  empresaFiltroId?: string,
 ): Promise<DadosFinanceirosConsolidados> {
   const [
     prestadores,
@@ -192,6 +244,9 @@ export async function carregarDadosFinanceiros(
     onboardings,
     avaliacoes,
     metasCadastradas,
+    empresas,
+    pessoas,
+    apontamentos,
   ] = await Promise.all([
     pb
       .collection('prestadores_pj')
@@ -211,15 +266,15 @@ export async function carregarDadosFinanceiros(
       .catch(() => [] as RecordModel[]),
     pb
       .collection('vagas')
-      .getFullList({ sort: '-created', expand: 'gestor_responsavel' })
+      .getFullList({ sort: '-created', expand: 'gestor_responsavel,empresa' })
       .catch(() => [] as RecordModel[]),
     pb
       .collection('ofertas')
-      .getFullList({ sort: '-created', expand: 'candidato,vaga' })
+      .getFullList({ sort: '-created', expand: 'candidato,vaga,vaga.empresa' })
       .catch(() => [] as RecordModel[]),
     pb
       .collection('onboardings')
-      .getFullList({ sort: '-created', expand: 'candidato,vaga' })
+      .getFullList({ sort: '-created', expand: 'candidato,vaga,vaga.empresa' })
       .catch(() => [] as RecordModel[]),
     pb
       .collection('avaliacoes_prestador_pj')
@@ -228,6 +283,18 @@ export async function carregarDadosFinanceiros(
     pb
       .collection('metas_orcamento_departamento')
       .getFullList({ sort: 'departamento' })
+      .catch(() => [] as RecordModel[]),
+    pb
+      .collection('empresas')
+      .getFullList({ sort: 'nome' })
+      .catch(() => [] as RecordModel[]),
+    pb
+      .collection('pessoas')
+      .getFullList({ sort: 'nome', expand: 'empresa,area' })
+      .catch(() => [] as RecordModel[]),
+    pb
+      .collection('apontamentos_horas')
+      .getFullList({ sort: '-created', expand: 'pessoa,empresa' })
       .catch(() => [] as RecordModel[]),
   ])
 
@@ -869,6 +936,7 @@ export async function carregarDadosFinanceiros(
     totalRenovar: prestadoresRanqueados.filter((p) => p.tierRenovacao === 'Renovar').length,
     totalRenegociar: prestadoresRanqueados.filter((p) => p.tierRenovacao === 'Renegociar').length,
     totalReavaliar: prestadoresRanqueados.filter((p) => p.tierRenovacao === 'Reavaliar').length,
+    empresaFiltroId,
   }
 
   // Ordenar ranqueado padrão por custo por ponto ascendente (melhor custo-benefício no topo)
@@ -889,6 +957,303 @@ export async function carregarDadosFinanceiros(
     totalAtrasado: prestadoresRanqueados.reduce((acc, p) => acc + p.totalAtrasado, 0),
   }
 
+  // ==========================================
+  // DECOMPOSIÇÃO POR BU & SEPARAÇÃO PJ X CLT
+  // ==========================================
+  // Lista de empresas/BUs estruturadas
+  interface ItemEmpresaBu {
+    id: string
+    nome: string
+    sigla: string
+    cor: string
+    tipo: string
+  }
+
+  let empresasLista: ItemEmpresaBu[] =
+    empresas && empresas.length > 0
+      ? empresas.map((e) => ({
+          id: e.id,
+          nome: String(e.nome || ''),
+          sigla: String(e.sigla || ''),
+          cor: String(e.cor || '#6366F1'),
+          tipo: String(e.tipo || 'BU / Filial'),
+        }))
+      : [
+          {
+            id: 'holding-matriz',
+            nome: 'SouYess Holding',
+            sigla: 'HOLDING',
+            cor: '#0EA5E9',
+            tipo: 'Holding / Matriz',
+          },
+          {
+            id: 'tecnologia',
+            nome: 'SouYess Tecnologia',
+            sigla: 'TECH',
+            cor: '#6366F1',
+            tipo: 'BU / Filial',
+          },
+          {
+            id: 'vertice-midia',
+            nome: 'SouYess Vértice Mídia',
+            sigla: 'VERTICE',
+            cor: '#EC4899',
+            tipo: 'BU / Filial',
+          },
+          {
+            id: 'operacoes',
+            nome: 'SouYess Operações',
+            sigla: 'OPS',
+            cor: '#10B981',
+            tipo: 'BU / Filial',
+          },
+        ]
+
+  // Se houver filtro de empresa para gestor de BU, filtrar a lista de BUs
+  if (empresaFiltroId) {
+    const filtrada = empresasLista.filter((e) => e.id === empresaFiltroId)
+    if (filtrada.length > 0) {
+      empresasLista = filtrada
+    }
+  }
+
+  // Mapeamento auxiliar para identificar a BU de qualquer registro
+  const normalizarParaEmpresaId = (empRef?: string, nomeRef?: string): string => {
+    if (empRef) {
+      const matchDireto = empresasLista.find((e) => e.id === empRef)
+      if (matchDireto) return matchDireto.id
+    }
+    const texto = `${empRef || ''} ${nomeRef || ''}`.toLowerCase()
+    if (
+      texto.includes('vertice') ||
+      texto.includes('vértice') ||
+      texto.includes('mídia') ||
+      texto.includes('midia')
+    ) {
+      const e = empresasLista.find(
+        (x) =>
+          (x.sigla || '').toUpperCase() === 'VERTICE' || x.nome.toLowerCase().includes('vértice'),
+      )
+      if (e) return e.id
+    }
+    if (texto.includes('operac') || texto.includes('operaç') || texto.includes('ops')) {
+      const e = empresasLista.find(
+        (x) => (x.sigla || '').toUpperCase() === 'OPS' || x.nome.toLowerCase().includes('operaç'),
+      )
+      if (e) return e.id
+    }
+    if (
+      texto.includes('tec') ||
+      texto.includes('tech') ||
+      texto.includes('software') ||
+      texto.includes('cloud') ||
+      texto.includes('devops')
+    ) {
+      const e = empresasLista.find(
+        (x) =>
+          (x.sigla || '').toUpperCase() === 'TECH' || x.nome.toLowerCase().includes('tecnologia'),
+      )
+      if (e) return e.id
+    }
+    const holding = empresasLista.find(
+      (x) => (x.tipo || '').includes('Holding') || (x.sigla || '').toUpperCase() === 'HOLDING',
+    )
+    return holding ? holding.id : empresasLista[0].id
+  }
+
+  // Identificar empresa de cada prestador PJ (através de área, contrato, ou vínculo de pessoas correspondente)
+  const empresaIdPorPrestador = new Map<string, string>()
+  prestadores.forEach((p) => {
+    // 1. Procurar em pessoas com mesmo email ou documento se existir
+    const pessoaEquiv = pessoas.find(
+      (pes) =>
+        (p.email && pes.email && pes.email.toLowerCase() === p.email.toLowerCase()) ||
+        (p.cnpj && pes.cpf_cnpj && pes.cpf_cnpj.replace(/\D/g, '') === p.cnpj.replace(/\D/g, '')) ||
+        (pes.nome &&
+          p.nome_fantasia &&
+          pes.nome.toLowerCase().includes(p.nome_fantasia.toLowerCase())),
+    )
+    if (pessoaEquiv && pessoaEquiv.empresa) {
+      empresaIdPorPrestador.set(p.id, pessoaEquiv.empresa)
+      return
+    }
+
+    // 2. Inferir pela área de atuação
+    const areaTexto = (p.area_atuacao || '').toLowerCase()
+    empresaIdPorPrestador.set(p.id, normalizarParaEmpresaId(undefined, areaTexto))
+  })
+
+  // Comprometido PJ por BU
+  const buComprometidoPjMap = new Map<string, number>()
+  empresasLista.forEach((e) => buComprometidoPjMap.set(e.id, 0))
+  prestadoresAtivos.forEach((p) => {
+    const empId =
+      empresaIdPorPrestador.get(p.id) || normalizarParaEmpresaId(undefined, p.area_atuacao)
+    const atual = buComprometidoPjMap.get(empId) || 0
+    buComprometidoPjMap.set(empId, atual + (Number(p.valor_mensal_atual) || 0))
+  })
+
+  // Comprometido CLT por BU (pessoas com vínculo CLT ativo ou CLT no tipo_contrato/modalidade)
+  const buComprometidoCltMap = new Map<string, number>()
+  const buContagemCltMap = new Map<string, number>()
+  empresasLista.forEach((e) => {
+    buComprometidoCltMap.set(e.id, 0)
+    buContagemCltMap.set(e.id, 0)
+  })
+
+  let somaComprometidoClt = 0
+  let totalColaboradoresClt = 0
+
+  pessoas.forEach((pes) => {
+    const mod = (pes.modalidade_contratacao || pes.tipo || '').toUpperCase()
+    const isClt = mod.includes('CLT') || !mod.includes('PJ')
+    if (isClt && pes.status !== 'Inativo' && pes.status !== 'Desligado') {
+      const empId = normalizarParaEmpresaId(pes.empresa, pes.expand?.empresa?.nome)
+      const sal = Number(pes.salario_base || pes.remuneracao || pes.valor_hora || 0)
+      // Se não houver salário cadastrado, estimar média CLT de mercado SouYess ~R$ 7.500
+      const salarioEfetivo = sal > 0 ? sal : 7500
+      somaComprometidoClt += salarioEfetivo
+      totalColaboradoresClt++
+
+      buComprometidoCltMap.set(empId, (buComprometidoCltMap.get(empId) || 0) + salarioEfetivo)
+      buContagemCltMap.set(empId, (buContagemCltMap.get(empId) || 0) + 1)
+    }
+  })
+
+  // Se folha de novas contratações (ofertas/onboardings) tiver empresa vinculada, somar ao CLT
+  ofertas
+    .filter((o) => o.status === 'Aceita')
+    .forEach((of) => {
+      const sal = Number(of.salario_ofertado) || 0
+      const empVaga = of.expand?.vaga?.empresa || ''
+      const empId = normalizarParaEmpresaId(empVaga)
+      buComprometidoCltMap.set(empId, (buComprometidoCltMap.get(empId) || 0) + sal)
+      somaComprometidoClt += sal
+    })
+
+  // NFs por BU (Pagas, A Pagar, Atrasadas)
+  const buNfsPagasMap = new Map<string, number>()
+  const buNfsAPagarMap = new Map<string, number>()
+  const buNfsAtrasadasMap = new Map<string, number>()
+  empresasLista.forEach((e) => {
+    buNfsPagasMap.set(e.id, 0)
+    buNfsAPagarMap.set(e.id, 0)
+    buNfsAtrasadasMap.set(e.id, 0)
+  })
+
+  notasFiscais.forEach((nf) => {
+    const val = Number(nf.valor) || 0
+    const comp = nf.competencia || ''
+    const status = nf.status || ''
+    if (comp === compStringMesAtual) {
+      const empId = empresaIdPorPrestador.get(nf.prestador) || normalizarParaEmpresaId()
+      if (status === 'Paga') {
+        buNfsPagasMap.set(empId, (buNfsPagasMap.get(empId) || 0) + val)
+      } else if (
+        status === 'Aprovada para pagamento' ||
+        status === 'Em conferência' ||
+        status === 'Recebida'
+      ) {
+        buNfsAPagarMap.set(empId, (buNfsAPagarMap.get(empId) || 0) + val)
+      } else if (status === 'Atrasada') {
+        buNfsAtrasadasMap.set(empId, (buNfsAtrasadasMap.get(empId) || 0) + val)
+        buNfsAPagarMap.set(empId, (buNfsAPagarMap.get(empId) || 0) + val)
+      }
+    }
+  })
+
+  // Horas apontadas por BU
+  const buHorasMap = new Map<string, number>()
+  empresasLista.forEach((e) => buHorasMap.set(e.id, 0))
+  let totalHorasApontadasPeriodo = 0
+  apontamentos.forEach((ap) => {
+    const empId = normalizarParaEmpresaId(ap.empresa, ap.expand?.empresa?.nome)
+    const h = Number(ap.horas_liquidas || ap.horas_brutas || ap.quantidade_horas || 0)
+    buHorasMap.set(empId, (buHorasMap.get(empId) || 0) + h)
+    totalHorasApontadasPeriodo += h
+  })
+  // Se não houver apontamentos registrados para o mês atual, calcular horas estimadas (160h por prestador ativo)
+  if (totalHorasApontadasPeriodo === 0 && prestadoresAtivos.length > 0) {
+    prestadoresAtivos.forEach((p) => {
+      const empId = empresaIdPorPrestador.get(p.id) || normalizarParaEmpresaId()
+      buHorasMap.set(empId, (buHorasMap.get(empId) || 0) + 160)
+      totalHorasApontadasPeriodo += 160
+    })
+  }
+
+  // Prestadores PJ contagem por BU
+  const buContagemPjMap = new Map<string, number>()
+  empresasLista.forEach((e) => buContagemPjMap.set(e.id, 0))
+  prestadoresAtivos.forEach((p) => {
+    const empId = empresaIdPorPrestador.get(p.id) || normalizarParaEmpresaId()
+    buContagemPjMap.set(empId, (buContagemPjMap.get(empId) || 0) + 1)
+  })
+
+  // Funções utilitárias de montagem de decomposição
+  const montarDecomposicao = (
+    mapaValores: Map<string, number>,
+    totalConsolidado: number,
+  ): BuKpiDecomposto => {
+    const decomposicaoBu: BuItemValor[] = empresasLista.map((e) => {
+      const val = mapaValores.get(e.id) || 0
+      const pct = totalConsolidado > 0 ? Math.round((val / totalConsolidado) * 1000) / 10 : 0
+      return {
+        empresaId: e.id,
+        sigla: e.sigla || e.nome.slice(0, 4).toUpperCase(),
+        nome: e.nome,
+        cor: e.cor || '#6366F1',
+        valor: val,
+        percentual: pct,
+      }
+    })
+    return {
+      total: totalConsolidado,
+      decomposicaoBu,
+    }
+  }
+
+  const decompComprometidoPj = montarDecomposicao(buComprometidoPjMap, somaComprometidoMensalPj)
+  const decompComprometidoClt = montarDecomposicao(buComprometidoCltMap, somaComprometidoClt)
+
+  const buComprometidoGeralMap = new Map<string, number>()
+  empresasLista.forEach((e) => {
+    const vPj = buComprometidoPjMap.get(e.id) || 0
+    const vClt = buComprometidoCltMap.get(e.id) || 0
+    buComprometidoGeralMap.set(e.id, vPj + vClt)
+  })
+  const totalComprometidoGeral = somaComprometidoMensalPj + somaComprometidoClt
+  const decompComprometidoGeral = montarDecomposicao(buComprometidoGeralMap, totalComprometidoGeral)
+
+  const decompTotalPago = montarDecomposicao(buNfsPagasMap, totalPagoPeriodo)
+  const decompTotalAPagar = montarDecomposicao(buNfsAPagarMap, aPagarPeriodo)
+  const decompTotalAtrasado = montarDecomposicao(buNfsAtrasadasMap, totalAtrasado)
+  const decompHorasApontadas = montarDecomposicao(buHorasMap, totalHorasApontadasPeriodo)
+
+  // Montagem da tabela consolidada "Visão por BU"
+  const visaoPorBu: BuVisaoLinha[] = empresasLista.map((e) => {
+    const pj = buComprometidoPjMap.get(e.id) || 0
+    const clt = buComprometidoCltMap.get(e.id) || 0
+    return {
+      empresaId: e.id,
+      sigla: e.sigla || e.nome.slice(0, 4).toUpperCase(),
+      nome: e.nome,
+      cor: e.cor || '#6366F1',
+      tipo: e.tipo || 'BU / Filial',
+      comprometidoPjMes: pj,
+      nfsPagasPj: buNfsPagasMap.get(e.id) || 0,
+      nfsAbertoPj: buNfsAPagarMap.get(e.id) || 0,
+      nfsAtrasadasPj: buNfsAtrasadasMap.get(e.id) || 0,
+      horasApontadasPj: buHorasMap.get(e.id) || 0,
+      prestadoresPjCount: buContagemPjMap.get(e.id) || 0,
+      folhaCltMes: clt,
+      colaboradoresCltCount: buContagemCltMap.get(e.id) || 0,
+      novasContratacoesClt: ofertas.filter(
+        (o) => o.status === 'Aceita' && normalizarParaEmpresaId(o.expand?.vaga?.empresa) === e.id,
+      ).length,
+      totalComprometidoGeral: pj + clt,
+    }
+  })
+
   const kpis: KpisFinanceiros = {
     comprometidoMensalPj: somaComprometidoMensalPj,
     valorHoraMedioPj,
@@ -902,6 +1267,20 @@ export async function carregarDadosFinanceiros(
     folhaContratacoesMes,
     propostasAceitasCount,
     onboardingsAtivosCount,
+    // Separação PJ x CLT explícita
+    comprometidoTotalGrupo: totalComprometidoGeral,
+    comprometidoCltMensal: somaComprometidoClt,
+    colaboradoresCltCount: totalColaboradoresClt,
+    prestadoresPjCount: prestadoresAtivos.length,
+    // Decomposições por BU
+    decompComprometidoPj,
+    decompComprometidoClt,
+    decompComprometidoGeral,
+    decompTotalPago,
+    decompTotalAPagar,
+    decompTotalAtrasado,
+    decompHorasApontadas,
+    visaoPorBu,
   }
 
   return {
