@@ -297,6 +297,7 @@ export function SinteseExecutivaFinalistas({
               </div>
 
               <CardContent className="p-6 space-y-4">
+                {' '}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-[#2E3A6E]">
                   <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -311,11 +312,9 @@ export function SinteseExecutivaFinalistas({
                     Prioridade #1 para Proposta
                   </Badge>
                 </div>
-
                 <div className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans bg-slate-50 dark:bg-[#141B34] p-4 rounded-xl border border-slate-200/80 dark:border-[#2E3A6E]">
                   <p className="font-medium">{sintese.recomendacao_final.resumo_decisao}</p>
                 </div>
-
                 {sintese.recomendacao_final.condicoes_ou_cuidados &&
                   sintese.recomendacao_final.condicoes_ou_cuidados.length > 0 && (
                     <div className="pt-1">

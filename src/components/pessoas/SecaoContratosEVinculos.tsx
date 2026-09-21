@@ -88,6 +88,8 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
 
   // Contratos Digitais e Versionamento da Pessoa
   const [contratosDigitais, setContratosDigitais] = useState<ContratoUnificado[]>([])
+  const [carregandoContratos, setCarregandoContratos] = useState(false)
+  const [erroContratos, setErroContratos] = useState<string | null>(null)
   const [contratoEmFoco, setContratoEmFoco] = useState<ContratoUnificado | null>(null)
   const [modalDetalhesContratoOpen, setModalDetalhesContratoOpen] = useState(false)
   const [modalNovoContratoTemplateOpen, setModalNovoContratoTemplateOpen] = useState(false)
@@ -95,8 +97,18 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
 
   const carregarContratosDigitais = async () => {
     if (!pessoa.id) return
-    const lista = await contratosService.listarContratos({ pessoaId: pessoa.id })
-    setContratosDigitais(lista)
+    setCarregandoContratos(true)
+    setErroContratos(null)
+    try {
+      const lista = await contratosService.listarContratos({ pessoaId: pessoa.id })
+      setContratosDigitais(lista || [])
+    } catch (err: any) {
+      console.warn('Erro ao carregar contratos digitais na seção:', err)
+      setErroContratos('Não foi possível carregar os contratos digitais no momento.')
+      setContratosDigitais([])
+    } finally {
+      setCarregandoContratos(false)
+    }
   }
 
   React.useEffect(() => {
@@ -323,7 +335,27 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
 
         {/* ---------------- SUB-ABA 0: CONTRATOS DIGITAIS E VERSIONAMENTO FORMAL ---------------- */}
         <TabsContent value="contratos_digitais" className="space-y-4">
-          {contratosDigitais.length === 0 ? (
+          {carregandoContratos ? (
+            <div className="p-8 text-center bg-card rounded-xl border border-border/80 flex flex-col items-center justify-center gap-2">
+              <Clock className="w-6 h-6 animate-spin text-[#E9530E]" />
+              <span className="text-xs text-muted-foreground">
+                Carregando contratos digitais...
+              </span>
+            </div>
+          ) : erroContratos ? (
+            <div className="p-6 text-center bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-900/40 space-y-2">
+              <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400 mx-auto" />
+              <p className="text-xs text-amber-800 dark:text-amber-200">{erroContratos}</p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={carregarContratosDigitais}
+                className="text-xs border-amber-300 text-amber-800 dark:text-amber-200"
+              >
+                Tentar novamente
+              </Button>
+            </div>
+          ) : contratosDigitais.length === 0 ? (
             <div className="p-8 text-center bg-card rounded-xl border border-dashed border-border/80 space-y-2">
               <FileSignature className="w-8 h-8 text-muted-foreground mx-auto" />
               <h4 className="font-bold text-sm text-[#212B55] dark:text-[#F7F8FB] font-display">

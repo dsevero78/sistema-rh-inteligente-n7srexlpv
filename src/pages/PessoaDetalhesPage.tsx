@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Users,
   ArrowLeft,
@@ -80,6 +80,7 @@ import { AbaHorasPessoa } from '@/components/pessoas/AbaHorasPessoa'
 
 export default function PessoaDetalhesPage() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
@@ -93,7 +94,35 @@ export default function PessoaDetalhesPage() {
   const [aditivosPj, setAditivosPj] = useState<AditivoPJ[]>([])
   const [marcosLifecycle, setMarcosLifecycle] = useState<MarcoLifecyclePJ[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('dados')
+
+  const tabParam = searchParams.get('tab')
+  const validTabs = ['dados', 'vinculos', 'horas', 'timeline', 'cofre']
+  const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'dados'
+  const [activeTab, setActiveTab] = useState(initialTab)
+
+  // Sincronizar activeTab quando o parâmetro da URL mudar
+  useEffect(() => {
+    const currentParam = searchParams.get('tab')
+    if (currentParam && validTabs.includes(currentParam) && currentParam !== activeTab) {
+      setActiveTab(currentParam)
+    }
+  }, [searchParams])
+
+  const handleTabChange = (novaTab: string) => {
+    setActiveTab(novaTab)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (novaTab === 'dados') {
+          next.delete('tab')
+        } else {
+          next.set('tab', novaTab)
+        }
+        return next
+      },
+      { replace: true },
+    )
+  }
 
   // Edição de Dados Cadastrais
   const [editando, setEditando] = useState(false)
@@ -552,7 +581,7 @@ export default function PessoaDetalhesPage() {
       </div>
 
       {/* Tabs Principais da Ficha da Pessoa */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="bg-card border border-border/80 p-1 rounded-xl flex-wrap">
           <TabsTrigger
             value="dados"

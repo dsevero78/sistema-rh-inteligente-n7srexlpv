@@ -505,12 +505,23 @@ export default function Pipeline() {
                               <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                                 {cand.cargo_atual}
                               </p>
-                              {((cand as any).canal_origem === 'Indicação' ||
-                                (cand as any).canal_origem === 'Indicação interna') && (
-                                <span className="inline-block mt-0.5 font-display text-[11px] font-bold px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                                  🎁 Indicação
-                                </span>
-                              )}
+                              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                {((cand as any).canal_origem === 'Indicação' ||
+                                  (cand as any).canal_origem === 'Indicação interna') && (
+                                  <span className="inline-block font-display text-[11px] font-bold px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                    🎁 Indicação
+                                  </span>
+                                )}
+                                {(cand as any).video_status === 'analise_concluida' ? (
+                                  <span className="inline-block font-display text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                    Vídeo IA {(cand as any).video_score_geral || 90}%
+                                  </span>
+                                ) : (cand as any).video_link || (cand as any).video_apresentacao ? (
+                                  <span className="inline-block font-display text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                    Vídeo OK
+                                  </span>
+                                ) : null}
+                              </div>
                             </div>
                           </div>
 

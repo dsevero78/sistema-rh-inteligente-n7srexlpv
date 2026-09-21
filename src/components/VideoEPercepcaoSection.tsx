@@ -1,1188 +1,735 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import pb from '@/lib/pocketbase/client'
-import { useAuth } from '@/contexts/AuthContext'
-import { useToast } from '@/hooks/use-toast'
-import type { RecordModel } from 'pocketbase'
+import { videoIaService, type AnaliseVideoResponse } from '@/services/videoIaService'
 import {
   Video,
+  Play,
+  ExternalLink,
   Sparkles,
-  Lock,
-  Eye,
-  Plus,
-  Trash2,
-  Edit,
-  Save,
   CheckCircle2,
   AlertTriangle,
-  FileText,
+  RotateCcw,
   Upload,
-  ExternalLink,
+  Link as LinkIcon,
+  Plus,
   Loader2,
-  User,
+  MessageSquare,
   ShieldAlert,
+  BarChart3,
+  Flame,
+  Award,
+  Zap,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { useToast } from '@/hooks/use-toast'
+import type { RecordModel } from 'pocketbase'
 
 interface VideoEPercepcaoSectionProps {
   candidato: RecordModel
-  onCandidatoUpdated: () => void
+  onUpdate?: () => void
+  onCandidatoUpdated?: () => Promise<void> | void
 }
 
 export function VideoEPercepcaoSection({
   candidato,
+  onUpdate,
   onCandidatoUpdated,
 }: VideoEPercepcaoSectionProps) {
-  const { user, isGestorContratante } = useAuth()
   const { toast } = useToast()
 
-  // Estados de Vídeo
-  const [videoModalOpen, setVideoModalOpen] = useState(false)
-  const [videoLinkInput, setVideoLinkInput] = useState(candidato.video_link || '')
-  const [videoFileInput, setVideoFileInput] = useState<File | null>(null)
-  const [savingVideo, setSavingVideo] = useState(false)
-  const videoInputRef = useRef<HTMLInputElement>(null)
-
-  // Estados de Percepções do RH
   const [percepcoes, setPercepcoes] = useState<RecordModel[]>([])
-  const [loadingPercepcoes, setLoadingPercepcoes] = useState(true)
-  const [percepcaoModalOpen, setPercepcaoModalOpen] = useState(false)
-  const [editingPercepcao, setEditingPercepcao] = useState<RecordModel | null>(null)
-  const [savingPercepcao, setSavingPercepcao] = useState(false)
-
-  // Estados de Análise de Vídeo da IA
   const [analiseIa, setAnaliseIa] = useState<RecordModel | null>(null)
-  const [loadingAnaliseIa, setLoadingAnaliseIa] = useState(true)
-  const [gerandoAnaliseIa, setGerandoAnaliseIa] = useState(false)
+  const [loadingPercepcoes, setLoadingPercepcoes] = useState(true)
+  const [loadingAnalise, setLoadingAnalise] = useState(true)
+  const [analisando, setAnalisando] = useState(false)
+  const [erroAnalise, setErroAnalise] = useState<string | null>(null)
 
-  // Formulário estruturado de percepção
-  const [visibilidade, setVisibilidade] = useState<
-    'Privada (só o RH autor)' | 'Compartilhada com o gestor'
-  >('Compartilhada com o gestor')
-  const [statusDoc, setStatusDoc] = useState<'Rascunho' | 'Finalizada'>('Finalizada')
-  const [comunicacao, setComunicacao] = useState('')
-  const [postura, setPostura] = useState('')
-  const [estruturaVideo, setEstruturaVideo] = useState('')
-  const [conteudo, setConteudo] = useState('')
-  const [aderencia, setAderencia] = useState('')
-  const [pontosFortes, setPontosFortes] = useState('')
-  const [pontosAtencao, setPontosAtencao] = useState('')
-  const [notaGeral, setNotaGeral] = useState<number>(8.5)
-  const [conclusao, setConclusao] = useState<'Avançar' | 'Em dúvida' | 'Reprovar'>('Avançar')
-  const [obsConfidenciais, setObsConfidenciais] = useState('')
+  // Modais
+  const [modalPercepcaoOpen, setModalPercepcaoOpen] = useState(false)
+  const [modalVideoOpen, setModalVideoOpen] = useState(false)
+  const [submittingPercepcao, setSubmittingPercepcao] = useState(false)
+  const [submittingVideo, setSubmittingVideo] = useState(false)
 
-  const carregarPercepcoes = async () => {
+  // Form Percepção
+  const [tipoOrigem, setTipoOrigem] = useState('RH')
+  const [observacoes, setObservacoes] = useState('')
+  const [destaquesPositivos, setDestaquesPositivos] = useState('')
+  const [destaquesAtencao, setDestaquesAtencao] = useState('')
+
+  // Form Vídeo
+  const [novoLinkVideo, setNovoLinkVideo] = useState(candidato.video_link || '')
+  const [arquivoVideo, setArquivoVideo] = useState<File | null>(null)
+
+  // Informações de vídeo
+  const temArquivo = Boolean(candidato.video_apresentacao)
+  const temLink = Boolean(candidato.video_link)
+  const temVideo = temArquivo || temLink
+  const urlArquivo = temArquivo ? pb.files.getURL(candidato, candidato.video_apresentacao) : null
+
+  const videoStatus = candidato.video_status || (temVideo ? 'enviado_aguardando' : 'sem_video')
+
+  // Carregar dados
+  const carregarDados = async () => {
     try {
-      setLoadingPercepcoes(true)
-      const list = await pb.collection('percepcoes_rh').getFullList({
-        filter: `candidato = '${candidato.id}'`,
-        sort: '-created',
-      })
-      setPercepcoes(list)
+      const [percs, analise] = await Promise.all([
+        pb.collection('percepcoes_entrevista').getFullList({
+          filter: `candidato = "${candidato.id}"`,
+          sort: '-created',
+          expand: 'autor',
+        }),
+        videoIaService.obterAnaliseMaisRecente(candidato.id),
+      ])
+      setPercepcoes(percs)
+      setAnaliseIa(analise)
     } catch (err) {
-      console.error('Erro ao buscar percepções:', err)
+      console.error('Erro ao buscar vídeo/percepções:', err)
     } finally {
       setLoadingPercepcoes(false)
-    }
-  }
-
-  const carregarAnaliseIa = async () => {
-    try {
-      setLoadingAnaliseIa(true)
-      const list = await pb.collection('analises_video_ia').getFullList({
-        filter: `candidato = '${candidato.id}'`,
-        sort: '-created',
-      })
-      if (list && list.length > 0) {
-        setAnaliseIa(list[0])
-      } else {
-        setAnaliseIa(null)
-      }
-    } catch (err) {
-      console.error('Erro ao buscar análise da IA sobre vídeo:', err)
-    } finally {
-      setLoadingAnaliseIa(false)
+      setLoadingAnalise(false)
     }
   }
 
   useEffect(() => {
-    carregarPercepcoes()
-    carregarAnaliseIa()
+    carregarDados()
   }, [candidato.id])
 
-  const handleGerarAnaliseIa = async () => {
-    setGerandoAnaliseIa(true)
-    try {
-      const res = await pb.send('/backend/v1/analisar-video-ia', {
-        method: 'POST',
-        body: {
-          candidatoId: candidato.id,
-          vagaId: candidato.vaga || null,
-        },
-      })
-      if (res && res.analise) {
-        setAnaliseIa(res.analise)
-        toast({
-          title: 'Análise de vídeo gerada com sucesso!',
-          description: 'A IA sintetizou as percepções compartilhadas e metadados do candidato.',
-        })
-      } else {
-        await carregarAnaliseIa()
-        toast({
-          title: 'Análise processada!',
-          description: 'Os dados foram atualizados.',
-        })
-      }
-    } catch (err: unknown) {
+  // Disparar análise de IA
+  const handleDispararAnalise = async () => {
+    if (!temVideo) {
       toast({
-        title: 'Erro ao gerar análise da IA',
-        description: err instanceof Error ? err.message : 'Falha na comunicação com o assistente.',
+        title: 'Nenhum vídeo disponível',
+        description: 'Faça upload ou adicione um link de vídeo antes de iniciar a análise de IA.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setAnalisando(true)
+    setErroAnalise(null)
+
+    try {
+      const resultado: AnaliseVideoResponse = await videoIaService.dispararAnalise(candidato.id)
+      toast({
+        title: 'Análise de vídeo concluída!',
+        description: `Score IA: ${resultado.score_geral}/100 · ${resultado.recomendacao_geral}`,
+      })
+      await carregarDados()
+      if (onUpdate) onUpdate()
+      if (onCandidatoUpdated) onCandidatoUpdated()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha na comunicação com o serviço de IA.'
+      setErroAnalise(msg)
+      toast({
+        title: 'Erro ao analisar vídeo',
+        description: msg,
         variant: 'destructive',
       })
     } finally {
-      setGerandoAnaliseIa(false)
+      setAnalisando(false)
     }
   }
 
-  // Salvar Vídeo
-  const handleSalvarVideo = async () => {
-    setSavingVideo(true)
+  // Salvar novo vídeo / link
+  const handleSalvarVideo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmittingVideo(true)
     try {
-      const formData = new FormData()
-      formData.append('video_link', videoLinkInput.trim())
-      if (videoFileInput) {
-        formData.append('video_apresentacao', videoFileInput)
+      if (arquivoVideo) {
+        if (arquivoVideo.size > 50 * 1024 * 1024) {
+          throw new Error('O arquivo excede o limite máximo de 50MB. Use a opção de link externo.')
+        }
+        await videoIaService.uploadArquivoVideo(candidato.id, arquivoVideo)
+      } else if (novoLinkVideo.trim() !== (candidato.video_link || '')) {
+        await videoIaService.salvarLinkVideo(candidato.id, novoLinkVideo.trim())
       }
-      await pb.collection('candidatos').update(candidato.id, formData)
       toast({
-        title: 'Vídeo de apresentação atualizado!',
-        description: 'O arquivo/link já está disponível para o player.',
+        title: 'Vídeo atualizado com sucesso!',
+        description: 'Você já pode solicitar a análise por IA.',
       })
-      setVideoModalOpen(false)
-      onCandidatoUpdated()
+      setModalVideoOpen(false)
+      setArquivoVideo(null)
+      if (onUpdate) onUpdate()
+      if (onCandidatoUpdated) onCandidatoUpdated()
     } catch (err: unknown) {
       toast({
-        title: 'Erro ao salvar vídeo',
+        title: 'Erro ao atualizar vídeo',
         description: err instanceof Error ? err.message : 'Tente novamente.',
         variant: 'destructive',
       })
     } finally {
-      setSavingVideo(false)
+      setSubmittingVideo(false)
     }
   }
 
-  // Abrir modal de criação/edição de percepção
-  const handleOpenNovaPercepcao = () => {
-    setEditingPercepcao(null)
-    setVisibilidade('Compartilhada com o gestor')
-    setStatusDoc('Finalizada')
-    setComunicacao('')
-    setPostura('')
-    setEstruturaVideo('')
-    setConteudo('')
-    setAderencia('')
-    setPontosFortes('')
-    setPontosAtencao('')
-    setNotaGeral(8.0)
-    setConclusao('Avançar')
-    setObsConfidenciais('')
-    setPercepcaoModalOpen(true)
-  }
-
-  const handleOpenEditPercepcao = (p: RecordModel) => {
-    setEditingPercepcao(p)
-    setVisibilidade(p.visibilidade || 'Compartilhada com o gestor')
-    setStatusDoc(p.status_documento || 'Finalizada')
-    setComunicacao(p.comunicacao_clareza || '')
-    setPostura(p.postura_apresentacao || '')
-    setEstruturaVideo(p.estrutura_video || '')
-    setConteudo(p.conteudo_experiencia || '')
-    setAderencia(p.aderencia_cultural || '')
-    setPontosFortes(p.pontos_fortes || '')
-    setPontosAtencao(p.pontos_atencao || '')
-    setNotaGeral(p.nota_geral || 8.0)
-    setConclusao(p.conclusao || 'Avançar')
-    setObsConfidenciais(p.observacoes_confidenciais || '')
-    setPercepcaoModalOpen(true)
-  }
-
-  const handleSalvarPercepcao = async () => {
-    if (!user) return
-    setSavingPercepcao(true)
+  // Salvar Percepção de Entrevista
+  const handleSalvarPercepcao = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmittingPercepcao(true)
     try {
-      const payload = {
+      const posArray = destaquesPositivos
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      const ateArray = destaquesAtencao
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+
+      await pb.collection('percepcoes_entrevista').create({
         candidato: candidato.id,
-        vaga: candidato.vaga || null,
-        autor: user.id,
-        autor_nome: user.name || user.email || 'Avaliador RH',
-        visibilidade,
-        status_documento: statusDoc,
-        comunicacao_clareza: comunicacao,
-        postura_apresentacao: postura,
-        estrutura_video: estruturaVideo,
-        conteudo_experiencia: conteudo,
-        aderencia_cultural: aderencia,
-        pontos_fortes: pontosFortes,
-        pontos_atencao: pontosAtencao,
-        nota_geral: Number(notaGeral),
-        conclusao,
-        observacoes_confidenciais: obsConfidenciais,
-      }
+        vaga: candidato.vaga,
+        origem_tipo: tipoOrigem,
+        autor: pb.authStore.record?.id,
+        observacoes,
+        destaques_positivos: posArray,
+        pontos_atencao: ateArray,
+        data_registro: new Date().toISOString(),
+      })
 
-      if (editingPercepcao) {
-        await pb.collection('percepcoes_rh').update(editingPercepcao.id, payload)
-        toast({ title: 'Percepção do RH atualizada!' })
-      } else {
-        await pb.collection('percepcoes_rh').create(payload)
-        toast({
-          title: 'Percepção registrada com sucesso!',
-          description:
-            visibilidade === 'Privada (só o RH autor)'
-              ? 'Salva como Privada (apenas você pode visualizar).'
-              : 'Compartilhada com o gestor responsável e integrada à IA.',
-        })
-      }
-
-      setPercepcaoModalOpen(false)
-      carregarPercepcoes()
+      toast({
+        title: 'Percepção registrada com sucesso!',
+        description: 'Os dados foram vinculados ao histórico do candidato.',
+      })
+      setModalPercepcaoOpen(false)
+      setObservacoes('')
+      setDestaquesPositivos('')
+      setDestaquesAtencao('')
+      carregarDados()
     } catch (err: unknown) {
       toast({
-        title: 'Erro ao salvar percepção',
-        description: err instanceof Error ? err.message : 'Tente novamente.',
+        title: 'Erro ao registrar percepção',
+        description: err instanceof Error ? err.message : 'Erro inesperado.',
         variant: 'destructive',
       })
     } finally {
-      setSavingPercepcao(false)
+      setSubmittingPercepcao(false)
     }
   }
 
-  const handleDeletePercepcao = async (pId: string) => {
-    if (!confirm('Deseja excluir esta avaliação de percepção?')) return
-    try {
-      await pb.collection('percepcoes_rh').delete(pId)
-      toast({ title: 'Registro excluído' })
-      carregarPercepcoes()
-    } catch (err) {
-      toast({ title: 'Erro ao excluir', variant: 'destructive' })
-    }
+  // Dimensoes a exibir
+  const dimensoes = candidato.video_analise_dimensoes || {
+    clareza_comunicacao: analiseIa?.clareza_comunicacao || 0,
+    estrutura_narrativa: analiseIa?.estrutura_narrativa || 0,
+    energia_postura: analiseIa?.energia_postura || 0,
+    aderencia_vaga: analiseIa?.aderencia_vaga || 0,
   }
 
-  // URL do arquivo de vídeo local
-  const videoFileUrl = candidato.video_apresentacao
-    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/candidatos/${candidato.id}/${candidato.video_apresentacao}`
-    : null
+  const redFlags: string[] =
+    (Array.isArray(candidato.video_analise_dimensoes?.red_flags)
+      ? candidato.video_analise_dimensoes.red_flags
+      : analiseIa?.red_flags) || []
 
-  // Helpers para vídeos externos (YouTube embed)
-  const getEmbedUrl = (url: string) => {
-    if (!url) return null
-    if (url.includes('youtube.com/watch?v=')) {
-      const id = url.split('v=')[1]?.split('&')[0]
-      return `https://www.youtube.com/embed/${id}`
-    }
-    if (url.includes('youtu.be/')) {
-      const id = url.split('youtu.be/')[1]?.split('?')[0]
-      return `https://www.youtube.com/embed/${id}`
-    }
-    return null
-  }
-
-  const embedUrl = candidato.video_link ? getEmbedUrl(candidato.video_link) : null
+  const scoreGeral = candidato.video_score_geral || analiseIa?.score_geral || 0
 
   return (
     <div className="space-y-6">
-      {/* 1. SEÇÃO DE VÍDEO DE APRESENTAÇÃO */}
-      <Card className="border-slate-200 shadow-xs bg-white">
-        <CardHeader className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200">
-                Módulo 3
-              </span>
-              <Badge
-                variant="outline"
-                className={`text-[10px] font-bold ${
-                  candidato.video_link || candidato.video_apresentacao
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                    : 'bg-amber-50 text-amber-800 border-amber-300'
-                }`}
-              >
-                {candidato.video_link || candidato.video_apresentacao
-                  ? 'Vídeo Anexado'
-                  : 'Pendente de Vídeo'}
-              </Badge>
-            </div>
-            <CardTitle className="text-base font-bold text-slate-900 mt-1 flex items-center gap-2">
-              <Video className="w-4 h-4 text-blue-600" />
-              Vídeo de Apresentação do Candidato
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
-              Vídeo solicitado na entrevista com RH para avaliação de postura, comunicação e clareza
-            </CardDescription>
-          </div>
-
-          <Button
-            size="sm"
-            onClick={() => {
-              setVideoLinkInput(candidato.video_link || '')
-              setVideoFileInput(null)
-              setVideoModalOpen(true)
-            }}
-            variant="outline"
-            className="text-xs font-semibold border-slate-300 text-slate-700 h-9"
-          >
-            <Upload className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
-            {candidato.video_link || candidato.video_apresentacao
-              ? 'Substituir Vídeo'
-              : 'Anexar Vídeo'}
-          </Button>
-        </CardHeader>
-
+      {/* CARD PRINCIPAL DO VÍDEO & ANÁLISE IA */}
+      <Card className="border-slate-200 dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240] shadow-xs">
         <CardContent className="p-5">
-          {embedUrl ? (
-            <div className="rounded-xl overflow-hidden border border-slate-300 bg-black aspect-video max-w-2xl mx-auto shadow-sm">
-              <iframe
-                src={embedUrl}
-                title="Vídeo de Apresentação"
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          ) : videoFileUrl ? (
-            <div className="rounded-xl overflow-hidden border border-slate-300 bg-black aspect-video max-w-2xl mx-auto shadow-sm">
-              <video controls src={videoFileUrl} className="w-full h-full object-contain">
-                Seu navegador não suporta visualização de vídeos HTML5.
-              </video>
-            </div>
-          ) : candidato.video_link ? (
-            <div className="p-6 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-3 max-w-lg mx-auto">
-              <Video className="w-8 h-8 text-blue-600 mx-auto" />
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-slate-800">Link Externo Disponível</p>
-                <p className="text-[11px] text-slate-500">
-                  O candidato disponibilizou o link externo (Loom / Drive / Vídeo):
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-[#2E3A6E]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#FEF1EA] dark:bg-[#212B55] text-[#E9530E] flex items-center justify-center shrink-0 border border-[#FBDCC9] dark:border-[#2E3A6E]">
+                <Video className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-display text-base font-bold text-[#212B55] dark:text-[#F7F8FB]">
+                    Vídeo de Apresentação & Avaliação IA
+                  </h3>
+                  {videoStatus === 'analise_concluida' && (
+                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 text-[11px] font-bold">
+                      ✓ Análise Concluída
+                    </Badge>
+                  )}
+                  {videoStatus === 'enviado_aguardando' && (
+                    <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700 text-[11px] font-bold">
+                      Aguardando Análise
+                    </Badge>
+                  )}
+                  {videoStatus === 'analisando' && (
+                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-300 dark:border-blue-700 text-[11px] font-bold animate-pulse">
+                      Analisando com IA...
+                    </Badge>
+                  )}
+                  {videoStatus === 'erro_processamento' && (
+                    <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-300 dark:border-rose-700 text-[11px] font-bold">
+                      Erro no Processamento
+                    </Badge>
+                  )}
+                  {videoStatus === 'sem_video' && (
+                    <Badge variant="outline" className="text-[11px] font-medium text-slate-500">
+                      Sem vídeo enviado
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Apresentação gravada pelo candidato e relatório dimensional estruturado via IA
                 </p>
               </div>
-              <a
-                href={candidato.video_link}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 transition-colors shadow-xs"
-              >
-                <span>Assistir Vídeo no Repositório</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
             </div>
-          ) : (
-            <div className="p-8 text-center border border-dashed border-slate-300 rounded-xl space-y-2 max-w-lg mx-auto">
-              <Video className="w-8 h-8 text-slate-300 mx-auto" />
-              <p className="text-xs text-slate-600 font-semibold">
-                Nenhum vídeo anexado para este candidato.
-              </p>
-              <p className="text-[11px] text-slate-400">
-                Você pode anexar um arquivo mp4/webm ou colar o link do Loom, YouTube ou Google
-                Drive.
-              </p>
+
+            <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
               <Button
-                size="sm"
-                onClick={() => setVideoModalOpen(true)}
-                className="bg-blue-600 text-white text-xs mt-2"
-              >
-                Anexar Agora
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 1.1 BLOCO DE ANÁLISE DA IA SOBRE O VÍDEO DE APRESENTAÇÃO */}
-      <Card className="border-slate-200 shadow-xs bg-white overflow-hidden">
-        <CardHeader className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-linear-to-r from-blue-50/40 via-white to-white">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded border border-blue-200">
-                IA Generativa
-              </span>
-              <span className="text-xs text-slate-400">· Avaliação de Apresentação & Postura</span>
-            </div>
-            <CardTitle className="text-base font-bold text-slate-900 mt-1 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-blue-600" />
-              Análise da IA sobre o Vídeo de Apresentação
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
-              Síntese automática da oratória, postura e aderência baseada em percepções
-              compartilhadas do RH e metadados.
-            </CardDescription>
-          </div>
-
-          <Button
-            size="sm"
-            onClick={handleGerarAnaliseIa}
-            disabled={gerandoAnaliseIa}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold h-9 shadow-xs shrink-0"
-          >
-            {gerandoAnaliseIa ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                Analisando com IA...
-              </>
-            ) : analiseIa ? (
-              <>
-                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                Regerar Análise
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                Analisar Vídeo com IA
-              </>
-            )}
-          </Button>
-        </CardHeader>
-
-        <CardContent className="p-5">
-          {loadingAnaliseIa ? (
-            <div className="p-6 text-center text-xs text-slate-400">
-              Carregando análise da IA...
-            </div>
-          ) : !analiseIa ? (
-            <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl space-y-2 bg-slate-50/50">
-              <Sparkles className="w-8 h-8 text-blue-300 mx-auto" />
-              <p className="text-xs text-slate-700 font-semibold">
-                Nenhuma análise de IA gerada ainda para este vídeo
-              </p>
-              <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-                Clique no botão acima para acionar o motor de inteligência artificial. A IA
-                sintetiza percepções compartilhadas do RH, competências do candidato e metadados da
-                apresentação, mantendo sigilo de notas privadas.
-              </p>
-              <Button
-                size="sm"
-                onClick={handleGerarAnaliseIa}
-                disabled={gerandoAnaliseIa}
                 variant="outline"
-                className="text-xs text-blue-600 border-blue-200 hover:bg-blue-50 mt-2"
+                size="sm"
+                onClick={() => setModalVideoOpen(true)}
+                className="text-xs font-semibold h-8 border-slate-200 dark:border-[#2E3A6E]"
               >
-                {gerandoAnaliseIa ? 'Processando...' : 'Gerar Primeira Análise'}
+                <Upload className="w-3.5 h-3.5 mr-1 text-[#E9530E]" />
+                {temVideo ? 'Substituir / Link' : 'Enviar Vídeo'}
               </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Top Banner: Veredito e Base Utilizada */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white border border-slate-200 px-3 py-1 rounded-lg text-center shadow-2xs">
-                    <span className="text-[10px] font-bold text-slate-400 block uppercase">
-                      Nota Estimada
-                    </span>
-                    <span className="text-base font-extrabold text-blue-700">
-                      {analiseIa.nota_estimada || 8.5}/10
-                    </span>
-                  </div>
 
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-900">Recomendação IA:</span>
-                      <Badge
-                        className={`text-xs font-bold ${
-                          analiseIa.recomendacao_geral === 'Fortemente Recomendado'
-                            ? 'bg-emerald-600 text-white'
-                            : analiseIa.recomendacao_geral === 'Recomendado'
-                              ? 'bg-blue-600 text-white'
-                              : analiseIa.recomendacao_geral === 'Requer Alinhamento'
-                                ? 'bg-amber-600 text-white'
-                                : 'bg-rose-600 text-white'
-                        }`}
-                      >
-                        {analiseIa.recomendacao_geral || 'Recomendado'}
-                      </Badge>
-                    </div>
-                    {analiseIa.data_geracao && (
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Gerada em {new Date(analiseIa.data_geracao).toLocaleString('pt-BR')}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Base Utilizada */}
-                <div className="text-left sm:text-right max-w-sm">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Base de Dados Utilizada
-                  </span>
-                  <p className="text-[11px] text-slate-600 font-medium">
-                    {analiseIa.base_utilizada ||
-                      `Baseado em ${analiseIa.qtd_percepcoes_consideradas || 0} percepção(ões) compartilhada(s) e no perfil.`}
-                  </p>
-                </div>
-              </div>
-
-              {/* Resumo Executivo da Apresentação */}
-              {analiseIa.resumo_executivo && (
-                <div className="p-4 bg-blue-50/40 rounded-xl border border-blue-100 text-xs text-slate-800 space-y-1">
-                  <strong className="block font-bold text-blue-900 text-[11px] uppercase tracking-wide">
-                    Síntese Executiva da Apresentação
-                  </strong>
-                  <p className="leading-relaxed">{analiseIa.resumo_executivo}</p>
-                </div>
+              {temVideo && (
+                <Button
+                  size="sm"
+                  onClick={handleDispararAnalise}
+                  disabled={analisando}
+                  className="bg-[#E9530E] hover:bg-[#C5430A] text-white text-xs font-bold h-8 shadow-xs"
+                >
+                  {analisando ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      Processando IA...
+                    </>
+                  ) : videoStatus === 'analise_concluida' ? (
+                    <>
+                      <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                      Reanalisar Vídeo
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                      Iniciar Análise IA
+                    </>
+                  )}
+                </Button>
               )}
-
-              {/* Grid de Dimensões Avaliadas */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                {analiseIa.comunicacao_oratoria && (
-                  <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
-                    <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
-                      Comunicação & Oratória
-                    </strong>
-                    <p className="text-slate-600 leading-relaxed">
-                      {analiseIa.comunicacao_oratoria}
-                    </p>
-                  </div>
-                )}
-
-                {analiseIa.postura_presenca && (
-                  <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
-                    <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
-                      Postura & Presença
-                    </strong>
-                    <p className="text-slate-600 leading-relaxed">{analiseIa.postura_presenca}</p>
-                  </div>
-                )}
-
-                {analiseIa.dominio_experiencia && (
-                  <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
-                    <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
-                      Domínio das Experiências
-                    </strong>
-                    <p className="text-slate-600 leading-relaxed">
-                      {analiseIa.dominio_experiencia}
-                    </p>
-                  </div>
-                )}
-
-                {analiseIa.fit_cultural && (
-                  <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
-                    <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
-                      Fit Cultural Percebido
-                    </strong>
-                    <p className="text-slate-600 leading-relaxed">{analiseIa.fit_cultural}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Pontos Fortes e Riscos/Atenção */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                {Array.isArray(analiseIa.pontos_fortes) && analiseIa.pontos_fortes.length > 0 && (
-                  <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-950 space-y-1">
-                    <strong className="block text-[11px] font-bold uppercase tracking-wide text-emerald-800">
-                      Destaques Positivos Identificados
-                    </strong>
-                    <ul className="space-y-1 list-disc list-inside">
-                      {analiseIa.pontos_fortes.map((p: string, idx: number) => (
-                        <li key={idx} className="leading-relaxed">
-                          {p}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {Array.isArray(analiseIa.pontos_atencao) && analiseIa.pontos_atencao.length > 0 && (
-                  <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-950 space-y-1">
-                    <strong className="block text-[11px] font-bold uppercase tracking-wide text-amber-800">
-                      Pontos de Atenção para Entrevistas
-                    </strong>
-                    <ul className="space-y-1 list-disc list-inside">
-                      {analiseIa.pontos_atencao.map((p: string, idx: number) => (
-                        <li key={idx} className="leading-relaxed">
-                          {p}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 2. SEÇÃO DE PERCEPÇÃO DO RH (Privada ou Compartilhada) */}
-      <Card className="border-slate-200 shadow-xs bg-white">
-        <CardHeader className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200">
-                Avaliação Estruturada
-              </span>
-              <span className="text-xs text-slate-400">· Escrita do RH & Pontos Guiados</span>
-            </div>
-            <CardTitle className="text-base font-bold text-slate-900 mt-1 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-purple-600" />
-              Percepção do RH ({percepcoes.length})
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
-              Pontos guiados para organizar a percepção da entrevista e vídeo: oralidade, postura,
-              conteúdo e fit cultural. Controle se o parecer é confidencial (privado) ou
-              compartilhado com o gestor contratante.
-            </CardDescription>
           </div>
 
-          <Button
-            size="sm"
-            onClick={handleOpenNovaPercepcao}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold h-9 shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1.5" />
-            Nova Análise de Percepção
-          </Button>
-        </CardHeader>
-
-        <CardContent className="p-5 divide-y divide-slate-100">
-          {loadingPercepcoes ? (
-            <div className="p-8 text-center text-xs text-slate-400">Carregando percepções...</div>
-          ) : percepcoes.length === 0 ? (
-            <div className="p-8 text-center border border-dashed border-slate-300 rounded-xl space-y-2">
-              <FileText className="w-8 h-8 text-slate-300 mx-auto" />
-              <p className="text-xs text-slate-700 font-semibold">
-                Nenhuma percepção registrada ainda
-              </p>
-              <p className="text-[11px] text-slate-400 max-w-md mx-auto">
-                Registre sua análise estruturada após a entrevista ou visualização do vídeo. Os
-                pontos guiados ajudam a embasar a decisão da gestão.
+          {/* ÁREA DE EXIBIÇÃO: PLAYER / LINK + RELATÓRIO */}
+          {!temVideo ? (
+            <div className="py-10 text-center border-2 border-dashed border-slate-200 dark:border-[#2E3A6E] rounded-xl my-4 bg-slate-50/50 dark:bg-[#141B34]/40">
+              <Video className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+              <h4 className="font-display text-sm font-bold text-[#212B55] dark:text-[#F7F8FB]">
+                Nenhum vídeo cadastrado para este candidato
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1 mb-4">
+                O candidato pode enviar o vídeo pelo Portal Público (/candidato/:token) ou o time de
+                RH pode anexar aqui um arquivo mp4 ou link (YouTube/Loom/Drive).
               </p>
               <Button
                 size="sm"
-                onClick={handleOpenNovaPercepcao}
-                variant="outline"
-                className="text-xs text-blue-600 border-blue-200 hover:bg-blue-50 mt-2"
+                onClick={() => setModalVideoOpen(true)}
+                className="bg-[#E9530E] hover:bg-[#C5430A] text-white text-xs font-bold"
               >
-                Escrever Percepção
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                Cadastrar Vídeo Agora
               </Button>
             </div>
           ) : (
-            <div className="space-y-5">
-              {percepcoes.map((p) => {
-                const isPrivada = p.visibilidade === 'Privada (só o RH autor)'
-                const isAutor = user?.id === p.autor
-
-                return (
-                  <div
-                    key={p.id}
-                    className={`p-5 rounded-xl border space-y-4 ${
-                      isPrivada
-                        ? 'border-amber-200 bg-amber-50/20'
-                        : 'border-slate-200 bg-slate-50/50'
-                    }`}
-                  >
-                    {/* Header do Registro de Percepção */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
-                      <div className="flex items-center gap-2.5 flex-wrap">
-                        <span className="font-bold text-slate-900 text-xs">
-                          Avaliador: {p.autor_nome || 'Time de RH'}
-                        </span>
-                        <span className="text-slate-400 text-[11px]">
-                          em {new Date(p.created).toLocaleDateString('pt-BR')}
-                        </span>
-
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] font-bold flex items-center gap-1 ${
-                            isPrivada
-                              ? 'bg-amber-100 text-amber-900 border-amber-300'
-                              : 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                          }`}
-                        >
-                          {isPrivada ? <Lock className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                          {p.visibilidade}
-                        </Badge>
-
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] ${
-                            p.status_documento === 'Finalizada'
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'bg-slate-200 text-slate-700'
-                          }`}
-                        >
-                          {p.status_documento}
-                        </Badge>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-5">
+              {/* Coluna Esquerda: Player ou Box do Link */}
+              <div className="lg:col-span-5 space-y-3">
+                <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-[#2E3A6E] bg-black/95 relative aspect-video flex items-center justify-center group shadow-sm">
+                  {urlArquivo ? (
+                    <video
+                      controls
+                      src={urlArquivo}
+                      className="w-full h-full object-contain"
+                      preload="metadata"
+                    />
+                  ) : (
+                    <div className="p-6 text-center text-white space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-white/10 mx-auto flex items-center justify-center text-[#E9530E] border border-white/20">
+                        <Play className="w-6 h-6 ml-0.5 fill-current" />
                       </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-200">
+                          Vídeo hospedado externamente
+                        </p>
+                        <p className="text-[11px] text-slate-400 truncate max-w-xs mx-auto mt-0.5">
+                          {candidato.video_link}
+                        </p>
+                      </div>
+                      <a
+                        href={candidato.video_link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#E9530E] hover:bg-[#C5430A] px-3.5 py-1.5 rounded-md transition-colors"
+                      >
+                        Abrir Vídeo na Aba <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  )}
+                </div>
 
-                      <div className="flex items-center gap-2">
-                        <div className="bg-white border border-slate-200 px-2.5 py-1 rounded text-right">
-                          <span className="text-[10px] font-bold text-slate-400 block uppercase">
-                            Nota
-                          </span>
-                          <span className="text-xs font-extrabold text-blue-700">
-                            {p.nota_geral || 8}/10
+                <div className="p-3 bg-slate-50 dark:bg-[#141B34] rounded-lg border border-slate-200/80 dark:border-[#2E3A6E] text-xs flex items-center justify-between">
+                  <span className="text-slate-600 dark:text-slate-300 font-medium">
+                    Origem: {temArquivo ? 'Arquivo local carregado' : 'Link de streaming'}
+                  </span>
+                  {candidato.video_versao && (
+                    <span className="font-mono text-[11px] text-slate-500 font-bold">
+                      Versão {candidato.video_versao}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Coluna Direita: Breakdown de Dimensões e Resumo */}
+              <div className="lg:col-span-7 space-y-4">
+                {erroAnalise && (
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-lg text-xs text-rose-800 dark:text-rose-200 flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <span className="font-bold block">Falha no processamento da análise</span>
+                      <span>{erroAnalise}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleDispararAnalise}
+                      className="text-xs h-7 border-rose-300 dark:border-rose-700 bg-white dark:bg-rose-900"
+                    >
+                      Tentar Novamente
+                    </Button>
+                  </div>
+                )}
+
+                {videoStatus === 'analise_concluida' ? (
+                  <div className="space-y-4">
+                    {/* Score Geral & Recomendação */}
+                    <div className="flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-[#FEF1EA] to-white dark:from-[#212B55] dark:to-[#1A2240] border border-[#FBDCC9] dark:border-[#2E3A6E]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-[#E9530E] text-white flex flex-col items-center justify-center shrink-0 font-mono font-bold shadow-xs">
+                          <span className="text-lg leading-none">{scoreGeral}</span>
+                          <span className="text-[9px] uppercase tracking-tighter opacity-90">
+                            / 100
                           </span>
                         </div>
+                        <div>
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-[#E9530E]">
+                            Índice Geral de Apresentação
+                          </span>
+                          <h4 className="font-display text-sm font-bold text-[#212B55] dark:text-[#F7F8FB]">
+                            {analiseIa?.recomendacao_geral || 'Candidato Apto'}
+                          </h4>
+                        </div>
+                      </div>
 
-                        <Badge
-                          className={`text-xs font-bold ${
-                            p.conclusao === 'Avançar'
-                              ? 'bg-emerald-600 text-white'
-                              : p.conclusao === 'Em dúvida'
-                                ? 'bg-amber-600 text-white'
-                                : 'bg-rose-600 text-white'
-                          }`}
-                        >
-                          {p.conclusao}
-                        </Badge>
-
-                        {isAutor && (
-                          <div className="flex items-center ml-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenEditPercepcao(p)}
-                              className="h-7 w-7 p-0 text-slate-500 hover:text-blue-600"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeletePercepcao(p.id)}
-                              className="h-7 w-7 p-0 text-slate-500 hover:text-rose-600"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
+                      <div className="text-right text-xs text-slate-500 dark:text-slate-400">
+                        {candidato.video_analisado_em && (
+                          <span>
+                            Analisado em{' '}
+                            {new Date(candidato.video_analisado_em).toLocaleDateString('pt-BR')}
+                          </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Blocos Guiados da Percepção */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                      {p.comunicacao_clareza && (
-                        <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
-                          <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
-                            Comunicação & Clareza
-                          </strong>
-                          <p className="text-slate-600 leading-relaxed">{p.comunicacao_clareza}</p>
-                        </div>
-                      )}
+                    {/* Barras Dimensionais */}
+                    <div className="space-y-2.5 p-3.5 bg-slate-50 dark:bg-[#141B34] rounded-xl border border-slate-200 dark:border-[#2E3A6E]">
+                      <h5 className="font-display text-xs font-bold text-[#212B55] dark:text-[#F7F8FB] uppercase tracking-wider flex items-center gap-1.5">
+                        <BarChart3 className="w-3.5 h-3.5 text-[#E9530E]" />
+                        Dimensões Avaliadas pela IA
+                      </h5>
 
-                      {p.postura_apresentacao && (
-                        <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
-                          <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
-                            Postura & Apresentação
-                          </strong>
-                          <p className="text-slate-600 leading-relaxed">{p.postura_apresentacao}</p>
+                      <div className="space-y-2 pt-1">
+                        <div>
+                          <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                            <span>Clareza de Comunicação & Dicção</span>
+                            <span className="font-bold font-mono">
+                              {dimensoes.clareza_comunicacao}%
+                            </span>
+                          </div>
+                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+                              style={{ width: `${dimensoes.clareza_comunicacao}%` }}
+                            />
+                          </div>
                         </div>
-                      )}
 
-                      {p.estrutura_video && (
-                        <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
-                          <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
-                            Estrutura do Vídeo
-                          </strong>
-                          <p className="text-slate-600 leading-relaxed">{p.estrutura_video}</p>
+                        <div>
+                          <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                            <span>Estrutura da Narrativa & Síntese</span>
+                            <span className="font-bold font-mono">
+                              {dimensoes.estrutura_narrativa}%
+                            </span>
+                          </div>
+                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 transition-all duration-500 rounded-full"
+                              style={{ width: `${dimensoes.estrutura_narrativa}%` }}
+                            />
+                          </div>
                         </div>
-                      )}
 
-                      {p.conteudo_experiencia && (
-                        <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
-                          <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
-                            Conteúdo & Experiências
-                          </strong>
-                          <p className="text-slate-600 leading-relaxed">{p.conteudo_experiencia}</p>
+                        <div>
+                          <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                            <span>Energia, Firmeza & Postura</span>
+                            <span className="font-bold font-mono">
+                              {dimensoes.energia_postura}%
+                            </span>
+                          </div>
+                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-purple-500 transition-all duration-500 rounded-full"
+                              style={{ width: `${dimensoes.energia_postura}%` }}
+                            />
+                          </div>
                         </div>
-                      )}
 
-                      {p.aderencia_cultural && (
-                        <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1 md:col-span-2">
-                          <strong className="text-slate-900 block text-[11px] uppercase tracking-wide text-blue-700">
-                            Aderência Cultural & Valores
-                          </strong>
-                          <p className="text-slate-600 leading-relaxed">{p.aderencia_cultural}</p>
+                        <div>
+                          <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                            <span>Aderência à Vaga & Domínio Técnico</span>
+                            <span className="font-bold font-mono">{dimensoes.aderencia_vaga}%</span>
+                          </div>
+                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-amber-500 transition-all duration-500 rounded-full"
+                              style={{ width: `${dimensoes.aderencia_vaga}%` }}
+                            />
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </div>
 
-                    {/* Pontos Fortes e Pontos de Atenção */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      {p.pontos_fortes && (
-                        <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-950 space-y-1">
-                          <strong className="block text-[11px] font-bold uppercase tracking-wide text-emerald-800">
-                            Pontos Fortes Observados
-                          </strong>
-                          <p className="whitespace-pre-line leading-relaxed">{p.pontos_fortes}</p>
-                        </div>
-                      )}
+                    {/* Resumo Executivo da Análise */}
+                    {analiseIa?.resumo_executivo && (
+                      <div className="p-3.5 bg-blue-50/50 dark:bg-[#141B34] border border-blue-200 dark:border-blue-900 rounded-xl space-y-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
+                          Resumo da IA em pt-BR
+                        </span>
+                        <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                          {analiseIa.resumo_executivo}
+                        </p>
+                      </div>
+                    )}
 
-                      {p.pontos_atencao && (
-                        <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-950 space-y-1">
-                          <strong className="block text-[11px] font-bold uppercase tracking-wide text-amber-800">
-                            Pontos de Atenção / Riscos
-                          </strong>
-                          <p className="whitespace-pre-line leading-relaxed">{p.pontos_atencao}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Observações Confidenciais do RH */}
-                    {p.observacoes_confidenciais && (
-                      <div className="p-3 bg-slate-900 text-slate-100 rounded-lg border border-slate-800 text-xs space-y-1">
-                        <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[11px]">
+                    {/* Red Flags ou Alertas */}
+                    {redFlags.length > 0 && (
+                      <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl space-y-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1">
                           <ShieldAlert className="w-3.5 h-3.5" />
-                          <span>Observações Confidenciais do RH:</span>
-                        </div>
-                        <p className="italic leading-relaxed">{p.observacoes_confidenciais}</p>
+                          Pontos de Atenção & Red Flags Identificados
+                        </span>
+                        <ul className="text-xs text-rose-900 dark:text-rose-200 list-disc list-inside space-y-1">
+                          {redFlags.map((rf, idx) => (
+                            <li key={idx}>{rf}</li>
+                          ))}
+                        </ul>
                       </div>
                     )}
                   </div>
-                )
-              })}
+                ) : (
+                  <div className="p-8 text-center border border-dashed border-slate-200 dark:border-[#2E3A6E] rounded-xl bg-slate-50/40 dark:bg-[#141B34]/30 space-y-3">
+                    <Sparkles className="w-8 h-8 text-[#E9530E] mx-auto opacity-70" />
+                    <h5 className="font-display text-sm font-bold text-[#212B55] dark:text-[#F7F8FB]">
+                      Vídeo pronto para análise inteligente
+                    </h5>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                      Clique em "Iniciar Análise IA" acima para processar a comunicação, postura,
+                      aderência e gerar o relatório para a diretoria.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* MODAL 1: Anexar / Editar Vídeo */}
-      <Dialog open={videoModalOpen} onOpenChange={setVideoModalOpen}>
+      {/* SEÇÃO SECUNDÁRIA: PERCEPÇÕES HUMANAS DO RH / GESTOR */}
+      <Card className="border-slate-200 dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240] shadow-xs">
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#2E3A6E]">
+            <div className="flex items-center gap-2.5">
+              <MessageSquare className="w-4 h-4 text-[#E9530E]" />
+              <h4 className="font-display text-sm font-bold text-[#212B55] dark:text-[#F7F8FB]">
+                Percepções Humanas de Entrevista (RH &amp; Liderança)
+              </h4>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setModalPercepcaoOpen(true)}
+              className="text-xs font-semibold h-8 border-slate-200 dark:border-[#2E3A6E]"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1 text-[#E9530E]" />
+              Adicionar Parecer
+            </Button>
+          </div>
+
+          <div className="pt-4 space-y-3">
+            {loadingPercepcoes ? (
+              <p className="text-xs text-slate-400">Carregando pareceres...</p>
+            ) : percepcoes.length === 0 ? (
+              <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+                Nenhuma percepção registrada ainda. Os pareceres de RH e líderes de BU enriquecem o
+                contexto da IA.
+              </p>
+            ) : (
+              percepcoes.map((p) => (
+                <div
+                  key={p.id}
+                  className="p-3.5 rounded-lg border border-slate-200 dark:border-[#2E3A6E] bg-slate-50/70 dark:bg-[#141B34] text-xs space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] font-bold">
+                        {p.origem_tipo}
+                      </Badge>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {p.expand?.autor?.name || 'Avaliador'}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-400">
+                      {new Date(p.created).toLocaleDateString('pt-BR')}
+                    </span>
+                  </div>
+                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                    {p.observacoes}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* MODAL ENVIAR / ALTERAR VÍDEO */}
+      <Dialog open={modalVideoOpen} onOpenChange={setModalVideoOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900">
-              Anexar Vídeo de Apresentação
+            <DialogTitle className="font-display text-base font-bold text-[#212B55] dark:text-[#F7F8FB]">
+              Cadastrar ou Atualizar Vídeo de Apresentação
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Faça upload direto do arquivo de vídeo ou cole uma URL externa do Loom / YouTube /
-              Drive.
-            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2 text-xs">
-            {/* Opção A: Upload de arquivo */}
-            <div className="space-y-1.5 p-3 rounded-lg border border-slate-200 bg-slate-50">
-              <Label className="font-bold text-slate-800 block">Opção A: Upload de Arquivo</Label>
-              <input
+          <form onSubmit={handleSalvarVideo} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Opção 1: Upload de Arquivo (mp4/webm, até 50MB)
+              </Label>
+              <Input
                 type="file"
-                ref={videoInputRef}
-                accept="video/mp4,video/webm,video/quicktime,video/x-matroska"
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    setVideoFileInput(e.target.files[0])
-                  }
-                }}
+                accept="video/mp4,video/webm,video/quicktime"
+                onChange={(e) => setArquivoVideo(e.target.files?.[0] || null)}
+                className="text-xs"
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => videoInputRef.current?.click()}
-                className="text-xs border-slate-300 bg-white w-full justify-start"
-              >
-                <Upload className="w-3.5 h-3.5 mr-2 text-blue-600" />
-                {videoFileInput
-                  ? 'Substituir Arquivo Selecionado'
-                  : 'Selecionar Arquivo (MP4 / WebM)'}
-              </Button>
-              {videoFileInput && (
-                <p className="text-[11px] text-emerald-700 font-medium">
-                  ✓ Selecionado: {videoFileInput.name} (
-                  {Math.round(videoFileInput.size / 1024 / 1024)}MB)
+              {arquivoVideo && (
+                <p className="text-[11px] text-emerald-600 font-medium">
+                  Arquivo selecionado: {arquivoVideo.name} (
+                  {(arquivoVideo.size / (1024 * 1024)).toFixed(1)}MB)
                 </p>
               )}
             </div>
 
-            {/* Opção B: Link Externo */}
-            <div className="space-y-1.5 p-3 rounded-lg border border-slate-200 bg-slate-50">
-              <Label className="font-bold text-slate-800 block">Opção B: Link Externo</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Opção 2: Ou Link de Streaming (YouTube, Loom, Google Drive, Vimeo)
+              </Label>
               <Input
-                placeholder="https://www.youtube.com/watch?v=... ou Loom"
-                value={videoLinkInput}
-                onChange={(e) => setVideoLinkInput(e.target.value)}
-                className="text-xs bg-white"
+                type="url"
+                placeholder="https://loom.com/share/... ou YouTube"
+                value={novoLinkVideo}
+                onChange={(e) => setNovoLinkVideo(e.target.value)}
+                className="text-xs"
               />
-              <p className="text-[10px] text-slate-400">
-                Suporta links diretos do Loom, YouTube ou Google Drive compartilhados.
-              </p>
             </div>
-          </div>
 
-          <DialogFooter className="pt-3 border-t border-slate-100">
-            <Button variant="outline" size="sm" onClick={() => setVideoModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              size="sm"
-              disabled={savingVideo}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
-              onClick={handleSalvarVideo}
-            >
-              {savingVideo ? 'Salvando Vídeo...' : 'Salvar Vídeo'}
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setModalVideoOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submittingVideo}
+                className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold"
+              >
+                {submittingVideo ? 'Salvando...' : 'Salvar Vídeo'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
-      {/* MODAL 2: Escrever Percepção Estruturada do RH */}
-      <Dialog open={percepcaoModalOpen} onOpenChange={setPercepcaoModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* MODAL ADICIONAR PERCEPÇÃO */}
+      <Dialog open={modalPercepcaoOpen} onOpenChange={setModalPercepcaoOpen}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900">
-              {editingPercepcao
-                ? 'Editar Percepção do RH'
-                : 'Registrar Percepção Estruturada do RH'}
+            <DialogTitle className="font-display text-base font-bold text-[#212B55] dark:text-[#F7F8FB]">
+              Registrar Percepção de Entrevista
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Formulário guiado para registrar a percepção da entrevista e do vídeo de apresentação
-            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2 text-xs">
-            {/* Visibilidade e Status do Documento */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="space-y-1">
-                <Label className="text-[11px] font-bold text-slate-700">
-                  Visibilidade / Privacidade *
-                </Label>
-                <Select
-                  value={visibilidade}
-                  onValueChange={(val) =>
-                    setVisibilidade(val as 'Privada (só o RH autor)' | 'Compartilhada com o gestor')
-                  }
-                >
-                  <SelectTrigger className="text-xs bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Compartilhada com o gestor" className="text-xs">
-                      👁 Compartilhada com o gestor (e Agente IA)
-                    </SelectItem>
-                    <SelectItem value="Privada (só o RH autor)" className="text-xs">
-                      🔒 Privada (só o RH autor vê)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-[10px] text-slate-500">
-                  {visibilidade === 'Privada (só o RH autor)'
-                    ? 'Apenas você terá acesso a esta anotação. Nem o gestor nem o agente de IA lerão.'
-                    : 'Visível no portal do gestor desta vaga e considerada como evidência pelo agente de IA.'}
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-[11px] font-bold text-slate-700">Status da Anotação</Label>
-                <Select
-                  value={statusDoc}
-                  onValueChange={(val) => setStatusDoc(val as 'Rascunho' | 'Finalizada')}
-                >
-                  <SelectTrigger className="text-xs bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Finalizada" className="text-xs">
-                      Finalizada (Parecer concluído)
-                    </SelectItem>
-                    <SelectItem value="Rascunho" className="text-xs">
-                      Rascunho (Em progresso)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <form onSubmit={handleSalvarPercepcao} className="space-y-3.5 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Origem da Percepção</Label>
+              <select
+                value={tipoOrigem}
+                onChange={(e) => setTipoOrigem(e.target.value)}
+                className="w-full text-xs h-9 rounded-md border border-slate-200 dark:border-[#2E3A6E] px-3 bg-white dark:bg-[#11162B]"
+              >
+                <option value="RH">Gente &amp; Gestão (RH)</option>
+                <option value="Lider">Líder da BU / Gestor</option>
+                <option value="Tecnico">Entrevistador Técnico</option>
+              </select>
             </div>
 
-            {/* Pontos Guiados de Observação */}
-            <div className="space-y-3">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 block">
-                Pontos Guiados de Observação:
-              </span>
-
-              {/* 1. Comunicação e Clareza */}
-              <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-slate-700">
-                  1. Comunicação e Clareza (oralidade, objetividade, raciocínio)
-                </Label>
-                <Textarea
-                  rows={2}
-                  placeholder="Ex: Excelente oratória, sintetizou ideias complexas com facilidade..."
-                  value={comunicacao}
-                  onChange={(e) => setComunicacao(e.target.value)}
-                  className="text-xs resize-none"
-                />
-              </div>
-
-              {/* 2. Postura e Apresentação Pessoal */}
-              <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-slate-700">
-                  2. Apresentação Pessoal e Postura (linguagem corporal, energia, presença)
-                </Label>
-                <Textarea
-                  rows={2}
-                  placeholder="Ex: Demonstrou energia positiva, olhar firme, postura profissional..."
-                  value={postura}
-                  onChange={(e) => setPostura(e.target.value)}
-                  className="text-xs resize-none"
-                />
-              </div>
-
-              {/* 3. Estrutura do Vídeo */}
-              <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-slate-700">
-                  3. Estrutura do Vídeo (cumpriu o pedido, tempo adequado, organização)
-                </Label>
-                <Textarea
-                  rows={2}
-                  placeholder="Ex: Respeitou o limite de 3 minutos, gravou em local calmo..."
-                  value={estruturaVideo}
-                  onChange={(e) => setEstruturaVideo(e.target.value)}
-                  className="text-xs resize-none"
-                />
-              </div>
-
-              {/* 4. Conteúdo e Experiências */}
-              <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-slate-700">
-                  4. Conteúdo e Vivência (clareza das entregas, profundidade técnica e motivação)
-                </Label>
-                <Textarea
-                  rows={2}
-                  placeholder="Ex: Detalhou com propriedade o case de escalabilidade..."
-                  value={conteudo}
-                  onChange={(e) => setConteudo(e.target.value)}
-                  className="text-xs resize-none"
-                />
-              </div>
-
-              {/* 5. Aderência Cultural */}
-              <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-slate-700">
-                  5. Aderência Cultural (valores da empresa, estilo de trabalho, autonomia)
-                </Label>
-                <Textarea
-                  rows={2}
-                  placeholder="Ex: Alinhado com cultura ágil, colaboração horizontal..."
-                  value={aderencia}
-                  onChange={(e) => setAderencia(e.target.value)}
-                  className="text-xs resize-none"
-                />
-              </div>
-            </div>
-
-            {/* Pontos Fortes e Atenção */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-slate-700">Pontos Fortes</Label>
-                <Textarea
-                  rows={3}
-                  placeholder="Ex: • Liderança técnica sólida&#10;• Domínio arquitetural"
-                  value={pontosFortes}
-                  onChange={(e) => setPontosFortes(e.target.value)}
-                  className="text-xs resize-none"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-slate-700">
-                  Pontos de Atenção
-                </Label>
-                <Textarea
-                  rows={3}
-                  placeholder="Ex: • Alinhar modelo de plantões"
-                  value={pontosAtencao}
-                  onChange={(e) => setPontosAtencao(e.target.value)}
-                  className="text-xs resize-none"
-                />
-              </div>
-            </div>
-
-            {/* Nota Geral e Conclusão */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-              <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-slate-700">
-                  Nota Geral de Percepção (0 a 10)
-                </Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="10"
-                  value={notaGeral}
-                  onChange={(e) => setNotaGeral(parseFloat(e.target.value) || 0)}
-                  className="text-xs"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-slate-700">
-                  Conclusão do RH *
-                </Label>
-                <Select
-                  value={conclusao}
-                  onValueChange={(val) => setConclusao(val as 'Avançar' | 'Em dúvida' | 'Reprovar')}
-                >
-                  <SelectTrigger className="text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Avançar" className="text-xs font-semibold text-emerald-700">
-                      Avançar para Próxima Etapa
-                    </SelectItem>
-                    <SelectItem value="Em dúvida" className="text-xs font-semibold text-amber-700">
-                      Em dúvida (Validar com Gestor)
-                    </SelectItem>
-                    <SelectItem value="Reprovar" className="text-xs font-semibold text-rose-700">
-                      Reprovar no Processo
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Anotação Confidencial Exclusiva do RH */}
-            <div className="space-y-1 pt-2 border-t border-slate-100">
-              <Label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
-                <Lock className="w-3 h-3 text-amber-600" />
-                <span>Observações Confidenciais do RH (Sigilo interno)</span>
-              </Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Observações Gerais *</Label>
               <Textarea
-                rows={2}
-                placeholder="Ex: Informações salariais sigilosas, contraproposta de concorrente..."
-                value={obsConfidenciais}
-                onChange={(e) => setObsConfidenciais(e.target.value)}
-                className="text-xs resize-none"
+                required
+                rows={3}
+                placeholder="Descreva a impressão de comunicação, postura, maturidade e alinhamento..."
+                value={observacoes}
+                onChange={(e) => setObservacoes(e.target.value)}
+                className="text-xs"
               />
             </div>
-          </div>
 
-          <DialogFooter className="pt-3 border-t border-slate-100">
-            <Button variant="outline" size="sm" onClick={() => setPercepcaoModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              size="sm"
-              disabled={savingPercepcao}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
-              onClick={handleSalvarPercepcao}
-            >
-              {savingPercepcao ? 'Salvando...' : 'Salvar Percepção'}
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setModalPercepcaoOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submittingPercepcao}
+                className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-bold"
+              >
+                {submittingPercepcao ? 'Salvando...' : 'Gravar Percepção'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
+export default VideoEPercepcaoSection

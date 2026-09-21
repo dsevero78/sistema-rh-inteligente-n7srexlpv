@@ -381,9 +381,10 @@ export const contratosService = {
         expand: 'pessoa,prestador_pj,gestor_responsavel,empresa,area',
       })
 
-      return records
+      return records || []
     } catch (err) {
-      console.error('Erro ao listar contratos:', err)
+      // Falhas de permissão (401/403) ou ausência de registros não devem quebrar a aplicação
+      console.warn('Aviso ao listar contratos:', err)
       return []
     }
   },
