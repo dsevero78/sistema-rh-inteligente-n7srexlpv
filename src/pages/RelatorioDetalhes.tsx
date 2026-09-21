@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
 import {
   ArrowLeft,
@@ -106,6 +106,19 @@ export default function RelatorioDetalhes() {
         </Button>
 
         <div className="flex items-center gap-2">
+          {vaga && (
+            <Link to={`/vagas/${vaga.id}`}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs font-bold text-[#E9530E] border-orange-200 hover:bg-orange-50 h-9"
+              >
+                <Sparkles className="w-3.5 h-3.5 mr-1.5 text-[#E9530E]" />
+                Ver Síntese de Finalistas da Vaga
+              </Button>
+            </Link>
+          )}
+
           <Button
             onClick={handlePrint}
             className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold h-9 shadow-xs"

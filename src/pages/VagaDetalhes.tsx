@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { QuestionarioVagaEditor } from '@/components/QuestionarioVagaEditor'
+import { SinteseExecutivaFinalistas } from '@/components/SinteseExecutivaFinalistas'
 import type { RecordModel } from 'pocketbase'
 
 export default function VagaDetalhes() {
@@ -38,6 +39,7 @@ export default function VagaDetalhes() {
   const [candidatos, setCandidatos] = useState<RecordModel[]>([])
   const [feedbacksNps, setFeedbacksNps] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('visao-geral')
 
   const fetchVagaData = async () => {
     if (!id) return
@@ -253,13 +255,20 @@ export default function VagaDetalhes() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="visao-geral" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-white border border-slate-200/80 p-1 shadow-xs rounded-lg">
           <TabsTrigger value="visao-geral" className="text-xs font-semibold px-4 py-2">
             Visão Geral
           </TabsTrigger>
+          <TabsTrigger
+            value="sintese-executiva"
+            className="text-xs font-bold px-4 py-2 flex items-center gap-1.5 text-[#E9530E] data-[state=active]:text-[#E9530E] data-[state=active]:bg-orange-50/50"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#E9530E]" />
+            Síntese Executiva — Finalistas
+          </TabsTrigger>
           <TabsTrigger value="triagem" className="text-xs font-semibold px-4 py-2">
-            Questionário de Triagem (Módulo 2)
+            Questionário de Triagem
           </TabsTrigger>
           <TabsTrigger value="candidatos" className="text-xs font-semibold px-4 py-2">
             Candidatos ({candidatos.length})
@@ -272,14 +281,85 @@ export default function VagaDetalhes() {
             className="text-xs font-semibold px-4 py-2 flex items-center gap-1.5 text-purple-700 data-[state=active]:text-purple-800"
           >
             <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-            Experiência do Candidato ({feedbacksNps.length})
+            Experiência ({feedbacksNps.length})
           </TabsTrigger>
         </TabsList>
+
+        {/* Aba Síntese Executiva de Finalistas (Camada Executiva de IA) */}
+        <TabsContent value="sintese-executiva" className="space-y-6">
+          <SinteseExecutivaFinalistas
+            vagaId={vaga.id}
+            vagaTitulo={vaga.titulo}
+            sinteseInicial={vaga.sintese_executiva_ia}
+            dataSinteseInicial={vaga.data_sintese_executiva}
+            onSinteseAtualizada={(novaSintese) => {
+              setVaga((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      sintese_executiva_ia: novaSintese,
+                      data_sintese_executiva: new Date().toISOString(),
+                    }
+                  : null,
+              )
+            }}
+          />
+        </TabsContent>
 
         {/* Aba Visão Geral */}
         <TabsContent value="visao-geral" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
+              {/* Bloco de Destaque da Síntese Executiva de Finalistas */}
+              {vaga.sintese_executiva_ia ? (
+                <Card className="border-2 border-[#E9530E]/60 bg-gradient-to-r from-orange-50/50 via-white to-blue-50/40 dark:from-[#11162B] dark:via-[#1A2240] dark:to-[#11162B] p-5 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-[#2E3A6E]">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1 rounded-md bg-[#E9530E] text-white">
+                        <Sparkles className="w-4 h-4" />
+                      </span>
+                      <div>
+                        <h3 className="font-display text-sm font-bold text-[#11162B] dark:text-[#F7F8FB]">
+                          Síntese Executiva de Finalistas Disponível
+                        </h3>
+                        <p className="text-[11px] text-slate-500">
+                          Última análise gerada em{' '}
+                          {vaga.data_sintese_executiva
+                            ? new Date(vaga.data_sintese_executiva).toLocaleDateString('pt-BR')
+                            : 'Data recente'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 font-bold text-[10px]">
+                        Indicado:{' '}
+                        {vaga.sintese_executiva_ia.recomendacao_final?.candidato_escolhido}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-700 dark:text-slate-200 mt-3 leading-relaxed italic bg-white/70 dark:bg-[#141B34] p-3 rounded-lg border border-orange-100 dark:border-[#2E3A6E]">
+                    “{vaga.sintese_executiva_ia.recomendacao_final?.resumo_decisao}”
+                  </p>
+
+                  <div className="mt-3 flex items-center justify-between pt-2">
+                    <span className="text-[11px] font-mono text-slate-500">
+                      {vaga.sintese_executiva_ia.comparativo_finalistas?.length || 2} finalistas
+                      comparados lado a lado
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveTab('sintese-executiva')}
+                      className="text-xs font-bold text-[#E9530E] border-orange-200 hover:bg-orange-50 h-8"
+                    >
+                      Abrir Comparativo Completo & Gaps →
+                    </Button>{' '}
+                  </div>
+                </Card>
+              ) : null}
+
               {/* Descrição */}
               <Card className="border-slate-200 dark:border-[#2E3A6E] shadow-xs bg-white dark:bg-[#1A2240] p-6">
                 <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] mb-1">
@@ -292,7 +372,6 @@ export default function VagaDetalhes() {
                   {vaga.descricao || 'Nenhuma descrição detalhada informada.'}
                 </p>
               </Card>
-
               {/* Requisitos Obrigatórios e Desejáveis */}
               <Card className="border-slate-200 dark:border-[#2E3A6E] shadow-xs bg-white dark:bg-[#1A2240] p-6">
                 <div className="font-display text-[11px] uppercase font-bold tracking-widest text-[#E9530E] mb-1">
