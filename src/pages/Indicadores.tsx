@@ -148,7 +148,13 @@ export function Indicadores() {
       </div>
 
       {/* Navegação por Abas */}
-      <Tabs value={abaAtiva} onValueChange={(val: any) => setAbaAtiva(val)} className="w-full">
+      <Tabs
+        value={abaAtiva}
+        onValueChange={(val) =>
+          setAbaAtiva(val as 'visao_geral' | 'time_to_hire' | 'custos' | 'origens')
+        }
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 max-w-2xl bg-muted/80">
           <TabsTrigger value="visao_geral" className="text-xs sm:text-sm">
             <Layers className="w-3.5 h-3.5 mr-1.5" />
