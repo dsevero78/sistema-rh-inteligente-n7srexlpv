@@ -530,28 +530,31 @@ export function Alertas() {
         onValueChange={(val) => setAbaAtiva(val as any)}
         className="w-full space-y-6"
       >
-        <TabsList className="grid w-full sm:w-[580px] grid-cols-3 bg-slate-100 p-1">
-          <TabsTrigger value="feed" className="text-xs font-semibold flex items-center gap-1.5">
+        <TabsList className="grid w-full sm:w-[580px] grid-cols-3 bg-slate-100 dark:bg-[#141B34] p-1 border border-slate-200/60 dark:border-[#2E3A6E]">
+          <TabsTrigger
+            value="feed"
+            className="text-xs font-semibold flex items-center gap-1.5 dark:text-slate-300 dark:data-[state=active]:bg-[#1A2240] dark:data-[state=active]:text-white"
+          >
             <Bell className="w-3.5 h-3.5" />
             Feed Notificações
             {totalNovos > 0 && (
-              <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+              <span className="bg-[#E9530E] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                 {totalNovos}
               </span>
             )}
           </TabsTrigger>
           <TabsTrigger
             value="preferencias"
-            className="text-xs font-semibold flex items-center gap-1.5"
+            className="text-xs font-semibold flex items-center gap-1.5 dark:text-slate-300 dark:data-[state=active]:bg-[#1A2240] dark:data-[state=active]:text-white"
           >
             <Settings className="w-3.5 h-3.5" />
             Preferências de Alerta
           </TabsTrigger>
           <TabsTrigger
             value="emails_status"
-            className="text-xs font-semibold flex items-center gap-1.5"
+            className="text-xs font-semibold flex items-center gap-1.5 dark:text-slate-300 dark:data-[state=active]:bg-[#1A2240] dark:data-[state=active]:text-white"
           >
-            <Mail className="w-3.5 h-3.5 text-[#1D4ED8]" />
+            <Mail className="w-3.5 h-3.5 text-[#1D4ED8] dark:text-[#F19763]" />
             E-mails de Status
           </TabsTrigger>
         </TabsList>
@@ -562,95 +565,109 @@ export function Alertas() {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <Card
               onClick={() => setFiltroStatus('Novo')}
-              className={`p-4 border-slate-200 shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
-                filtroStatus === 'Novo' ? 'ring-2 ring-blue-600 bg-blue-50/30' : ''
+              className={`p-4 border-slate-200 dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240] shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
+                filtroStatus === 'Novo'
+                  ? 'ring-2 ring-blue-600 dark:ring-[#E9530E] bg-blue-50/30 dark:bg-[#212B55]'
+                  : ''
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   Novos Alertas
                 </span>
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-[#212B55] text-blue-600 dark:text-[#F19763] flex items-center justify-center font-bold text-xs">
                   <Bell className="w-4 h-4" />
                 </div>
               </div>
               <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-blue-600 tabular-nums">
+                <span className="text-2xl font-extrabold text-blue-600 dark:text-[#F19763] tabular-nums">
                   {totalNovos}
                 </span>
-                <span className="text-[11px] text-slate-500">não visualizados</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  não visualizados
+                </span>
               </div>
             </Card>
 
             <Card
               onClick={() => setFiltroStatus('Visualizado')}
-              className={`p-4 border-slate-200 shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
-                filtroStatus === 'Visualizado' ? 'ring-2 ring-blue-600 bg-blue-50/30' : ''
+              className={`p-4 border-slate-200 dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240] shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
+                filtroStatus === 'Visualizado'
+                  ? 'ring-2 ring-blue-600 dark:ring-[#E9530E] bg-blue-50/30 dark:bg-[#212B55]'
+                  : ''
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   Visualizados
                 </span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-[#212B55] text-slate-600 dark:text-slate-300 flex items-center justify-center">
                   <Eye className="w-4 h-4" />
                 </div>
               </div>
               <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-slate-800 tabular-nums">
+                <span className="text-2xl font-extrabold text-slate-800 dark:text-[#F7F8FB] tabular-nums">
                   {totalVisualizados}
                 </span>
-                <span className="text-[11px] text-slate-500">em acompanhamento</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  em acompanhamento
+                </span>
               </div>
             </Card>
 
             <Card
               onClick={() => setFiltroStatus('Descartado')}
-              className={`p-4 border-slate-200 shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
-                filtroStatus === 'Descartado' ? 'ring-2 ring-blue-600 bg-blue-50/30' : ''
+              className={`p-4 border-slate-200 dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240] shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
+                filtroStatus === 'Descartado'
+                  ? 'ring-2 ring-blue-600 dark:ring-[#E9530E] bg-blue-50/30 dark:bg-[#212B55]'
+                  : ''
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   Descartados
                 </span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-[#212B55] text-slate-400 dark:text-slate-300 flex items-center justify-center">
                   <Trash2 className="w-4 h-4" />
                 </div>
               </div>
               <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-slate-600 tabular-nums">
+                <span className="text-2xl font-extrabold text-slate-600 dark:text-slate-300 tabular-nums">
                   {totalDescartados}
                 </span>
-                <span className="text-[11px] text-slate-500">arquivados</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">arquivados</span>
               </div>
             </Card>
 
             <Card
               onClick={() => setFiltroStatus('todos')}
-              className={`p-4 border-slate-200 shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
-                filtroStatus === 'todos' ? 'ring-2 ring-blue-600 bg-blue-50/30' : ''
+              className={`p-4 border-slate-200 dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240] shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 ${
+                filtroStatus === 'todos'
+                  ? 'ring-2 ring-blue-600 dark:ring-[#E9530E] bg-blue-50/30 dark:bg-[#212B55]'
+                  : ''
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   Total de Alertas
                 </span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <TrendingUp className="w-4 h-4" />
                 </div>
               </div>
               <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-slate-900 tabular-nums">
+                <span className="text-2xl font-extrabold text-slate-900 dark:text-[#F7F8FB] tabular-nums">
                   {alertas.length}
                 </span>
-                <span className="text-[11px] text-slate-500">histórico completo</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  histórico completo
+                </span>
               </div>
             </Card>
           </div>
 
           {/* Barra de Filtros */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
+          <div className="bg-white dark:bg-[#1A2240] p-4 rounded-xl border border-slate-200 dark:border-[#2E3A6E] shadow-xs space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               {/* Busca */}
               <div className="relative">
@@ -659,17 +676,17 @@ export function Alertas() {
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                   placeholder="Buscar por candidato, vaga..."
-                  className="pl-9 h-9 text-xs"
+                  className="pl-9 h-9 text-xs dark:bg-[#11162B] dark:border-[#2E3A6E] dark:text-[#F7F8FB]"
                 />
               </div>
 
               {/* Filtro por Vaga */}
               <div>
                 <Select value={filtroVaga} onValueChange={setFiltroVaga}>
-                  <SelectTrigger className="h-9 text-xs">
+                  <SelectTrigger className="h-9 text-xs dark:bg-[#11162B] dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
                     <SelectValue placeholder="Todas as vagas" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E]">
                     <SelectItem value="todas">Todas as vagas</SelectItem>
                     {vagas.map((v) => (
                       <SelectItem key={v.id} value={v.id}>
@@ -683,10 +700,10 @@ export function Alertas() {
               {/* Filtro por Status */}
               <div>
                 <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                  <SelectTrigger className="h-9 text-xs">
+                  <SelectTrigger className="h-9 text-xs dark:bg-[#11162B] dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E]">
                     <SelectItem value="todos">Todos os status</SelectItem>
                     <SelectItem value="Novo">Novo</SelectItem>
                     <SelectItem value="Visualizado">Visualizado</SelectItem>
@@ -697,7 +714,9 @@ export function Alertas() {
 
               {/* Filtro Score Mínimo */}
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Score:</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">
+                  Score:
+                </span>
                 {[0, 75, 85, 90].map((sc) => (
                   <button
                     key={sc}
@@ -705,7 +724,7 @@ export function Alertas() {
                     className={`flex-1 py-1 px-1.5 rounded text-[11px] font-semibold transition-colors ${
                       scoreMinimo === sc
                         ? 'bg-blue-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        : 'bg-slate-100 dark:bg-[#212B55] text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#2E3A6E]'
                     }`}
                   >
                     {sc === 0 ? 'Todos' : `≥${sc}%`}
@@ -769,8 +788,8 @@ export function Alertas() {
                     key={alerta.id}
                     className={`p-5 transition-all duration-200 border ${
                       isNovo
-                        ? 'border-blue-200 bg-linear-to-r from-blue-50/30 via-white to-white shadow-xs'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
+                        ? 'border-blue-200 dark:border-[#2E3A6E] bg-linear-to-r from-blue-50/30 via-white to-white dark:from-[#1A2240] dark:via-[#1A2240] dark:to-[#141B34] shadow-xs'
+                        : 'border-slate-200 dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240] hover:border-slate-300'
                     }`}
                   >
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -1032,7 +1051,7 @@ export function Alertas() {
         <TabsContent value="preferencias" className="space-y-6 mt-0">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Bloco 1: Configuração Global Padrão */}
-            <Card className="p-6 border-slate-200 shadow-xs space-y-6 bg-white">
+            <Card className="p-6 border-slate-200 dark:border-[#2E3A6E] shadow-xs space-y-6 bg-white dark:bg-[#1A2240]">
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <span className="p-2 rounded-lg bg-blue-50 text-blue-700">
@@ -1202,7 +1221,7 @@ export function Alertas() {
             </Card>
 
             {/* Bloco 2: Configuração Específica por Vaga */}
-            <Card className="p-6 border-slate-200 shadow-xs space-y-6 bg-white">
+            <Card className="p-6 border-slate-200 dark:border-[#2E3A6E] shadow-xs space-y-6 bg-white dark:bg-[#1A2240]">
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <span className="p-2 rounded-lg bg-purple-50 text-purple-700">

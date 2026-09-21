@@ -5,6 +5,7 @@ import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useToast } from '@/hooks/use-toast'
 import type { RecordModel } from 'pocketbase'
+import { notificacoesRhService } from '@/services/notificacoesRh'
 import {
   Briefcase,
   Users,
@@ -165,17 +166,35 @@ export default function GestorPortal() {
     if (!vagaEmEdicao) return
     setSavingVagaParecer(true)
     try {
+      const isAprovada = statusAprovacaoVaga === 'Aprovada pelo gestor'
       await pb.collection('vagas').update(vagaEmEdicao.id, {
         status_aprovacao_gestor: statusAprovacaoVaga,
         parecer_gestor_vaga: parecerVagaTexto,
         data_aprovacao_gestor: new Date().toISOString(),
       })
+
+      // Notificar o RH in-app no PocketBase
+      const nomeGestor = user?.name || user?.email || 'Gestor Contratante'
+      const emailGestor = user?.email || ''
+
+      await notificacoesRhService.criarNotificacao({
+        titulo: isAprovada
+          ? `Vaga Aprovada pelo Gestor: ${vagaEmEdicao.titulo}`
+          : `Ajustes Solicitados pelo Gestor: ${vagaEmEdicao.titulo}`,
+        mensagem: isAprovada
+          ? `O gestor contratante ${nomeGestor} aprovou os termos e a descrição da vaga ${vagaEmEdicao.titulo}.${parecerVagaTexto ? ` Parecer: "${parecerVagaTexto}"` : ''}`
+          : `O gestor contratante ${nomeGestor} solicitou ajustes na descrição da vaga ${vagaEmEdicao.titulo}.${parecerVagaTexto ? ` Justificativa: "${parecerVagaTexto}"` : ''}`,
+        tipo: isAprovada ? 'vaga_aprovada' : 'vaga_ajustes',
+        link: `/vagas/${vagaEmEdicao.id}`,
+        autor_nome: nomeGestor,
+        autor_email: emailGestor,
+        referencia_tipo: 'vagas',
+        referencia_id: vagaEmEdicao.id,
+      })
+
       toast({
-        title:
-          statusAprovacaoVaga === 'Aprovada pelo gestor'
-            ? 'Vaga aprovada com sucesso!'
-            : 'Solicitação de ajustes enviada ao RH',
-        description: 'O time de Gente & Gestão foi notificado da sua decisão.',
+        title: isAprovada ? 'Vaga aprovada com sucesso!' : 'Solicitação de ajustes enviada ao RH',
+        description: 'O time de Gente & Gestão foi notificado in-app com seu parecer.',
       })
       setVagaModalOpen(false)
       carregarDadosGestor()
@@ -234,6 +253,23 @@ export default function GestorPortal() {
           description: 'Seu parecer foi anexado ao dossiê e está acessível para o RH e IA.',
         })
       }
+
+      // Notificar o RH in-app sobre o parecer do gestor no candidato
+      const nomeGestor = user.name || user.email || 'Gestor Contratante'
+      const emailGestor = user.email || ''
+      const vagaTitulo = vagaSelecionada?.titulo || 'Vaga'
+
+      await notificacoesRhService.criarNotificacao({
+        titulo: `Parecer do Gestor: ${candidatoSelecionado.nome} (${recomendacaoCand})`,
+        mensagem: `O gestor ${nomeGestor} emitiu parecer com recomendação "${recomendacaoCand}" para a vaga ${vagaTitulo}.${comentarioCand ? ` Comentário: "${comentarioCand}"` : ''}`,
+        tipo: 'parecer_candidato',
+        link: `/candidatos/${candidatoSelecionado.id}`,
+        autor_nome: nomeGestor,
+        autor_email: emailGestor,
+        referencia_tipo: 'candidatos',
+        referencia_id: candidatoSelecionado.id,
+      })
+
       setCandidatoModalOpen(false)
       carregarCandidatosEVaga(selectedVagaId)
     } catch (err: unknown) {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T02:04:45.373Z",
+  "generatedAt": "2026-09-21T02:16:55.429Z",
   "collections": [
     {
       "name": "users",
@@ -2920,11 +2920,44 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Rascunho", "Pendente de assinatura", "Vigente"]
+          "selectValues": [
+            "Rascunho",
+            "Minuta gerada",
+            "Em análise pelo jurídico",
+            "Aprovado pelo jurídico",
+            "Ajustes solicitados",
+            "Pendente de assinatura",
+            "Vigente"
+          ]
         },
         {
           "name": "anexo_aditivo",
           "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parecer_juridico",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aprovado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "data_aprovacao_juridico",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historico_aprovacao",
+          "type": "json",
           "required": false,
           "system": false
         }
@@ -3170,6 +3203,90 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_metas_departamento ON metas_orcamento_departamento (departamento)",
         "CREATE INDEX idx_metas_ativo ON metas_orcamento_departamento (ativo)"
+      ]
+    },
+    {
+      "name": "notificacoes_rh",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "mensagem",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "vaga_aprovada",
+            "vaga_ajustes",
+            "parecer_candidato",
+            "aditivo_juridico",
+            "sistema"
+          ]
+        },
+        {
+          "name": "lida",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "referencia_tipo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "referencia_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_notif_rh_lida ON notificacoes_rh (lida)",
+        "CREATE INDEX idx_notif_rh_tipo ON notificacoes_rh (tipo)"
       ]
     }
   ]

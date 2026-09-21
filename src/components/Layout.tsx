@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { usePeriod } from '@/contexts/PeriodContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useRealtime } from '@/hooks/use-realtime'
+import { notificacoesRhService, type NotificacaoRH } from '@/services/notificacoesRh'
 import {
   LayoutDashboard,
   Briefcase,
@@ -100,22 +101,28 @@ export default function Layout() {
   const [editName, setEditName] = useState(user?.name || '')
   const [savingProfile, setSavingProfile] = useState(false)
 
-  // Alertas automáticos
+  // Alertas automáticos e Notificações in-app do RH
   const [alertasRecentes, setAlertasRecentes] = useState<RecordModel[]>([])
+  const [notificacoesRh, setNotificacoesRh] = useState<NotificacaoRH[]>([])
   const [alertasNovosCount, setAlertasNovosCount] = useState(0)
   const [loadingAlertas, setLoadingAlertas] = useState(true)
 
   const carregarAlertas = async () => {
     try {
-      const records = await pb.collection('alertas').getFullList({
-        sort: '-created',
-        expand: 'candidato,vaga,prestador',
-      })
+      const [records, notifs] = await Promise.all([
+        pb.collection('alertas').getFullList({
+          sort: '-created',
+          expand: 'candidato,vaga,prestador',
+        }),
+        notificacoesRhService.listar(15),
+      ])
       setAlertasRecentes(records.slice(0, 6))
-      const count = records.filter((a) => a.status === 'Novo').length
-      setAlertasNovosCount(count)
+      setNotificacoesRh(notifs)
+      const countAlertasNovos = records.filter((r) => r.status === 'Novo').length
+      const countNotifsNaoLidas = notifs.filter((n) => !n.lida).length
+      setAlertasNovosCount(countAlertasNovos + countNotifsNaoLidas)
     } catch (err) {
-      console.error('Falha ao carregar alertas no Layout', err)
+      console.error('Falha ao carregar alertas/notificações no Layout', err)
     } finally {
       setLoadingAlertas(false)
     }
@@ -126,7 +133,7 @@ export default function Layout() {
   }, [])
 
   useRealtime('alertas', () => carregarAlertas())
-
+  useRealtime('notificacoes_rh', () => carregarAlertas())
   const handleMarcarVisualizado = async (alertaId: string, e: React.MouseEvent) => {
     e.stopPropagation()
     try {
@@ -508,7 +515,7 @@ export default function Layout() {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-84 sm:w-96 p-0 bg-white border border-[#E7EAF0] shadow-[0_16px_32px_rgba(11,18,48,0.12)] rounded-xl overflow-hidden"
+                className="w-84 sm:w-96 p-0 bg-white dark:bg-[#1A2240] border border-[#E7EAF0] dark:border-[#2E3A6E] shadow-[0_16px_32px_rgba(11,18,48,0.12)] dark:shadow-[0_20px_48px_rgba(0,0,0,0.5)] rounded-xl overflow-hidden"
               >
                 {/* Header do Dropdown */}
                 <div className="p-3.5 bg-gradient-to-r from-[#11162B] to-[#1A2240] text-[#F7F8FB] flex items-center justify-between border-b border-[#2E3A6E]/40">
@@ -532,12 +539,100 @@ export default function Layout() {
                 </div>
 
                 {/* Lista de Alertas Recentes */}
-                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-[#2E3A6E]">
+                  {/* Seção 1: Notificações do Gestor e Jurídico para o RH */}
+                  {notificacoesRh.length > 0 && (
+                    <div className="bg-slate-50/50 dark:bg-[#11162B]/50 p-2 border-b border-slate-100 dark:border-[#2E3A6E]">
+                      <div className="flex items-center justify-between px-1 mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Ações do Gestor & Jurídico
+                        </span>
+                        {notificacoesRh.some((n) => !n.lida) && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              await notificacoesRhService.marcarTodasComoLidas()
+                              carregarAlertas()
+                            }}
+                            className="text-[10px] text-blue-600 dark:text-[#F19763] hover:underline font-semibold"
+                          >
+                            Marcar lidas
+                          </button>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        {notificacoesRh.slice(0, 4).map((notif) => {
+                          const isVaga =
+                            notif.tipo === 'vaga_aprovada' || notif.tipo === 'vaga_ajustes'
+                          const isJuridico = notif.tipo === 'aditivo_juridico'
+                          const isParecer = notif.tipo === 'parecer_candidato'
+
+                          return (
+                            <div
+                              key={notif.id}
+                              onClick={async () => {
+                                await notificacoesRhService.marcarComoLida(notif.id)
+                                carregarAlertas()
+                                if (notif.link) {
+                                  navigate(notif.link)
+                                }
+                              }}
+                              className={`p-2 rounded-lg transition-colors cursor-pointer border ${
+                                !notif.lida
+                                  ? 'bg-blue-50/70 dark:bg-[#212B55] border-blue-200 dark:border-[#2E3A6E]'
+                                  : 'bg-white dark:bg-[#1A2240] border-slate-100 dark:border-[#2E3A6E]/60 hover:bg-slate-50'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-1.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {!notif.lida && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#E9530E] shrink-0" />
+                                  )}
+                                  <span
+                                    className={`text-[9px] uppercase font-bold px-1.5 py-0.2 rounded border ${
+                                      isVaga
+                                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                        : isJuridico
+                                          ? 'bg-purple-100 text-purple-800 border-purple-300'
+                                          : isParecer
+                                            ? 'bg-blue-100 text-blue-800 border-blue-300'
+                                            : 'bg-slate-100 text-slate-800 border-slate-300'
+                                    }`}
+                                  >
+                                    {isVaga
+                                      ? 'Gestor Vaga'
+                                      : isJuridico
+                                        ? 'Jurídico PJ'
+                                        : isParecer
+                                          ? 'Parecer Gestor'
+                                          : 'Notificação'}
+                                  </span>
+                                  <span className="text-xs font-bold text-slate-900 dark:text-[#F7F8FB] truncate max-w-[200px]">
+                                    {notif.titulo}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-slate-400 shrink-0">
+                                  {new Date(notif.created).toLocaleTimeString('pt-BR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-1 mt-0.5">
+                                {notif.mensagem}
+                              </p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {loadingAlertas ? (
                     <div className="p-4 text-center text-xs text-slate-500">
                       Carregando alertas...
                     </div>
-                  ) : alertasRecentes.length === 0 ? (
+                  ) : alertasRecentes.length === 0 && notificacoesRh.length === 0 ? (
                     <div className="p-6 text-center text-xs text-slate-500">
                       Nenhum alerta recente gerado.
                     </div>
@@ -704,12 +799,12 @@ export default function Layout() {
                 </div>
 
                 {/* Footer do Dropdown */}
-                <div className="p-2.5 bg-slate-50 border-t border-slate-100 text-center">
+                <div className="p-2.5 bg-slate-50 dark:bg-[#141B34] border-t border-slate-100 dark:border-[#2E3A6E] text-center">
                   <Link
                     to="/alertas"
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
+                    className="text-xs font-semibold text-blue-600 dark:text-[#F19763] hover:text-blue-700 dark:hover:text-white inline-flex items-center gap-1"
                   >
-                    Abrir Central de Alertas
+                    Abrir Central de Notificações e Alertas
                     <ArrowRight className="w-3 h-3" />
                   </Link>
                 </div>

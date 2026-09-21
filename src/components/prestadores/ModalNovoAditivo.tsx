@@ -218,10 +218,10 @@ export const ModalNovoAditivo: React.FC<ModalNovoAditivoProps> = ({
               <FileSignature className="w-4 h-4" />
             </div>
             <div>
-              <DialogTitle className="font-display text-base sm:text-lg font-bold text-slate-900">
+              <DialogTitle className="font-display text-base sm:text-lg font-bold text-slate-900 dark:text-[#F7F8FB]">
                 {aditivoParaEditar ? 'Editar Termo Aditivo' : 'Novo Termo Aditivo Contratual'}
               </DialogTitle>{' '}
-              <DialogDescription className="text-xs text-slate-500">
+              <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
                 Formalize prorrogações de prazo, reajustes de valor e alterações de escopo com
                 histórico preservado.
               </DialogDescription>
@@ -297,14 +297,20 @@ export const ModalNovoAditivo: React.FC<ModalNovoAditivoProps> = ({
 
             {/* Status do Aditivo */}
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-700">Status do Aditivo *</Label>
+              <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Status do Aditivo *
+              </Label>
               <Select value={status} onValueChange={(v) => setStatus(v as StatusAditivoPJ)}>
-                <SelectTrigger className="h-9 text-xs">
+                <SelectTrigger className="h-9 text-xs dark:bg-[#11162B] dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Vigente">Vigente (em vigor)</SelectItem>
+                <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E]">
+                  <SelectItem value="Minuta gerada">Minuta gerada (aguardando envio)</SelectItem>
+                  <SelectItem value="Em análise pelo jurídico">Em análise pelo jurídico</SelectItem>
+                  <SelectItem value="Aprovado pelo jurídico">Aprovado pelo jurídico</SelectItem>
+                  <SelectItem value="Ajustes solicitados">Ajustes solicitados (revisão)</SelectItem>
                   <SelectItem value="Pendente de assinatura">Pendente de assinatura</SelectItem>
+                  <SelectItem value="Vigente">Vigente (em vigor)</SelectItem>
                   <SelectItem value="Rascunho">Rascunho</SelectItem>
                 </SelectContent>
               </Select>

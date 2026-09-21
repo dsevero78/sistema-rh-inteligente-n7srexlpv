@@ -74,7 +74,22 @@ export type TipoAditivoPJ =
   | 'Mudança de escopo'
   | 'Outro'
 
-export type StatusAditivoPJ = 'Rascunho' | 'Pendente de assinatura' | 'Vigente'
+export type StatusAditivoPJ =
+  | 'Rascunho'
+  | 'Minuta gerada'
+  | 'Em análise pelo jurídico'
+  | 'Aprovado pelo jurídico'
+  | 'Ajustes solicitados'
+  | 'Pendente de assinatura'
+  | 'Vigente'
+
+export interface HistoricoEtapaAditivo {
+  etapa: StatusAditivoPJ
+  data: string
+  autor: string
+  comentario?: string
+  autor_email?: string
+}
 
 export interface AditivoPJ extends RecordModel {
   numero_aditivo: string
@@ -90,9 +105,18 @@ export interface AditivoPJ extends RecordModel {
   descricao?: string
   status: StatusAditivoPJ
   anexo_aditivo?: string
+  parecer_juridico?: string
+  aprovado_por?: string
+  data_aprovacao_juridico?: string
+  historico_aprovacao?: HistoricoEtapaAditivo[]
   expand?: {
     contrato?: ContratoPJ
     prestador?: PrestadorPJ
+    aprovado_por?: {
+      id: string
+      name?: string
+      email?: string
+    }
   }
 }
 
@@ -774,7 +798,7 @@ export const prestadoresService = {
       const formData = new FormData()
       Object.entries(dados).forEach(([k, v]) => {
         if (v !== undefined && v !== null) {
-          formData.append(k, String(v))
+          formData.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v))
         }
       })
       formData.append('anexo_aditivo', anexoFile)
@@ -784,6 +808,111 @@ export const prestadoresService = {
     }
 
     await this.sincronizarEfeitosAditivo(atualizado)
+
+    return atualizado
+  },
+
+  /**
+   * Envia a minuta do aditivo para aprovação interna do jurídico.
+   */
+  async enviarMinutaParaJuridico(
+    aditivo: AditivoPJ,
+    usuarioNome = 'RH / People',
+    usuarioEmail = '',
+    comentario = '',
+  ): Promise<AditivoPJ> {
+    const agora = new Date().toISOString()
+    const novoHistorico: HistoricoEtapaAditivo[] = [
+      ...(Array.isArray(aditivo.historico_aprovacao) ? aditivo.historico_aprovacao : []),
+      {
+        etapa: 'Em análise pelo jurídico',
+        data: agora,
+        autor: usuarioNome,
+        autor_email: usuarioEmail,
+        comentario:
+          comentario || 'Minuta de termo aditivo enviada para análise e validação jurídica.',
+      },
+    ]
+
+    const atualizado = await this.atualizarAditivo(aditivo.id, {
+      status: 'Em análise pelo jurídico',
+      historico_aprovacao: novoHistorico,
+    })
+
+    if (aditivo.prestador) {
+      try {
+        await this.criarEventoTimeline({
+          prestador: aditivo.prestador,
+          categoria: 'DOCUMENTOS',
+          titulo: `Minuta enviada ao Jurídico: ${aditivo.numero_aditivo}`,
+          complemento: comentario || 'Aguardando parecer formal e validação de compliance.',
+          autor: usuarioNome,
+          origem: 'usuario',
+          data_evento: agora,
+          referencia_tipo: 'aditivo',
+          referencia_id: aditivo.id,
+        })
+      } catch (errT) {
+        console.warn('Aviso ao registrar evento de timeline:', errT)
+      }
+    }
+
+    return atualizado
+  },
+
+  /**
+   * Decisão do Jurídico: Aprovar minuta ou solicitar ajustes com parecer.
+   */
+  async registrarDecisaoJuridico(
+    aditivo: AditivoPJ,
+    decisao: 'Aprovado pelo jurídico' | 'Ajustes solicitados',
+    parecer: string,
+    usuarioId?: string,
+    usuarioNome = 'Jurídico Interno',
+    usuarioEmail = '',
+  ): Promise<AditivoPJ> {
+    const agora = new Date().toISOString()
+    const novoHistorico: HistoricoEtapaAditivo[] = [
+      ...(Array.isArray(aditivo.historico_aprovacao) ? aditivo.historico_aprovacao : []),
+      {
+        etapa: decisao,
+        data: agora,
+        autor: usuarioNome,
+        autor_email: usuarioEmail,
+        comentario: parecer,
+      },
+    ]
+
+    const payload: Partial<AditivoPJ> = {
+      status: decisao,
+      parecer_juridico: parecer,
+      historico_aprovacao: novoHistorico,
+      data_aprovacao_juridico: agora,
+    }
+
+    if (usuarioId) {
+      payload.aprovado_por = usuarioId
+    }
+
+    const atualizado = await this.atualizarAditivo(aditivo.id, payload)
+
+    if (aditivo.prestador) {
+      try {
+        await this.criarEventoTimeline({
+          prestador: aditivo.prestador,
+          categoria: 'DOCUMENTOS',
+          titulo: `Parecer Jurídico: ${decisao === 'Aprovado pelo jurídico' ? 'Minuta Aprovada' : 'Ajustes Solicitados'} (${aditivo.numero_aditivo})`,
+          complemento: parecer,
+          autor: usuarioNome,
+          origem: 'usuario',
+          data_evento: agora,
+          referencia_tipo: 'aditivo',
+          referencia_id: aditivo.id,
+        })
+      } catch (errT) {
+        console.warn('Aviso ao registrar evento de timeline:', errT)
+      }
+    }
 
     return atualizado
   },

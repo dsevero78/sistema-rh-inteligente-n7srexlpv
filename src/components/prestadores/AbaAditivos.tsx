@@ -28,9 +28,11 @@ import {
   ArrowRight,
   ShieldCheck,
   DollarSign,
+  Scale,
 } from 'lucide-react'
 import { ModalNovoAditivo } from './ModalNovoAditivo'
 import { DocumentViewerModal } from './DocumentViewerModal'
+import { ModalFluxoJuridicoAditivo } from './ModalFluxoJuridicoAditivo'
 
 interface AbaAditivosProps {
   prestador: PrestadorPJ
@@ -58,6 +60,10 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
   const [viewerUrl, setViewerUrl] = useState('')
   const [viewerTitle, setViewerTitle] = useState('')
   const [viewerFilename, setViewerFilename] = useState<string | undefined>(undefined)
+
+  // Estado para aprovação interna do jurídico
+  const [modalJuridicoOpen, setModalJuridicoOpen] = useState(false)
+  const [aditivoJuridico, setAditivoJuridico] = useState<AditivoPJ | null>(null)
 
   const abrirVisualizador = (aditivo: AditivoPJ) => {
     if (!aditivo.anexo_aditivo) return
@@ -129,22 +135,53 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
     switch (status) {
       case 'Vigente':
         return (
-          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-xs font-bold gap-1 shadow-2xs">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+          <Badge className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 text-xs font-bold gap-1 shadow-2xs">
+            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
             Vigente
+          </Badge>
+        )
+      case 'Aprovado pelo jurídico':
+        return (
+          <Badge className="bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700 text-xs font-bold gap-1 shadow-2xs">
+            <CheckCircle2 className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+            Aprovado pelo Jurídico
+          </Badge>
+        )
+      case 'Em análise pelo jurídico':
+        return (
+          <Badge className="bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700 text-xs font-bold gap-1 shadow-2xs">
+            <Hourglass className="w-3 h-3 text-purple-600 dark:text-purple-400 animate-spin" />
+            Em análise pelo Jurídico
+          </Badge>
+        )
+      case 'Ajustes solicitados':
+        return (
+          <Badge className="bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700 text-xs font-bold gap-1 shadow-2xs">
+            <AlertCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+            Ajustes Solicitados
+          </Badge>
+        )
+      case 'Minuta gerada':
+        return (
+          <Badge className="bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700 text-xs font-bold gap-1 shadow-2xs">
+            <FileSignature className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+            Minuta Gerada
           </Badge>
         )
       case 'Pendente de assinatura':
         return (
-          <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs font-bold gap-1 animate-pulse shadow-2xs">
-            <Hourglass className="w-3 h-3 text-amber-600" />
+          <Badge className="bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700 text-xs font-bold gap-1 shadow-2xs">
+            <Hourglass className="w-3 h-3 text-amber-600 dark:text-amber-400" />
             Pendente de assinatura
           </Badge>
         )
       case 'Rascunho':
       default:
         return (
-          <Badge variant="outline" className="text-xs text-slate-600 border-slate-300">
+          <Badge
+            variant="outline"
+            className="text-xs text-slate-600 dark:text-slate-400 border-slate-300 dark:border-[#2E3A6E]"
+          >
             Rascunho
           </Badge>
         )
@@ -243,30 +280,30 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
           </div>
         </div>
 
-        <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 flex items-center justify-between">
+        <div className="bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 flex items-center justify-between">
           <div>
-            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-emerald-800 block">
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 block">
               Aditivos Vigentes
             </span>
-            <span className="text-xl font-bold font-mono text-emerald-900 tabular-nums">
+            <span className="text-xl font-bold font-mono text-emerald-900 dark:text-emerald-200 tabular-nums">
               {vigentes} em execução
             </span>
           </div>
-          <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
             <CheckCircle2 className="w-4 h-4" />
           </div>
         </div>
 
-        <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-3 flex items-center justify-between">
+        <div className="bg-amber-50/60 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-3 flex items-center justify-between">
           <div>
-            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-amber-800 block">
+            <span className="font-display text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300 block">
               Aguardando Assinatura
             </span>
-            <span className="text-xl font-bold font-mono text-amber-900 tabular-nums">
+            <span className="text-xl font-bold font-mono text-amber-900 dark:text-amber-200 tabular-nums">
               {pendentes} pendente(s)
             </span>
           </div>
-          <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 flex items-center justify-center">
             <Hourglass className="w-4 h-4" />
           </div>
         </div>
@@ -335,9 +372,10 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
               <Card
                 key={aditivo.id}
                 className={`border shadow-xs transition-all ${
-                  aditivo.status === 'Pendente de assinatura'
-                    ? 'border-amber-300 bg-amber-50/20 hover:border-amber-400'
-                    : 'border-slate-200 bg-white hover:border-indigo-300'
+                  aditivo.status === 'Pendente de assinatura' ||
+                  aditivo.status === 'Em análise pelo jurídico'
+                    ? 'border-amber-300 dark:border-amber-700 bg-amber-50/20 dark:bg-[#1A2240] hover:border-amber-400'
+                    : 'border-slate-200 dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240] hover:border-indigo-300'
                 }`}
               >
                 <CardContent className="p-5 space-y-4">
@@ -367,6 +405,21 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {/* Botão de Trâmite do Jurídico */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setAditivoJuridico(aditivo)
+                          setModalJuridicoOpen(true)
+                        }}
+                        className="h-7 text-xs border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 font-semibold"
+                        title="Fluxo de aprovação e parecer interno do Jurídico"
+                      >
+                        <Scale className="w-3.5 h-3.5 mr-1" />
+                        Aprovação Jurídico
+                      </Button>
+
                       {aditivo.status === 'Pendente de assinatura' && (
                         <Button
                           size="sm"
@@ -385,7 +438,7 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
                           setAditivoParaEditar(aditivo)
                           setModalNovoOpen(true)
                         }}
-                        className="h-7 text-xs text-slate-600 hover:text-slate-900"
+                        className="h-7 text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                       >
                         <Edit2 className="w-3.5 h-3.5 mr-1" />
                         Editar
@@ -405,7 +458,7 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
                   {/* Linha 2: Destaques de Delta de Valor e Delta de Vigência */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {/* Bloco 1: Alteração Financeira & Valor-Hora */}
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs space-y-1.5">
+                    <div className="bg-slate-50 dark:bg-[#11162B] p-3 rounded-xl border border-slate-100 dark:border-[#2E3A6E] text-xs space-y-1.5">
                       <span className="font-display text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                         <DollarSign className="w-3 h-3 text-emerald-600" />
                         Ajuste Financeiro
@@ -413,8 +466,10 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
                       {novoValorMensal > 0 ? (
                         <>
                           <div className="flex items-baseline justify-between">
-                            <span className="text-slate-600">Novo Valor Mensal:</span>
-                            <strong className="text-sm font-bold text-slate-900">
+                            <span className="text-slate-600 dark:text-slate-300">
+                              Novo Valor Mensal:
+                            </span>
+                            <strong className="text-sm font-bold text-slate-900 dark:text-[#F7F8FB]">
                               R${' '}
                               {novoValorMensal.toLocaleString('pt-BR', {
                                 minimumFractionDigits: 2,
@@ -423,21 +478,25 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
                           </div>
 
                           <div className="flex items-baseline justify-between text-[11px]">
-                            <span className="text-slate-500">Valor-Hora (÷ 160h):</span>
-                            <strong className="text-indigo-700 font-bold">
+                            <span className="text-slate-500 dark:text-slate-400">
+                              Valor-Hora (÷ 160h):
+                            </span>
+                            <strong className="text-indigo-700 dark:text-indigo-400 font-bold">
                               R$ {valorHoraNovo}
                               <span className="text-[10px] text-slate-400 font-normal"> /h</span>
                             </strong>
                           </div>
 
                           {deltaValor !== 0 && (
-                            <div className="flex items-baseline justify-between text-[11px] pt-1 border-t border-slate-200/60">
-                              <span className="text-slate-500">Delta s/ valor anterior:</span>
+                            <div className="flex items-baseline justify-between text-[11px] pt-1 border-t border-slate-200/60 dark:border-[#2E3A6E]">
+                              <span className="text-slate-500 dark:text-slate-400">
+                                Delta s/ valor anterior:
+                              </span>
                               <strong
                                 className={
                                   deltaValor > 0
-                                    ? 'text-emerald-700 font-bold'
-                                    : 'text-rose-700 font-bold'
+                                    ? 'text-emerald-700 dark:text-emerald-400 font-bold'
+                                    : 'text-rose-700 dark:text-rose-400 font-bold'
                                 }
                               >
                                 {deltaValor > 0
@@ -453,7 +512,7 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
                     </div>
 
                     {/* Bloco 2: Delta de Vigência */}
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs space-y-1.5">
+                    <div className="bg-slate-50 dark:bg-[#11162B] p-3 rounded-xl border border-slate-100 dark:border-[#2E3A6E] text-xs space-y-1.5">
                       <span className="font-display text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                         <Calendar className="w-3 h-3 text-purple-600" />
                         Prorrogação de Vigência
@@ -462,17 +521,19 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
                       {vigenciaNovaFmt ? (
                         <>
                           <div className="flex items-baseline justify-between">
-                            <span className="text-slate-600">Nova Vigência Fim:</span>
-                            <strong className="text-sm font-bold text-purple-900">
+                            <span className="text-slate-600 dark:text-slate-300">
+                              Nova Vigência Fim:
+                            </span>
+                            <strong className="text-sm font-bold text-purple-900 dark:text-purple-300">
                               {vigenciaNovaFmt}
                             </strong>
                           </div>
 
                           {vigenciaAntigaFmt && vigenciaAntigaFmt !== vigenciaNovaFmt && (
-                            <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                            <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
                               <span>Anterior: {vigenciaAntigaFmt}</span>
                               <ArrowRight className="w-3 h-3 text-purple-400 inline" />
-                              <span className="text-purple-700 font-semibold">
+                              <span className="text-purple-700 dark:text-purple-300 font-semibold">
                                 {vigenciaNovaFmt}
                               </span>
                             </div>
@@ -482,13 +543,16 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
                         <div className="text-slate-400 italic py-1">Vigência inalterada</div>
                       )}
 
-                      <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
-                        Assinatura: <strong>{dataAssinaturaFmt}</strong>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-[#2E3A6E]">
+                        Assinatura:{' '}
+                        <strong className="text-slate-800 dark:text-[#F7F8FB]">
+                          {dataAssinaturaFmt}
+                        </strong>
                       </div>
                     </div>
 
                     {/* Bloco 3: Anexo e Auditoria */}
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs flex flex-col justify-between">
+                    <div className="bg-slate-50 dark:bg-[#11162B] p-3 rounded-xl border border-slate-100 dark:border-[#2E3A6E] text-xs flex flex-col justify-between">
                       <div>
                         <span className="font-display text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
                           <ShieldCheck className="w-3 h-3 text-emerald-600" />
@@ -523,8 +587,8 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
 
                   {/* Descrição / Objeto do Aditivo */}
                   {aditivo.descricao && (
-                    <div className="text-xs text-slate-600 bg-slate-50/70 p-2.5 rounded-lg border border-slate-100">
-                      <strong className="text-slate-700 block mb-0.5">
+                    <div className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50/70 dark:bg-[#11162B] p-2.5 rounded-lg border border-slate-100 dark:border-[#2E3A6E]">
+                      <strong className="text-slate-700 dark:text-[#F7F8FB] block mb-0.5">
                         Objeto / Justificativa:
                       </strong>
                       <p className="italic">{aditivo.descricao}</p>
@@ -555,6 +619,14 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
         url={viewerUrl}
         title={viewerTitle}
         filename={viewerFilename}
+      />
+
+      {/* Modal de Fluxo de Aprovação Interna do Jurídico */}
+      <ModalFluxoJuridicoAditivo
+        open={modalJuridicoOpen}
+        onOpenChange={setModalJuridicoOpen}
+        aditivo={aditivoJuridico}
+        onSuccess={onAtualizar}
       />
     </div>
   )

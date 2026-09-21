@@ -167,17 +167,22 @@ export default function Relatorios() {
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="p-5 border-slate-200">
+            <Card
+              key={i}
+              className="p-5 border-slate-200 dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240]"
+            >
               <Skeleton className="h-6 w-1/3 mb-2" />
               <Skeleton className="h-4 w-1/2" />
             </Card>
           ))}
         </div>
       ) : filteredRelatorios.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center">
+        <div className="bg-white dark:bg-[#1A2240] rounded-xl border border-dashed border-slate-300 dark:border-[#2E3A6E] p-12 text-center">
           <FileText className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-          <h3 className="text-sm font-bold text-slate-800">Nenhum relatório encontrado</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-[#F7F8FB]">
+            Nenhum relatório encontrado
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
             Gere novos relatórios acessando o perfil de qualquer candidato e clicando em "Gerar
             relatório de IA".
           </p>
@@ -185,7 +190,7 @@ export default function Relatorios() {
             onClick={() => navigate('/candidatos')}
             variant="outline"
             size="sm"
-            className="mt-4 text-xs font-semibold text-blue-600 border-blue-200"
+            className="mt-4 text-xs font-semibold text-blue-600 dark:text-[#F19763] border-blue-200 dark:border-[#2E3A6E] dark:hover:bg-[#212B55]"
           >
             Acessar banco de talentos
           </Button>
@@ -199,26 +204,26 @@ export default function Relatorios() {
 
             const vereditoBadge =
               rel.veredito === 'Recomendar'
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700'
                 : rel.veredito === 'Considerar'
-                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                  : 'bg-rose-50 text-rose-700 border-rose-200'
+                  ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700'
+                  : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-700'
 
             return (
               <Card
                 key={rel.id}
                 onClick={() => navigate(`/relatorios/${rel.id}`)}
-                className="border-slate-200/90 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all bg-white cursor-pointer group"
+                className="border-slate-200/90 dark:border-[#2E3A6E] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all bg-white dark:bg-[#1A2240] cursor-pointer group"
               >
                 <CardContent className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-11 h-11 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 border border-blue-200 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <div className="w-11 h-11 rounded-lg bg-blue-50 dark:bg-[#212B55] text-blue-700 dark:text-[#93c5fd] flex items-center justify-center shrink-0 border border-blue-200 dark:border-[#2E3A6E] group-hover:bg-blue-600 group-hover:text-white transition-colors">
                       <Sparkles className="w-5 h-5" />
                     </div>
 
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-[#F7F8FB] group-hover:text-blue-600 dark:group-hover:text-[#F19763] transition-colors truncate">
                           {cand?.nome || 'Candidato'}
                         </h3>
                         <Badge
@@ -227,14 +232,14 @@ export default function Relatorios() {
                         >
                           {rel.veredito}
                         </Badge>
-                        <span className="text-[11px] text-slate-400 font-medium">
+                        <span className="text-[11px] text-slate-400 dark:text-slate-400 font-medium">
                           Tipo: {rel.tipo || 'Completo'}
                         </span>
                       </div>
 
-                      <p className="text-xs text-slate-600 truncate">
+                      <p className="text-xs text-slate-600 dark:text-slate-300 truncate">
                         Posição avaliada:{' '}
-                        <span className="font-semibold text-slate-800">
+                        <span className="font-semibold text-slate-800 dark:text-[#F7F8FB]">
                           {vaga?.titulo || 'Geral'}
                         </span>
                       </p>
@@ -250,31 +255,31 @@ export default function Relatorios() {
                   </div>
 
                   {/* Right scores & actions */}
-                  <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                  <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-[#2E3A6E]">
                     <div className="flex items-center gap-4 text-right">
                       <div>
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-400 tracking-wider">
                           Score Geral
                         </span>
-                        <p className="text-base font-bold text-slate-900 tabular-nums">
+                        <p className="text-base font-bold text-slate-900 dark:text-[#F7F8FB] tabular-nums">
                           {scoreGeral}%
                         </p>
                       </div>
 
                       <div className="hidden sm:block">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-400 tracking-wider">
                           Técnico
                         </span>
-                        <p className="text-xs font-semibold text-slate-700 tabular-nums">
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 tabular-nums">
                           {rel.score_tecnico || scoreGeral}%
                         </p>
                       </div>
 
                       <div className="hidden sm:block">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-400 tracking-wider">
                           Comportamental
                         </span>
-                        <p className="text-xs font-semibold text-slate-700 tabular-nums">
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 tabular-nums">
                           {rel.score_comportamental || scoreGeral}%
                         </p>
                       </div>
@@ -288,7 +293,7 @@ export default function Relatorios() {
                           e.stopPropagation()
                           navigate(`/relatorios/${rel.id}`)
                         }}
-                        className="text-xs font-semibold h-8 border-slate-200"
+                        className="text-xs font-semibold h-8 border-slate-200 dark:border-[#2E3A6E] dark:hover:bg-[#212B55]"
                       >
                         Abrir Dossiê
                         <ChevronRight className="w-3.5 h-3.5 ml-1" />
@@ -298,7 +303,7 @@ export default function Relatorios() {
                         variant="ghost"
                         size="sm"
                         onClick={(e) => handleDelete(e, rel.id)}
-                        className="h-8 w-8 p-0 text-slate-400 hover:text-red-600"
+                        className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 dark:hover:bg-[#212B55]"
                         title="Excluir relatório"
                       >
                         <Trash2 className="w-4 h-4" />

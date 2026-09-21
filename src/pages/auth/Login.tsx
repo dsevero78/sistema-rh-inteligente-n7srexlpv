@@ -65,19 +65,19 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] relative overflow-hidden px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] dark:bg-[#11162B] relative overflow-hidden px-4">
       {/* SouYess Brand Geometry Accents */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Navy Deep Hero Backdrop arc */}
-        <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-[#1A2240]/10 blur-2xl" />
+        <div className="absolute -top-32 -left-32 w-[520px] h-[520px] rounded-full bg-[#1A2240]/10 dark:bg-[#1A2240]/40 blur-2xl" />
         {/* SouYess Orange Corner Geometry (Iconic visual from Brand Guide) */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[#E9530E]/10 rounded-bl-[200px]" />
-        <div className="absolute top-36 right-28 w-24 h-24 rounded-full border-4 border-[#E9530E]/20 bg-transparent" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#E9530E]/10 dark:bg-[#E9530E]/20 rounded-bl-[200px]" />
+        <div className="absolute top-36 right-28 w-24 h-24 rounded-full border-4 border-[#E9530E]/20 dark:border-[#E9530E]/30 bg-transparent" />
         {/* Subtle dot pattern */}
-        <div className="absolute inset-0 bg-[radial-gradient(#BFC5D2_1px,transparent_1px)] [background-size:24px_24px] opacity-40" />
+        <div className="absolute inset-0 bg-[radial-gradient(#BFC5D2_1px,transparent_1px)] dark:bg-[radial-gradient(#2E3A6E_1px,transparent_1px)] [background-size:24px_24px] opacity-40" />
       </div>
 
-      <Card className="w-full max-w-md relative z-10 border-[#E7EAF0] shadow-[0_16px_32px_rgba(11,18,48,0.10)] bg-white rounded-2xl overflow-hidden">
+      <Card className="w-full max-w-md relative z-10 border-[#E7EAF0] dark:border-[#2E3A6E] shadow-[0_16px_32px_rgba(11,18,48,0.10)] dark:shadow-[0_20px_48px_rgba(0,0,0,0.5)] bg-white dark:bg-[#1A2240] rounded-2xl overflow-hidden">
         {/* Brand Top Bar */}
         <div className="h-1.5 bg-gradient-to-r from-[#11162B] via-[#1A2240] to-[#E9530E]" />
 
@@ -168,13 +168,13 @@ export default function Login() {
             <div className="bg-[#FEF1EA] p-3 rounded-lg border border-[#FBDCC9] text-xs text-[#9B340A] flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <span className="font-semibold">RH (Admin):</span>
-                <span className="font-mono text-[#11162B] bg-white px-2 py-0.5 rounded text-[11px] border border-[#FBDCC9]">
+                <span className="font-mono text-[#11162B] dark:text-[#F7F8FB] bg-white dark:bg-[#11162B] px-2 py-0.5 rounded text-[11px] border border-[#FBDCC9] dark:border-[#2E3A6E]">
                   severo.douglas2@gmail.com / Skip@Pass
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-semibold">Gestor:</span>
-                <span className="font-mono text-[#11162B] bg-white px-2 py-0.5 rounded text-[11px] border border-[#FBDCC9]">
+                <span className="font-mono text-[#11162B] dark:text-[#F7F8FB] bg-white dark:bg-[#11162B] px-2 py-0.5 rounded text-[11px] border border-[#FBDCC9] dark:border-[#2E3A6E]">
                   gestor@empresa.com / Skip@Pass
                 </span>
               </div>

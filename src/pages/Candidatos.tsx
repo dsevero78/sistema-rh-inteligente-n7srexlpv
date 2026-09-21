@@ -439,24 +439,24 @@ export default function Candidatos() {
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3">
+      <div className="bg-white dark:bg-[#1A2240] p-4 rounded-xl border border-slate-200/80 dark:border-[#2E3A6E] shadow-xs space-y-3">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <Search className="w-4 h-4 text-slate-400 dark:text-slate-400 absolute left-3 top-3" />
             <Input
               placeholder="Buscar por nome, cargo, empresa ou habilidade técnica..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-10 text-xs bg-slate-50 border-slate-200"
+              className="pl-9 h-10 text-xs bg-slate-50 dark:bg-[#11162B] border-slate-200 dark:border-[#2E3A6E] dark:text-[#F7F8FB]"
             />
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <Select value={vagaFilter} onValueChange={setVagaFilter}>
-              <SelectTrigger className="w-[180px] h-10 text-xs bg-slate-50 border-slate-200">
+              <SelectTrigger className="w-[180px] h-10 text-xs bg-slate-50 dark:bg-[#11162B] border-slate-200 dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
                 <SelectValue placeholder="Filtrar por vaga" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E]">
                 <SelectItem value="all" className="text-xs">
                   Todas as vagas
                 </SelectItem>
@@ -469,10 +469,10 @@ export default function Candidatos() {
             </Select>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[150px] h-10 text-xs bg-slate-50 border-slate-200">
+              <SelectTrigger className="w-[150px] h-10 text-xs bg-slate-50 dark:bg-[#11162B] border-slate-200 dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
                 <SelectValue placeholder="Estágio" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E]">
                 <SelectItem value="all" className="text-xs">
                   Todos estágios
                 </SelectItem>
@@ -501,10 +501,10 @@ export default function Candidatos() {
             </Select>
 
             <Select value={String(minScore)} onValueChange={(val) => setMinScore(Number(val))}>
-              <SelectTrigger className="w-[150px] h-10 text-xs bg-slate-50 border-slate-200">
+              <SelectTrigger className="w-[150px] h-10 text-xs bg-slate-50 dark:bg-[#11162B] border-slate-200 dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
                 <SelectValue placeholder="Score mínimo" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E]">
                 <SelectItem value="0" className="text-xs">
                   Qualquer score
                 </SelectItem>
@@ -549,7 +549,7 @@ export default function Candidatos() {
           ))}
         </div>
       ) : filteredCandidatos.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center">
+        <div className="bg-white dark:bg-[#1A2240] rounded-xl border border-dashed border-slate-300 dark:border-[#2E3A6E] p-12 text-center">
           <Users className="w-10 h-10 text-slate-400 mx-auto mb-3" />
           <h3 className="text-sm font-bold text-slate-800">Nenhum candidato encontrado</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
@@ -579,7 +579,7 @@ export default function Candidatos() {
             return (
               <Card
                 key={cand.id}
-                className="border-slate-200/90 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all bg-white group"
+                className="border-slate-200/90 dark:border-[#2E3A6E] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all bg-white dark:bg-[#1A2240] group"
               >
                 <CardContent className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   {/* Left: Avatar + Details */}

@@ -323,23 +323,23 @@ export default function Vagas() {
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row gap-3">
+      <div className="bg-white dark:bg-[#1A2240] p-3.5 rounded-xl border border-slate-200/80 dark:border-[#2E3A6E] shadow-xs flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+          <Search className="w-4 h-4 text-slate-400 dark:text-slate-400 absolute left-3 top-3" />
           <Input
             placeholder="Buscar por cargo, tecnologia ou localidade..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 text-xs bg-slate-50 border-slate-200"
+            className="pl-9 h-10 text-xs bg-slate-50 dark:bg-[#11162B] border-slate-200 dark:border-[#2E3A6E] dark:text-[#F7F8FB]"
           />
         </div>
 
         <div className="flex items-center gap-2.5">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px] h-10 text-xs bg-slate-50 border-slate-200">
+            <SelectTrigger className="w-[140px] h-10 text-xs bg-slate-50 dark:bg-[#11162B] border-slate-200 dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E]">
               <SelectItem value="all" className="text-xs">
                 Todos os status
               </SelectItem>
@@ -359,10 +359,10 @@ export default function Vagas() {
           </Select>
 
           <Select value={deptFilter} onValueChange={setDeptFilter}>
-            <SelectTrigger className="w-[160px] h-10 text-xs bg-slate-50 border-slate-200">
+            <SelectTrigger className="w-[160px] h-10 text-xs bg-slate-50 dark:bg-[#11162B] border-slate-200 dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
               <SelectValue placeholder="Departamento" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E]">
               <SelectItem value="all" className="text-xs">
                 Todos departamentos
               </SelectItem>
@@ -389,7 +389,7 @@ export default function Vagas() {
           ))}
         </div>
       ) : filteredVagas.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center">
+        <div className="bg-white dark:bg-[#1A2240] rounded-xl border border-dashed border-slate-300 dark:border-[#2E3A6E] p-12 text-center">
           <Briefcase className="w-10 h-10 text-slate-400 mx-auto mb-3" />
           <h3 className="text-sm font-bold text-slate-800">Nenhuma vaga encontrada</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
@@ -421,7 +421,7 @@ export default function Vagas() {
             return (
               <Card
                 key={vaga.id}
-                className="border-slate-200/90 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all bg-white flex flex-col justify-between group"
+                className="border-slate-200/90 dark:border-[#2E3A6E] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all bg-white dark:bg-[#1A2240] flex flex-col justify-between group"
               >
                 <div>
                   <CardHeader className="p-5 pb-3">
@@ -568,7 +568,7 @@ export default function Vagas() {
                   </CardContent>
                 </div>
 
-                <CardFooter className="p-5 pt-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-b-xl">
+                <CardFooter className="p-5 pt-3 border-t border-slate-100 dark:border-[#2E3A6E] flex items-center justify-between bg-slate-50/50 dark:bg-[#141B34] rounded-b-xl">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                     <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                     <span>
@@ -613,7 +613,10 @@ export default function Vagas() {
           <form onSubmit={handleSaveVaga} className="space-y-4 py-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="titulo" className="text-xs font-semibold text-slate-700">
+                <Label
+                  htmlFor="titulo"
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >
                   Título da vaga *
                 </Label>
                 <Input
@@ -621,14 +624,17 @@ export default function Vagas() {
                   placeholder="Ex: Desenvolvedor(a) Backend Sênior"
                   value={titulo}
                   onChange={(e) => setTitulo(e.target.value)}
-                  className={`text-xs ${fieldErrors.titulo ? 'border-red-500' : ''}`}
+                  className={`text-xs dark:bg-[#11162B] dark:border-[#2E3A6E] ${fieldErrors.titulo ? 'border-red-500' : ''}`}
                   required
                 />
                 {fieldErrors.titulo && <p className="text-xs text-red-600">{fieldErrors.titulo}</p>}
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="departamento" className="text-xs font-semibold text-slate-700">
+                <Label
+                  htmlFor="departamento"
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >
                   Departamento
                 </Label>
                 <Input
@@ -636,12 +642,15 @@ export default function Vagas() {
                   placeholder="Ex: Tecnologia, Marketing, RH"
                   value={departamento}
                   onChange={(e) => setDepartamento(e.target.value)}
-                  className="text-xs"
+                  className="text-xs dark:bg-[#11162B] dark:border-[#2E3A6E]"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="modalidade" className="text-xs font-semibold text-slate-700">
+                <Label
+                  htmlFor="modalidade"
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >
                   Modalidade de trabalho
                 </Label>
                 <Select

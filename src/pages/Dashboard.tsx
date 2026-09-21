@@ -407,19 +407,19 @@ export default function Dashboard() {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Fluxo de candidatos por estágio (Stacked representation) */}
-        <Card className="lg:col-span-2 border-slate-200 shadow-xs p-6 bg-white">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <Card className="lg:col-span-2 border-slate-200 dark:border-[#2E3A6E] shadow-xs p-6 bg-white dark:bg-[#1A2240]">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-[#2E3A6E]">
             <div>
-              <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55]">
+              <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB]">
                 Fluxo de Candidatos por Estágio
               </CardTitle>
-              <CardDescription className="text-xs text-slate-500 mt-0.5">
+              <CardDescription className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Volume atual distribuído pelas etapas do processo de seleção
               </CardDescription>
             </div>
             <Link
               to="/pipeline"
-              className="text-xs font-semibold text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
+              className="text-xs font-semibold text-blue-600 dark:text-[#F19763] hover:text-blue-800 dark:hover:text-white inline-flex items-center gap-1"
             >
               Ver pipeline completo
               <ArrowRight className="w-3.5 h-3.5" />
@@ -428,7 +428,7 @@ export default function Dashboard() {
 
           {/* Stacked bar visualization */}
           <div className="mt-6">
-            <div className="h-6 w-full rounded-lg overflow-hidden flex bg-slate-100">
+            <div className="h-6 w-full rounded-lg overflow-hidden flex bg-slate-100 dark:bg-[#11162B]">
               {pipelineStats.map(
                 (st) =>
                   st.count > 0 && (
@@ -448,20 +448,22 @@ export default function Dashboard() {
                 <div
                   key={st.key}
                   onClick={() => navigate(`/pipeline`)}
-                  className="p-3 rounded-lg border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 cursor-pointer transition-colors"
+                  className="p-3 rounded-lg border border-slate-100 dark:border-[#2E3A6E] hover:border-slate-200 dark:hover:border-[#425292] hover:bg-slate-50/50 dark:hover:bg-[#212B55] cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     <span
                       className="w-2.5 h-2.5 rounded-full"
                       style={{ backgroundColor: st.hex }}
                     />
-                    <span className="text-xs font-medium text-slate-600 truncate">{st.label}</span>
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300 truncate">
+                      {st.label}
+                    </span>
                   </div>
                   <div className="mt-2 flex items-baseline justify-between">
-                    <span className="text-lg font-bold font-mono text-slate-900 tabular-nums">
+                    <span className="text-lg font-bold font-mono text-slate-900 dark:text-[#F7F8FB] tabular-nums">
                       {st.count}
                     </span>
-                    <span className="text-[11px] font-semibold font-mono text-slate-400">
+                    <span className="text-[11px] font-semibold font-mono text-slate-400 dark:text-slate-400">
                       {st.percentage}%
                     </span>
                   </div>
@@ -472,12 +474,12 @@ export default function Dashboard() {
         </Card>
 
         {/* Vagas por Canal (Donut / Progress breakdown) */}
-        <Card className="border-slate-200 shadow-xs p-6 bg-white">
-          <CardHeader className="p-0 pb-4 border-b border-slate-100">
-            <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55]">
+        <Card className="border-slate-200 dark:border-[#2E3A6E] shadow-xs p-6 bg-white dark:bg-[#1A2240]">
+          <CardHeader className="p-0 pb-4 border-b border-slate-100 dark:border-[#2E3A6E]">
+            <CardTitle className="font-display text-base sm:text-lg font-bold text-[#212B55] dark:text-[#F7F8FB]">
               Origem dos Talentos
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
+            <CardDescription className="text-xs text-slate-500 dark:text-slate-400">
               Distribuição por canal de captação
             </CardDescription>
           </CardHeader>
@@ -510,15 +512,15 @@ export default function Dashboard() {
 
       {/* Destaque de Alertas Automáticos de Talentos SouYess */}
       {alertas.length > 0 && (
-        <Card className="border-[#FBDCC9] bg-gradient-to-r from-[#FEF1EA]/70 via-white to-white p-5 shadow-xs rounded-2xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#FBDCC9]/70">
+        <Card className="border-[#FBDCC9] dark:border-[#2E3A6E] bg-gradient-to-r from-[#FEF1EA]/70 via-white to-white dark:from-[#1A2240] dark:via-[#1A2240] dark:to-[#141B34] p-5 shadow-xs rounded-2xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#FBDCC9]/70 dark:border-[#2E3A6E]">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-lg bg-[#E9530E] text-white flex items-center justify-center font-bold shadow-xs">
                 <Bell className="w-4 h-4" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-display text-sm font-bold text-[#212B55] tracking-wide">
+                  <h3 className="font-display text-sm font-bold text-[#212B55] dark:text-[#F7F8FB] tracking-wide">
                     Alertas Automáticos de Talentos Recém-Identificados
                   </h3>
                   {alertasNovos.length > 0 && (
@@ -527,7 +529,7 @@ export default function Dashboard() {
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-[#6B7384] mt-0.5">
+                <p className="text-xs text-[#6B7384] dark:text-slate-400 mt-0.5">
                   Candidatos qualificados do Banco de Talentos com alta compatibilidade para vagas
                   ativas.
                 </p>
@@ -537,7 +539,7 @@ export default function Dashboard() {
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs font-semibold border-[#FBDCC9] text-[#E9530E] hover:bg-[#FEF1EA]"
+                className="text-xs font-semibold border-[#FBDCC9] dark:border-[#2E3A6E] text-[#E9530E] hover:bg-[#FEF1EA] dark:hover:bg-[#212B55]"
               >
                 Ver todos os alertas
                 <ArrowRight className="w-3 h-3 ml-1 text-[#E9530E]" />
@@ -553,37 +555,37 @@ export default function Dashboard() {
                 <div
                   key={al.id}
                   onClick={() => navigate('/alertas')}
-                  className="p-3.5 rounded-lg border border-slate-200 bg-white hover:border-blue-300 hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between"
+                  className="p-3.5 rounded-lg border border-slate-200 dark:border-[#2E3A6E] bg-white dark:bg-[#11162B] hover:border-blue-300 dark:hover:border-[#E9530E] hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className="font-display text-xs font-bold text-slate-900 truncate">
+                      <span className="font-display text-xs font-bold text-slate-900 dark:text-[#F7F8FB] truncate">
                         {cand?.nome || 'Talento'}
                       </span>
                       <span
                         className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded shrink-0 ${
                           (al.score || 75) >= 85
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-slate-100 text-slate-700'
+                            ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                         }`}
                       >
                         {al.score || 75}% fit
                       </span>
                     </div>
 
-                    <div className="text-xs text-slate-500 flex items-center gap-1 line-clamp-1 mb-2">
+                    <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 line-clamp-1 mb-2">
                       <Briefcase className="w-3 h-3 text-slate-400 shrink-0" />
                       <span>{vaga?.titulo || 'Vaga'}</span>
                     </div>
 
                     {al.resumo_ia && (
-                      <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed bg-slate-50 p-2 rounded border border-slate-100">
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed bg-slate-50 dark:bg-[#1A2240] p-2 rounded border border-slate-100 dark:border-[#2E3A6E]">
                         {al.resumo_ia}
                       </p>
                     )}
                   </div>
 
-                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-blue-600 font-semibold">
+                  <div className="mt-3 pt-2 border-t border-slate-100 dark:border-[#2E3A6E] flex items-center justify-between text-[11px] text-blue-600 dark:text-[#F19763] font-semibold">
                     <span>Reaproveitar candidato</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </div>

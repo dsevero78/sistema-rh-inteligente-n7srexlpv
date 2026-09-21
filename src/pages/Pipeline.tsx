@@ -449,8 +449,10 @@ export default function Pipeline() {
                 onDragOver={(e) => handleDragOver(e, col.id)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, col.id)}
-                className={`w-full lg:w-[280px] shrink-0 rounded-xl flex flex-col bg-slate-100/70 p-3 transition-colors duration-200 border-2 ${
-                  isTarget ? 'border-blue-500 bg-blue-50/50' : 'border-transparent'
+                className={`w-full lg:w-[280px] shrink-0 rounded-xl flex flex-col bg-slate-100/70 dark:bg-[#141B34] p-3 transition-colors duration-200 border-2 ${
+                  isTarget
+                    ? 'border-blue-500 bg-blue-50/50 dark:bg-[#212B55]'
+                    : 'border-transparent'
                 }`}
               >
                 {/* Column Header */}
@@ -486,7 +488,7 @@ export default function Pipeline() {
                         key={item.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, item.id)}
-                        className="bg-white p-3.5 rounded-lg border border-slate-200/90 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing group relative"
+                        className="bg-white dark:bg-[#1A2240] p-3.5 rounded-lg border border-slate-200/90 dark:border-[#2E3A6E] shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing group relative"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -528,13 +530,13 @@ export default function Pipeline() {
                         </div>
 
                         {/* Vaga label */}
-                        <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                          <span className="truncate max-w-[170px] font-medium text-slate-600">
+                        <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-[#2E3A6E] flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                          <span className="truncate max-w-[170px] font-medium text-slate-600 dark:text-slate-300">
                             {vaga?.titulo || 'Vaga Geral'}
                           </span>
                           <button
                             onClick={() => navigate(`/candidatos/${cand.id}`)}
-                            className="text-blue-600 hover:text-blue-800 font-semibold text-[10px]"
+                            className="text-blue-600 dark:text-[#F19763] hover:text-blue-800 dark:hover:text-white font-semibold text-[10px]"
                           >
                             Ver perfil
                           </button>
@@ -646,11 +648,13 @@ export default function Pipeline() {
 
           <div className="space-y-3.5 py-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Motivo principal *</Label>
+              <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Motivo principal *
+              </Label>
               <select
                 value={motivoRecusa}
                 onChange={(e) => setMotivoRecusa(e.target.value)}
-                className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-xs"
+                className="w-full h-9 rounded-md border border-slate-200 dark:border-[#2E3A6E] bg-white dark:bg-[#11162B] text-slate-900 dark:text-[#F7F8FB] px-3 text-xs"
               >
                 <option value="Não atende requisitos técnicos">
                   Não atende requisitos técnicos
@@ -667,7 +671,7 @@ export default function Pipeline() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">
+              <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Anotação detalhada (opcional)
               </Label>
               <Textarea
@@ -675,18 +679,18 @@ export default function Pipeline() {
                 placeholder="Detalhes ou feedback fornecido ao candidato..."
                 value={anotacaoRecusa}
                 onChange={(e) => setAnotacaoRecusa(e.target.value)}
-                className="text-xs resize-none"
+                className="text-xs resize-none dark:bg-[#11162B] dark:border-[#2E3A6E] dark:text-[#F7F8FB]"
               />
             </div>
 
             {/* Opção Banco de Talentos */}
-            <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-3 space-y-2">
-              <label className="flex items-center gap-2 text-xs font-semibold text-blue-900 cursor-pointer">
+            <div className="rounded-lg border border-blue-200 dark:border-[#2E3A6E] bg-blue-50/60 dark:bg-[#141B34] p-3 space-y-2">
+              <label className="flex items-center gap-2 text-xs font-semibold text-blue-900 dark:text-[#F7F8FB] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={adicionarAoBanco}
                   onChange={(e) => setAdicionarAoBanco(e.target.checked)}
-                  className="rounded border-blue-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                  className="rounded border-blue-300 dark:border-[#2E3A6E] text-blue-600 focus:ring-blue-500 w-4 h-4"
                 />
                 <span>Destacar e adicionar ao Banco de Talentos para vagas futuras</span>
               </label>
@@ -697,7 +701,7 @@ export default function Pipeline() {
                     placeholder="Justificativa para o banco (ex: Bom potencial técnico para Go/Sênior)..."
                     value={motivoBanco}
                     onChange={(e) => setMotivoBanco(e.target.value)}
-                    className="text-xs bg-white border-blue-200"
+                    className="text-xs bg-white dark:bg-[#11162B] border-blue-200 dark:border-[#2E3A6E] dark:text-[#F7F8FB]"
                   />
                 </div>
               )}
