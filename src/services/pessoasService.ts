@@ -100,6 +100,7 @@ export type SituacaoVinculo =
   | 'Encerrado'
   | 'Rescindido'
   | 'Pausado'
+  | 'Suspensão programada'
 
 export interface VinculoPessoa {
   id: string
@@ -688,6 +689,70 @@ export const pessoasService = {
               : calc.status === 'vencendo'
                 ? 'Vencendo'
                 : 'Vigente',
+        })
+      }
+    } catch {
+      /* intentionally ignored */
+    }
+
+    // 6. Benefícios do Vínculo
+    try {
+      const beneficios = await pb.collection('beneficios_vinculo').getFullList<RecordModel>({
+        filter: `pessoa = '${pessoa.id}'`,
+        sort: '-created',
+      })
+
+      for (const b of beneficios) {
+        const nomeBen = b.nome_personalizado || b.tipo
+        const vMensal = Number(b.valor_mensal || 0).toLocaleString('pt-BR', {
+          minimumFractionDigits: 2,
+        })
+        eventos.push({
+          id: `ben-${b.id}`,
+          data: b.updated || b.created,
+          origemModulo: 'contratos',
+          categoria: 'BENEFÍCIOS',
+          titulo: `Benefício Registrado: ${nomeBen}`,
+          descricao: `Valor mensal: R$ ${vMensal}. Status: ${b.ativo !== false ? 'Ativo' : 'Inativo'}.${b.observacao ? ` Obs: "${b.observacao}".` : ''}`,
+          autor: 'Gente & Gestão',
+          tipoBadge: 'Benefício',
+          statusBadge: b.ativo !== false ? 'Ativo' : 'Inativo',
+        })
+      }
+    } catch {
+      /* intentionally ignored */
+    }
+
+    // 7. Férias CLT e Descanso Remunerado PJ
+    try {
+      const programacoes = await pb.collection('programacoes_descanso').getFullList<RecordModel>({
+        filter: `pessoa = '${pessoa.id}'`,
+        sort: '-data_inicio',
+      })
+
+      for (const p of programacoes) {
+        const isClt = p.tipo === 'CLT_FERIAS'
+        const tit = isClt ? 'Programação de Férias CLT' : 'Programação de Descanso PJ'
+        const dtIni = p.data_inicio ? new Date(p.data_inicio).toLocaleDateString('pt-BR') : ''
+        const dtFim = p.data_fim ? new Date(p.data_fim).toLocaleDateString('pt-BR') : ''
+        const vPer = Number(p.valor_periodo || 0).toLocaleString('pt-BR', {
+          minimumFractionDigits: 2,
+        })
+        const comp1Terco =
+          isClt && p.adicional_terco_constitucional
+            ? ` (inclui 1/3 constitucional de R$ ${Number(p.adicional_terco_constitucional).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`
+            : ''
+
+        eventos.push({
+          id: `desc-${p.id}`,
+          data: p.data_inicio || p.created,
+          origemModulo: 'contratos',
+          categoria: isClt ? 'FÉRIAS CLT' : 'DESCANSO PJ',
+          titulo: `${tit} (${p.dias} dias)`,
+          descricao: `Período: ${dtIni} a ${dtFim}. Valor do período: R$ ${vPer}${comp1Terco}. Status: ${p.status}.${p.observacao ? ` Obs: "${p.observacao}".` : ''}`,
+          autor: 'Gente & Gestão',
+          tipoBadge: isClt ? 'Férias' : 'Descanso PJ',
+          statusBadge: p.status,
         })
       }
     } catch {

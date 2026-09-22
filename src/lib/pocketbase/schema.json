@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T00:58:26.124Z",
+  "generatedAt": "2026-09-22T01:09:42.302Z",
   "collections": [
     {
       "name": "users",
@@ -5112,6 +5112,230 @@
       "indexes": [
         "CREATE INDEX idx_areas_empresa ON areas (empresa)",
         "CREATE INDEX idx_areas_nome ON areas (nome)"
+      ]
+    },
+    {
+      "name": "beneficios_vinculo",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "pessoa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pessoas"
+        },
+        {
+          "name": "vinculo_origem_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "vale_refeicao",
+            "vale_alimentacao",
+            "vale_transporte",
+            "plano_saude",
+            "plano_odontologico",
+            "seguro_vida",
+            "auxilio_creche",
+            "auxilio_home_office",
+            "outros"
+          ]
+        },
+        {
+          "name": "nome_personalizado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_mensal",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_inicio",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_fim",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_ben_pessoa ON beneficios_vinculo (pessoa)",
+        "CREATE INDEX idx_ben_ativo ON beneficios_vinculo (ativo)",
+        "CREATE INDEX idx_ben_tipo ON beneficios_vinculo (tipo)"
+      ]
+    },
+    {
+      "name": "programacoes_descanso",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "pessoa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pessoas"
+        },
+        {
+          "name": "vinculo_origem_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["CLT_FERIAS", "PJ_DESCANSO"]
+        },
+        {
+          "name": "data_inicio",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_fim",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "dias",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Programadas", "Em Gozo", "Concluidas", "Canceladas"]
+        },
+        {
+          "name": "valor_periodo",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_base_mensal",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "adicional_terco_constitucional",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "periodo_aquisitivo_inicio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "periodo_aquisitivo_fim",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "periodo_concessivo_limite",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dias_saldo_remanescente",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_prog_pessoa ON programacoes_descanso (pessoa)",
+        "CREATE INDEX idx_prog_tipo ON programacoes_descanso (tipo)",
+        "CREATE INDEX idx_prog_status ON programacoes_descanso (status)",
+        "CREATE INDEX idx_prog_datas ON programacoes_descanso (data_inicio, data_fim)"
       ]
     }
   ]

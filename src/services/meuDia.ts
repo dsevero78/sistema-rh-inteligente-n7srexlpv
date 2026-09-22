@@ -310,6 +310,14 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             expand: 'pessoa,prestador_pj',
           }),
       },
+      {
+        nome: 'programacoes_descanso',
+        fn: () =>
+          pb.collection('programacoes_descanso').getFullList({
+            sort: '-data_inicio',
+            expand: 'pessoa',
+          }),
+      },
     ]
 
     const resultadosSettled = await Promise.allSettled(queries.map((q) => q.fn()))
@@ -346,6 +354,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
     const fechamentosComp = dadosMapeados['fechamentos_competencia'] || []
     const notasFiscais = dadosMapeados['notas_fiscais'] || []
     const contratosUnificados = dadosMapeados['contratos_unificados'] || []
+    const programacoesDescanso = dadosMapeados['programacoes_descanso'] || []
 
     // =========================================================================
     // 2. REGRAS PARA O GESTOR CONTRATANTE (Líder de BU)
@@ -1282,6 +1291,120 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
           origemRecordId: nf.id,
           metaExtra: { nfId: nf.id, competencia: nf.competencia, valor: vTot },
         })
+      }
+    }
+
+    // 4.12 FÉRIAS CLT (VENCENDO / PERÍODO AQUISITIVO) E DESCANSO REMUNERADO PJ (30 DIAS ANTES)
+    if (isRhOuAdmin) {
+      // 4.12.1 Programações de Férias CLT & Períodos aquisitivos próximos do limite concessivo
+      const cltsAtivos = pessoas.filter(
+        (p) => p.modalidade === 'CLT' && p.situacao_contrato !== 'Encerrado',
+      )
+
+      for (const clt of cltsAtivos) {
+        // Encontrar programações de férias cadastradas para este CLT
+        const progClt = programacoesDescanso.filter(
+          (pr) => pr.pessoa === clt.id && pr.tipo === 'CLT_FERIAS' && pr.status !== 'Canceladas',
+        )
+
+        // Se tem férias programadas iniciando em breve (próximos 30 dias)
+        for (const prog of progClt) {
+          if (prog.status === 'Programadas' && prog.data_inicio) {
+            const dtIni = new Date(prog.data_inicio)
+            const diasAteInicio = Math.ceil(
+              (dtIni.getTime() - agora.getTime()) / (1000 * 60 * 60 * 24),
+            )
+            if (diasAteInicio >= 0 && diasAteInicio <= 30) {
+              const dtIniStr = dtIni.toLocaleDateString('pt-BR')
+              const dtFimStr = prog.data_fim
+                ? new Date(prog.data_fim).toLocaleDateString('pt-BR')
+                : ''
+              itens.push({
+                id: `rh-ferias-programadas-${prog.id}`,
+                tituloAcao: `Férias programadas de ${clt.nome} em ${diasAteInicio === 0 ? 'hoje' : `${diasAteInicio} dias`}`,
+                contexto: `${clt.nome} (${clt.cargo_funcao || 'CLT'}) · Período: ${dtIniStr} a ${dtFimStr} (${prog.dias} dias)`,
+                detalhe: `Valor do período com 1/3: R$ ${Number(prog.valor_periodo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Programar pagamento de adiantamento de férias e escala de cobertura.`,
+                modulo: 'contratos',
+                moduloLabel: 'Férias CLT',
+                severidade: diasAteInicio <= 7 ? 'urgente' : 'atencao',
+                severidadeLabel: diasAteInicio <= 7 ? 'Urgente' : 'Atenção',
+                dataLimiteLabel: diasAteInicio <= 7 ? 'Esta semana' : 'Em 30 dias',
+                rotaDestino: `/pessoas/${clt.id}?tab=vinculos`,
+                origemRecordId: prog.id,
+                metaExtra: { pessoaId: clt.id, programacaoId: prog.id },
+              })
+            }
+          }
+
+          // Checar se o período concessivo limite está próximo de vencer (< 60 dias) gerando risco de férias em dobro
+          if (prog.periodo_concessivo_limite) {
+            const dtLimite = new Date(prog.periodo_concessivo_limite)
+            const diasAteLimite = Math.ceil(
+              (dtLimite.getTime() - agora.getTime()) / (1000 * 60 * 60 * 24),
+            )
+            if (
+              diasAteLimite <= 60 &&
+              diasAteLimite > 0 &&
+              Number(prog.dias_saldo_remanescente) > 0
+            ) {
+              itens.push({
+                id: `rh-ferias-limite-concessivo-${prog.id}`,
+                tituloAcao: `Atenção: Limite concessivo de férias de ${clt.nome} vence em ${diasAteLimite} dias`,
+                contexto: `${clt.nome} · Saldo: ${prog.dias_saldo_remanescente} dias · Risco de dobra legal`,
+                detalhe: `O prazo limite concessivo das férias vence em ${dtLimite.toLocaleDateString('pt-BR')}. Conceda os dias restantes para evitar o pagamento de férias em dobro.`,
+                modulo: 'contratos',
+                moduloLabel: 'Férias CLT',
+                severidade: diasAteLimite <= 30 ? 'urgente' : 'atencao',
+                severidadeLabel: diasAteLimite <= 30 ? 'Urgente' : 'Atenção',
+                dataLimiteLabel: dtLimite.toLocaleDateString('pt-BR'),
+                rotaDestino: `/pessoas/${clt.id}?tab=vinculos`,
+                origemRecordId: prog.id,
+                metaExtra: { pessoaId: clt.id, programacaoId: prog.id },
+              })
+            }
+          }
+        }
+      }
+
+      // 4.12.2 Programações de Descanso Remunerado PJ (Alerta antecipado 30 dias antes para contabilidade/fiscal)
+      const progsDescansoPj = programacoesDescanso.filter(
+        (pr) => pr.tipo === 'PJ_DESCANSO' && pr.status !== 'Canceladas',
+      )
+
+      for (const prog of progsDescansoPj) {
+        if (prog.data_inicio) {
+          const dtIni = new Date(prog.data_inicio)
+          const diasAteInicio = Math.ceil(
+            (dtIni.getTime() - agora.getTime()) / (1000 * 60 * 60 * 24),
+          )
+          const pObj = prog.expand?.pessoa || pessoas.find((p) => p.id === prog.pessoa)
+          const pNome = pObj?.nome || 'Prestador PJ'
+
+          if (diasAteInicio >= 0 && diasAteInicio <= 45) {
+            const dtIniStr = dtIni.toLocaleDateString('pt-BR')
+            const dtFimStr = prog.data_fim
+              ? new Date(prog.data_fim).toLocaleDateString('pt-BR')
+              : ''
+            const vPer = Number(prog.valor_periodo || 0).toLocaleString('pt-BR', {
+              minimumFractionDigits: 2,
+            })
+
+            itens.push({
+              id: `rh-descanso-pj-30d-${prog.id}`,
+              tituloAcao: `Programar contabilidade: Descanso PJ de ${pNome} em ${diasAteInicio === 0 ? 'hoje' : `${diasAteInicio} dias`}`,
+              contexto: `${pNome} · Suspensão Programada: ${dtIniStr} a ${dtFimStr} (${prog.dias} dias)`,
+              detalhe: `Período acordado após 12 meses de parceria. Valor negociado do período: R$ ${vPer}. Atualizar previsão fiscal, emissão de NF proporcional e alinhamento de SLA com a contabilidade.`,
+              modulo: 'contratos',
+              moduloLabel: 'Descanso PJ',
+              severidade: diasAteInicio <= 15 ? 'urgente' : 'atencao',
+              severidadeLabel: diasAteInicio <= 15 ? 'Urgente' : 'Atenção',
+              dataLimiteLabel: diasAteInicio <= 15 ? 'Ação Imediata' : '30 dias',
+              rotaDestino: `/pessoas/${prog.pessoa}?tab=vinculos`,
+              origemRecordId: prog.id,
+              metaExtra: { pessoaId: prog.pessoa, programacaoId: prog.id },
+            })
+          }
+        }
       }
     }
 

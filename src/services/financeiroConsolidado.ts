@@ -247,6 +247,8 @@ export async function carregarDadosFinanceiros(
     empresas,
     pessoas,
     apontamentos,
+    beneficiosLista,
+    programacoesLista,
   ] = await Promise.all([
     pb
       .collection('prestadores_pj')
@@ -296,19 +298,86 @@ export async function carregarDadosFinanceiros(
       .collection('apontamentos_horas')
       .getFullList({ sort: '-created', expand: 'pessoa,empresa' })
       .catch(() => [] as RecordModel[]),
+    pb
+      .collection('beneficios_vinculo')
+      .getFullList({ sort: '-created' })
+      .catch(() => [] as RecordModel[]),
+    pb
+      .collection('programacoes_descanso')
+      .getFullList({ sort: '-created' })
+      .catch(() => [] as RecordModel[]),
   ])
-
   const compStringMesAtual = `${String(mes).padStart(2, '0')}/${ano}`
 
-  // 1. Prestadores Ativos e Comprometido Mensal
+  // 1. Prestadores Ativos e Comprometido Mensal (com reflexo de Benefícios PJ e Suspensão Programada de Descanso)
   const prestadoresAtivos = prestadores.filter(
     (p) => p.status === 'Ativo' || p.status === 'Em renovação',
   )
+
+  // Mapeamento de benefícios ativos por pessoa e por prestador
+  const mapaBeneficiosPorPessoa = new Map<string, number>()
+  beneficiosLista.forEach((b) => {
+    if (b.ativo !== false) {
+      const pId = b.pessoa
+      const v = Number(b.valor_mensal) || 0
+      mapaBeneficiosPorPessoa.set(pId, (mapaBeneficiosPorPessoa.get(pId) || 0) + v)
+    }
+  })
+
+  // Verificar se uma pessoa/prestador está com suspensão/descanso PJ no mês selecionado
+  const inicioMesSelecionado = new Date(ano, mes - 1, 1).getTime()
+  const fimMesSelecionado = new Date(ano, mes, 0, 23, 59, 59).getTime()
+
+  const obterValorEfetivoMesPj = (prestadorId: string, valorBaseMensal: number): number => {
+    // Localizar pessoa vinculada ao prestador
+    const pesVinculada = pessoas.find(
+      (p) =>
+        p.prestador_origem === prestadorId ||
+        p.cpf_cnpj === prestadores.find((pr) => pr.id === prestadorId)?.cnpj ||
+        (p.email &&
+          p.email.toLowerCase() ===
+            prestadores.find((pr) => pr.id === prestadorId)?.contato_email?.toLowerCase()),
+    )
+
+    const pessoaId = pesVinculada?.id
+
+    // Verificar se há programação de descanso PJ ativa cobrindo este mês
+    if (pessoaId) {
+      const descansoNoMes = programacoesLista.find((pr) => {
+        if (pr.pessoa !== pessoaId || pr.tipo !== 'PJ_DESCANSO' || pr.status === 'Canceladas') {
+          return false
+        }
+        const dIni = new Date(pr.data_inicio).getTime()
+        const dFim = new Date(pr.data_fim).getTime()
+        return dIni <= fimMesSelecionado && dFim >= inicioMesSelecionado
+      })
+
+      if (descansoNoMes) {
+        // No mês coberto por suspensão, o comprometido vira o valor acordado do período (ou R$ 0 se configurado)
+        const valPeriodo = Number(descansoNoMes.valor_periodo)
+        // Se descanso cobre o mês todo (>= 28 dias), vira o valor do período acordado
+        // Se fracionado (ex: 15 dias de descanso), contratado proporcional dos dias restantes + descanso negociado
+        const diasDescanso = Number(descansoNoMes.dias) || 15
+        const diasTrabalhados = Math.max(0, 30 - diasDescanso)
+        const valorTrabalhado = (valorBaseMensal / 30) * diasTrabalhados
+        const totalMesSuspensao = valorTrabalhado + valPeriodo
+        // Adicionar benefícios ativos da pessoa se houver
+        const benPessoa = mapaBeneficiosPorPessoa.get(pessoaId) || 0
+        return totalMesSuspensao + benPessoa
+      }
+    }
+
+    // Se não houver descanso, valor base + benefícios da pessoa
+    const benPessoa = pessoaId ? mapaBeneficiosPorPessoa.get(pessoaId) || 0 : 0
+    return valorBaseMensal + benPessoa
+  }
+
   let somaComprometidoMensalPj = 0
 
   prestadoresAtivos.forEach((p) => {
-    const val = Number(p.valor_mensal_atual) || 0
-    somaComprometidoMensalPj += val
+    const valBase = Number(p.valor_mensal_atual) || 0
+    const valEfetivo = obterValorEfetivoMesPj(p.id, valBase)
+    somaComprometidoMensalPj += valEfetivo
   })
 
   const valorHoraMedioPj =
@@ -1174,7 +1243,7 @@ export async function carregarDadosFinanceiros(
     empresaIdPorPrestador.set(p.id, empResolvida)
   })
 
-  // Comprometido PJ por BU
+  // Comprometido PJ por BU (incluindo Benefícios PJ e Suspensão de descanso)
   const buComprometidoPjMap = new Map<string, number>()
   empresasLista.forEach((e) => buComprometidoPjMap.set(e.id, 0))
   buComprometidoPjMap.set('sem-bu', 0)
@@ -1184,10 +1253,13 @@ export async function carregarDadosFinanceiros(
       empresaIdPorPrestador.get(p.id) ||
       normalizarBu(undefined, `${p.nome_fantasia || ''} ${p.razao_social || ''}`, p.area_atuacao)
     const atual = buComprometidoPjMap.get(empId) || 0
-    buComprometidoPjMap.set(empId, atual + (Number(p.valor_mensal_atual) || 0))
+    const valBase = Number(p.valor_mensal_atual) || 0
+    const valEfetivo = obterValorEfetivoMesPj(p.id, valBase)
+    buComprometidoPjMap.set(empId, atual + valEfetivo)
   })
 
   // Comprometido CLT por BU (pessoas com vínculo CLT ativo: modalidade === 'CLT')
+  // Composição: Salário base/contratado + Soma dos Benefícios Ativos do colaborador
   const buComprometidoCltMap = new Map<string, number>()
   const buContagemCltMap = new Map<string, number>()
   empresasLista.forEach((e) => {
@@ -1223,11 +1295,14 @@ export async function carregarDadosFinanceiros(
           : 0
 
       const salCalculado = salContratado > 0 ? salContratado : salBase > 0 ? salBase : salPorHora
-      const salarioEfetivo = salCalculado > 0 ? salCalculado : 7500
-      somaComprometidoClt += salarioEfetivo
+      const salarioBaseEfetivo = salCalculado > 0 ? salCalculado : 7500
+      const beneficiosClt = mapaBeneficiosPorPessoa.get(pes.id) || 0
+      const remuneracaoTotalClt = salarioBaseEfetivo + beneficiosClt
+
+      somaComprometidoClt += remuneracaoTotalClt
       totalColaboradoresClt++
 
-      buComprometidoCltMap.set(empId, (buComprometidoCltMap.get(empId) || 0) + salarioEfetivo)
+      buComprometidoCltMap.set(empId, (buComprometidoCltMap.get(empId) || 0) + remuneracaoTotalClt)
       buContagemCltMap.set(empId, (buContagemCltMap.get(empId) || 0) + 1)
     }
   })
