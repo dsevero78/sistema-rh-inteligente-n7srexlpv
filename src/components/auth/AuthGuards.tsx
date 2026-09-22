@@ -1,6 +1,7 @@
 import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth, getStoredAuth } from '@/contexts/AuthContext'
+import pb from '@/lib/pocketbase/client'
 import { Loader2 } from 'lucide-react'
 
 export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -29,7 +30,17 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
   const { isAuthenticated, isLoading } = useAuth()
   const location = useLocation()
 
-  if (isLoading) {
+  const destination =
+    (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
+
+  // Checagem imediata de credencial síncrona persistida no localStorage ou authStore
+  const stored = getStoredAuth()
+  const hasLocalCred = Boolean(
+    (stored?.token && stored.token.length > 10) ||
+    (pb.authStore.token && pb.authStore.token.length > 10),
+  )
+
+  if (isLoading || (hasLocalCred && !isAuthenticated)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
@@ -41,8 +52,6 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
   }
 
   if (isAuthenticated) {
-    const destination =
-      (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
     return <Navigate to={destination} replace />
   }
 

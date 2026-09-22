@@ -59,7 +59,7 @@ export default function Login() {
 
           // Tenta revalidar no backend
           const ok = await singleFlightAuthRefresh()
-          if (!isCancelled && (ok || pb.authStore.isValid)) {
+          if (!isCancelled && (ok || pb.authStore.isValid || pb.authStore.token)) {
             toast({
               title: 'Sessão restaurada com sucesso',
               description: 'Redirecionando para o painel...',
@@ -67,9 +67,22 @@ export default function Login() {
             navigate(from, { replace: true })
             return
           }
-        } catch {
-          // Token expirado/revogado definitivamente — usuário permanece no formulário
-          console.info('[Login] Nenhuma sessão válida prévia para recuperar automaticamente.')
+        } catch (err: unknown) {
+          const status =
+            (err as { status?: number; response?: { status?: number } })?.status ||
+            (err as { response?: { status?: number } })?.response?.status
+
+          // Se for erro definitivo (401/403), remove credencial para não ficar em loop
+          if (status === 401 || status === 403) {
+            console.info('[Login] Token inválido ou revogado. Permanecendo no formulário de login.')
+          } else if (pb.authStore.isValid || stored?.token) {
+            // Em caso de erro transitório de rede, se temos credencial, ainda assim permite navegar
+            console.warn(
+              '[Login] Erro de rede ao revalidar, prosseguindo com token local preservado.',
+            )
+            navigate(from, { replace: true })
+            return
+          }
         } finally {
           if (!isCancelled) {
             setIsAutoRecovering(false)
