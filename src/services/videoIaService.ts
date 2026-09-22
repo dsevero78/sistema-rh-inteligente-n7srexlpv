@@ -83,6 +83,29 @@ export const videoIaService = {
   },
 
   async uploadArquivoVideo(candidatoId: string, file: File) {
+    const formatos = [
+      'video/mp4',
+      'video/webm',
+      'video/quicktime',
+      'video/x-matroska',
+      'video/ogg',
+      'video/x-msvideo',
+    ]
+    const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
+    const extensoes = ['.mp4', '.webm', '.mov', '.mkv', '.ogg', '.avi']
+
+    if (file.type && !formatos.includes(file.type) && !extensoes.includes(ext)) {
+      throw new Error(
+        'Formato de vídeo incompatível. Utilize arquivos nos formatos MP4, WebM ou MOV.',
+      )
+    }
+
+    if (file.size > 100 * 1024 * 1024) {
+      throw new Error(
+        `O arquivo excede o limite máximo permitido de 100MB (${(file.size / (1024 * 1024)).toFixed(1)}MB).`,
+      )
+    }
+
     const formData = new FormData()
     formData.append('video_apresentacao', file)
     formData.append('video_status', 'enviado_aguardando')

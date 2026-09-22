@@ -288,6 +288,37 @@ export default function Candidatos() {
       formData.append('curriculo', curriculoFile)
     }
     if (videoFile) {
+      const formatos = [
+        'video/mp4',
+        'video/webm',
+        'video/quicktime',
+        'video/x-matroska',
+        'video/ogg',
+        'video/x-msvideo',
+      ]
+      const ext = '.' + (videoFile.name.split('.').pop() || '').toLowerCase()
+      const extensoes = ['.mp4', '.webm', '.mov', '.mkv', '.ogg', '.avi']
+
+      if (videoFile.type && !formatos.includes(videoFile.type) && !extensoes.includes(ext)) {
+        toast({
+          title: 'Formato de vídeo incompatível',
+          description: 'Apenas arquivos de vídeo (.mp4, .webm, .mov) são permitidos.',
+          variant: 'destructive',
+        })
+        setSaving(false)
+        return
+      }
+
+      if (videoFile.size > 100 * 1024 * 1024) {
+        toast({
+          title: 'Vídeo excede o limite',
+          description: `O arquivo tem ${(videoFile.size / (1024 * 1024)).toFixed(1)}MB. O limite máximo é de 100MB.`,
+          variant: 'destructive',
+        })
+        setSaving(false)
+        return
+      }
+
       formData.append('video_apresentacao', videoFile)
     }
 
@@ -1033,25 +1064,57 @@ export default function Candidatos() {
             {/* MÓDULO 3: Vídeo de Apresentação (Upload ou Link Externo) */}
             <div className="space-y-3 border-t border-slate-200 pt-3 bg-blue-50/40 p-3 rounded-lg border">
               <Label className="text-xs font-bold text-slate-900 flex items-center justify-between">
-                <span>Vídeo de Apresentação do Candidato (Módulo 3)</span>
+                <span>Vídeo de Apresentação do Candidato</span>
                 <span className="text-[11px] text-blue-600 font-normal">
-                  Entrevista RH & Análise Gestor
+                  Formatos: MP4, WebM, MOV · Até 100 MB
                 </span>
               </Label>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <span className="text-[11px] font-semibold text-slate-700 block">
-                    Opção A: Upload do arquivo de vídeo
+                    Opção A: Upload do arquivo (.mp4, .webm, .mov)
                   </span>
                   <input
                     type="file"
                     ref={videoInputRef}
-                    accept="video/mp4,video/webm,video/quicktime,video/x-matroska"
+                    accept="video/mp4,video/webm,video/quicktime,video/x-matroska,.mp4,.webm,.mov,.mkv"
                     className="hidden"
                     onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setVideoFile(e.target.files[0])
+                      const f = e.target.files?.[0] || null
+                      if (f) {
+                        const formatos = [
+                          'video/mp4',
+                          'video/webm',
+                          'video/quicktime',
+                          'video/x-matroska',
+                          'video/ogg',
+                          'video/x-msvideo',
+                        ]
+                        const ext = '.' + (f.name.split('.').pop() || '').toLowerCase()
+                        const extensoes = ['.mp4', '.webm', '.mov', '.mkv', '.ogg', '.avi']
+                        if (f.type && !formatos.includes(f.type) && !extensoes.includes(ext)) {
+                          toast({
+                            title: 'Formato inválido',
+                            description:
+                              'Por favor selecione um arquivo em formato MP4, WebM ou MOV.',
+                            variant: 'destructive',
+                          })
+                          e.target.value = ''
+                          setVideoFile(null)
+                          return
+                        }
+                        if (f.size > 100 * 1024 * 1024) {
+                          toast({
+                            title: 'Arquivo muito grande',
+                            description: `O arquivo tem ${(f.size / (1024 * 1024)).toFixed(1)}MB. O limite máximo permitido é de 100 MB.`,
+                            variant: 'destructive',
+                          })
+                          e.target.value = ''
+                          setVideoFile(null)
+                          return
+                        }
+                        setVideoFile(f)
                       }
                     }}
                   />
@@ -1063,12 +1126,19 @@ export default function Candidatos() {
                     className="text-xs border-slate-300 bg-white w-full justify-start"
                   >
                     <Upload className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
-                    {videoFile ? 'Substituir Vídeo' : 'Anexar Vídeo (mp4/webm)'}
+                    {videoFile ? 'Substituir Vídeo' : 'Anexar Vídeo (MP4, WebM, MOV)'}
                   </Button>
                   {videoFile && (
-                    <p className="text-[11px] text-emerald-700 font-medium truncate">
-                      ✓ {videoFile.name} ({Math.round(videoFile.size / 1024 / 1024)}MB)
-                    </p>
+                    <div className="space-y-1.5 pt-1">
+                      <p className="text-[11px] text-emerald-700 font-medium truncate">
+                        ✓ {videoFile.name} ({(videoFile.size / (1024 * 1024)).toFixed(1)}MB)
+                      </p>
+                      <video
+                        src={URL.createObjectURL(videoFile)}
+                        controls
+                        className="w-full rounded-md max-h-32 bg-black object-contain"
+                      />
+                    </div>
                   )}
                 </div>
 
@@ -1082,6 +1152,9 @@ export default function Candidatos() {
                     onChange={(e) => setVideoLink(e.target.value)}
                     className="text-xs bg-white"
                   />
+                  <p className="text-[11px] text-slate-500">
+                    Insira a URL pública do vídeo caso o arquivo esteja na nuvem.
+                  </p>
                 </div>
               </div>
             </div>

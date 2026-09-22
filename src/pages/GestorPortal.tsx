@@ -825,14 +825,29 @@ export default function GestorPortal() {
                   </a>
                 </div>
               ) : candEmVisualizacao?.video_apresentacao ? (
-                <div className="rounded-lg overflow-hidden border border-slate-300 bg-black aspect-video max-h-64 flex items-center justify-center">
-                  <video
-                    controls
-                    className="w-full h-full max-h-64 object-contain"
-                    src={`${import.meta.env.VITE_POCKETBASE_URL}/api/files/candidatos/${candEmVisualizacao.id}/${candEmVisualizacao.video_apresentacao}`}
-                  >
-                    Seu navegador não suporta reprodução direta de vídeo.
-                  </video>
+                <div className="space-y-2">
+                  <div className="rounded-lg overflow-hidden border border-slate-300 bg-black aspect-video max-h-64 flex items-center justify-center shadow-xs">
+                    <video
+                      controls
+                      className="w-full h-full max-h-64 object-contain"
+                      src={`${import.meta.env.VITE_POCKETBASE_URL}/api/files/candidatos/${candEmVisualizacao.id}/${candEmVisualizacao.video_apresentacao}`}
+                    >
+                      Seu navegador não suporta reprodução direta de vídeo.
+                    </video>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500">
+                    <span className="truncate max-w-xs font-mono">
+                      Arquivo: {candEmVisualizacao.video_apresentacao}
+                    </span>
+                    <a
+                      href={`${import.meta.env.VITE_POCKETBASE_URL}/api/files/candidatos/${candEmVisualizacao.id}/${candEmVisualizacao.video_apresentacao}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 hover:underline font-semibold"
+                    >
+                      Abrir em nova aba
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <p className="text-slate-400 italic">

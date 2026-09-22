@@ -23,11 +23,12 @@ export function isJwtTokenExpired(token: string): boolean {
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
     // Tolerância com padding em base64
     const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
+    const maybeBuffer = (globalThis as Record<string, any>).Buffer
     const decodedStr =
       typeof atob !== 'undefined'
         ? atob(padded)
-        : typeof Buffer !== 'undefined'
-          ? Buffer.from(padded, 'base64').toString('binary')
+        : maybeBuffer && typeof maybeBuffer.from === 'function'
+          ? maybeBuffer.from(padded, 'base64').toString('binary')
           : ''
     if (!decodedStr) return false
 

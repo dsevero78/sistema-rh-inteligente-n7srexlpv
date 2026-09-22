@@ -1096,17 +1096,45 @@ export default function CandidaturaPublica() {
                     <input
                       type="file"
                       ref={videoInputRef}
-                      accept="video/mp4,video/webm,video/quicktime,video/x-matroska"
+                      accept="video/mp4,video/webm,video/quicktime,video/x-matroska,.mp4,.webm,.mov,.mkv"
                       className="hidden"
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
                           const file = e.target.files[0]
+                          const formatos = [
+                            'video/mp4',
+                            'video/webm',
+                            'video/quicktime',
+                            'video/x-matroska',
+                            'video/ogg',
+                            'video/x-msvideo',
+                          ]
+                          const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
+                          const extensoes = ['.mp4', '.webm', '.mov', '.mkv', '.ogg', '.avi']
+
+                          if (
+                            file.type &&
+                            !formatos.includes(file.type) &&
+                            !extensoes.includes(ext)
+                          ) {
+                            toast({
+                              title: 'Formato inválido',
+                              description: 'O formato do vídeo deve ser MP4, WebM ou MOV.',
+                              variant: 'destructive',
+                            })
+                            e.target.value = ''
+                            setVideoFile(null)
+                            return
+                          }
+
                           if (file.size > 100 * 1024 * 1024) {
                             toast({
                               title: 'Vídeo muito grande',
-                              description: 'O arquivo de vídeo deve ter no máximo 100MB.',
+                              description: `O arquivo tem ${(file.size / (1024 * 1024)).toFixed(1)}MB. O limite máximo permitido é 100MB.`,
                               variant: 'destructive',
                             })
+                            e.target.value = ''
+                            setVideoFile(null)
                             return
                           }
                           setVideoFile(file)
@@ -1116,21 +1144,32 @@ export default function CandidaturaPublica() {
 
                     <div
                       onClick={() => videoInputRef.current?.click()}
-                      className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                      className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors ${
                         videoFile
                           ? 'border-emerald-300 bg-emerald-50/40'
                           : 'border-slate-300 hover:border-[#1D4ED8] bg-slate-50/50 hover:bg-blue-50/30'
                       }`}
                     >
                       {videoFile ? (
-                        <div className="flex items-center justify-center gap-3 text-emerald-800">
-                          <Video className="w-6 h-6 text-emerald-600 shrink-0" />
-                          <div className="text-left">
-                            <p className="text-xs font-bold truncate max-w-sm">{videoFile.name}</p>
-                            <p className="text-[10px] text-emerald-600">
-                              {Math.round(videoFile.size / 1024 / 1024)} MB · Clique para substituir
-                            </p>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-center gap-3 text-emerald-800">
+                            <Video className="w-6 h-6 text-emerald-600 shrink-0" />
+                            <div className="text-left">
+                              <p className="text-xs font-bold truncate max-w-sm">
+                                {videoFile.name}
+                              </p>
+                              <p className="text-[10px] text-emerald-600">
+                                {(videoFile.size / (1024 * 1024)).toFixed(1)} MB · Clique para
+                                substituir
+                              </p>
+                            </div>
                           </div>
+                          <video
+                            src={URL.createObjectURL(videoFile)}
+                            controls
+                            className="w-full max-h-48 rounded-lg bg-black object-contain mx-auto"
+                            onClick={(ev) => ev.stopPropagation()}
+                          />
                         </div>
                       ) : (
                         <div className="space-y-1.5">
@@ -1138,8 +1177,9 @@ export default function CandidaturaPublica() {
                           <p className="text-xs font-semibold text-slate-800">
                             Clique para selecionar ou arraste seu vídeo de apresentação
                           </p>
-                          <p className="text-[10px] text-slate-400">
-                            Formatos suportados: MP4, WebM, MOV ou MKV (até 100MB)
+                          <p className="text-[10px] text-slate-500">
+                            Formatos suportados: <strong>MP4</strong>, <strong>WebM</strong> ou{' '}
+                            <strong>MOV</strong> (até <strong>100MB</strong>)
                           </p>
                         </div>
                       )}

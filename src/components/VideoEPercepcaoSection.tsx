@@ -147,8 +147,32 @@ export function VideoEPercepcaoSection({
     setSubmittingVideo(true)
     try {
       if (arquivoVideo) {
-        if (arquivoVideo.size > 50 * 1024 * 1024) {
-          throw new Error('O arquivo excede o limite máximo de 50MB. Use a opção de link externo.')
+        const formatosPermitidos = [
+          'video/mp4',
+          'video/webm',
+          'video/quicktime',
+          'video/x-matroska',
+          'video/ogg',
+          'video/x-msvideo',
+        ]
+        const extensoesPermitidas = ['.mp4', '.webm', '.mov', '.mkv', '.ogg', '.avi']
+        const ext = '.' + (arquivoVideo.name.split('.').pop() || '').toLowerCase()
+
+        if (
+          arquivoVideo.type &&
+          !formatosPermitidos.includes(arquivoVideo.type) &&
+          !extensoesPermitidas.includes(ext)
+        ) {
+          throw new Error(
+            'Formato de vídeo não suportado. Por favor envie arquivos em formato MP4, WebM ou MOV.',
+          )
+        }
+
+        const maxBytes = 100 * 1024 * 1024 // 100MB
+        if (arquivoVideo.size > maxBytes) {
+          throw new Error(
+            'O arquivo excede o limite máximo de 100MB. Escolha um arquivo menor ou envie o link do vídeo.',
+          )
         }
         await videoIaService.uploadArquivoVideo(candidato.id, arquivoVideo)
       } else if (novoLinkVideo.trim() !== (candidato.video_link || '')) {
@@ -621,20 +645,73 @@ export function VideoEPercepcaoSection({
 
           <form onSubmit={handleSalvarVideo} className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Opção 1: Upload de Arquivo (mp4/webm, até 50MB)
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Opção 1: Upload de Arquivo de Vídeo
+                </Label>
+                <span className="text-[11px] text-slate-500 font-mono">
+                  Até 100 MB · MP4, WebM, MOV
+                </span>
+              </div>
               <Input
                 type="file"
-                accept="video/mp4,video/webm,video/quicktime"
-                onChange={(e) => setArquivoVideo(e.target.files?.[0] || null)}
+                accept="video/mp4,video/webm,video/quicktime,video/x-matroska,.mp4,.webm,.mov,.mkv"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null
+                  if (f) {
+                    const formatos = [
+                      'video/mp4',
+                      'video/webm',
+                      'video/quicktime',
+                      'video/x-matroska',
+                      'video/ogg',
+                      'video/x-msvideo',
+                    ]
+                    const ext = '.' + (f.name.split('.').pop() || '').toLowerCase()
+                    const extensoes = ['.mp4', '.webm', '.mov', '.mkv', '.ogg', '.avi']
+                    if (f.type && !formatos.includes(f.type) && !extensoes.includes(ext)) {
+                      toast({
+                        title: 'Formato inválido',
+                        description: 'Apenas arquivos de vídeo (.mp4, .webm, .mov) são permitidos.',
+                        variant: 'destructive',
+                      })
+                      e.target.value = ''
+                      setArquivoVideo(null)
+                      return
+                    }
+                    if (f.size > 100 * 1024 * 1024) {
+                      toast({
+                        title: 'Arquivo muito grande',
+                        description: `O arquivo tem ${(f.size / (1024 * 1024)).toFixed(1)}MB. O limite máximo permitido é de 100 MB.`,
+                        variant: 'destructive',
+                      })
+                      e.target.value = ''
+                      setArquivoVideo(null)
+                      return
+                    }
+                  }
+                  setArquivoVideo(f)
+                }}
                 className="text-xs"
               />
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Formatos aceitos: <strong>MP4</strong>, <strong>WebM</strong> ou{' '}
+                <strong>MOV (QuickTime)</strong> até <strong>100 MB</strong>.
+              </p>
               {arquivoVideo && (
-                <p className="text-[11px] text-emerald-600 font-medium">
-                  Arquivo selecionado: {arquivoVideo.name} (
-                  {(arquivoVideo.size / (1024 * 1024)).toFixed(1)}MB)
-                </p>
+                <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300 font-semibold">
+                    <span className="truncate max-w-[240px]">✓ {arquivoVideo.name}</span>
+                    <span className="font-mono text-[11px]">
+                      {(arquivoVideo.size / (1024 * 1024)).toFixed(1)} MB
+                    </span>
+                  </div>
+                  <video
+                    src={URL.createObjectURL(arquivoVideo)}
+                    controls
+                    className="w-full rounded-md max-h-36 bg-black object-contain"
+                  />
+                </div>
               )}
             </div>
 
