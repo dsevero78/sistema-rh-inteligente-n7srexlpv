@@ -74,9 +74,10 @@ export default function Login() {
     const hasValidBackup = Boolean(
       backup?.token && backup.token.length > 10 && !isJwtTokenExpired(backup.token),
     )
+    const hasAnyBackup = Boolean(backup?.token && backup.token.length > 10)
     const hasMemToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
 
-    if (!isAuthenticated && !hasValidBackup && !hasMemToken) {
+    if (!isAuthenticated && !hasValidBackup && !hasAnyBackup && !hasMemToken) {
       return
     }
 

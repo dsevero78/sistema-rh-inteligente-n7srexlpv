@@ -70,12 +70,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Listener de mudanças no authStore do PocketBase
     const unsub = pb.authStore.onChange(async (tok, model) => {
-      // 1. Caso com token e model válidos no evento
-      if (tok && model) {
+      // 1. Caso com token válido emitido (ex: pós-authRefresh, save, login)
+      if (tok) {
+        // Se o model veio preenchido, usa ele; senão preserva o record existente ou o do backup
+        const existingBackup = loadSessionBackup()
+        const effectiveModel = model || pb.authStore.record || existingBackup?.model || null
+
         setToken(tok)
-        setUser(model)
-        // Salva backup proprietário atualizado
-        saveSessionBackup(tok, model)
+        if (effectiveModel) {
+          setUser(effectiveModel)
+        }
+        // Salva backup proprietário atualizado atomicamente
+        saveSessionBackup(tok, effectiveModel)
         return
       }
 
@@ -92,11 +98,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const backup = loadSessionBackup()
       if (backup?.token) {
         console.warn(
-          '[AuthContext] SDK authStore foi esvaziado externamente (evento transitório/reconexão). Auto-restaurando a partir do backup...',
+          '[AuthContext] SDK authStore foi esvaziado externamente (evento transitório/reconexão). Mantendo sessão ativa e restaurando a partir do backup...',
         )
 
         // Restaura imediatamente no pb.authStore em memória
         restorePbAuthStoreFromBackup()
+        // NUNCA zera o token nem o user enquanto houver backup íntegro
         setToken(backup.token)
         if (backup.model) setUser(backup.model)
 
@@ -113,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (ok && pb.authStore.isValid) {
             console.info('[AuthContext] Sessão revalidada silenciosamente com sucesso via backup!')
             setToken(pb.authStore.token)
-            setUser(pb.authStore.record)
+            if (pb.authStore.record) setUser(pb.authStore.record)
           }
         } catch (err: unknown) {
           const status =
@@ -169,8 +176,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsRenewingSession(true)
           const refreshed = await singleFlightSafeAuthRefresh()
           if (refreshed && pb.authStore.token) {
-            setUser(pb.authStore.record)
             setToken(pb.authStore.token)
+            if (pb.authStore.record) setUser(pb.authStore.record)
           }
         } catch (err: unknown) {
           const status =
@@ -281,22 +288,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const empresa_nome = user?.empresa_nome || user?.expand?.empresa?.nome || ''
   const area = user?.area || user?.area_atuacao || ''
 
-  // Preservação da autenticação:
+  // Preservação estrita da autenticação:
   // Se o usuário não deu logout explícito e houver backup íntegro ou token válido,
-  // considera como autenticado!
+  // considera SEMPRE como autenticado! NUNCA perde o status por transitório.
   const backupNow = loadSessionBackup()
   const hasTokenStr = Boolean(token && token.length > 10)
   const hasPbStoreToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
   const hasValidBackup = Boolean(
     backupNow?.token && backupNow.token.length > 10 && !isJwtTokenExpired(backupNow.token),
   )
+  const hasAnyStoredBackup = Boolean(backupNow?.token && backupNow.token.length > 10)
 
   const isAuthed =
     !isExplicitLogoutRef.current &&
     (hasTokenStr ||
       hasPbStoreToken ||
       hasValidBackup ||
-      (isRecoveringAuthRef.current && Boolean(backupNow?.token)))
+      hasAnyStoredBackup ||
+      isRecoveringAuthRef.current ||
+      isRenewingSession)
 
   return (
     <AuthContext.Provider

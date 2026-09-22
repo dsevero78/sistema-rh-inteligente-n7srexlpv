@@ -24,20 +24,22 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   const hasValidBackup = Boolean(
     backup?.token && backup.token.length > 10 && !isJwtTokenExpired(backup.token),
   )
+  const hasAnyBackup = Boolean(backup?.token && backup.token.length > 10)
   const hasPbToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
-  const hasAnyCred = hasValidBackup || hasPbToken
+  const hasAnyCred = hasValidBackup || hasAnyBackup || hasPbToken
 
-  // Se o contexto ainda não registrou isAuthenticated mas há backup íntegro, auto-restaura
+  // Se o contexto ainda não registrou isAuthenticated mas há backup íntegro, auto-restaura imediatamente
   useEffect(() => {
     if (!isAuthenticated && hasAnyCred) {
       const restored = restorePbAuthStoreFromBackup()
-      if (restored) {
+      if (restored?.token) {
         syncAuthNow(restored.token, restored.model)
       }
     }
   }, [isAuthenticated, hasAnyCred, syncAuthNow])
 
   // Se estiver em carregamento inicial OU temos credencial local mas o react state está transitando:
+  // NUNCA ejeta para /login durante essa transição!
   if (isLoading || (hasAnyCred && !isAuthenticated)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] dark:bg-[#11162B]">
@@ -51,7 +53,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
     )
   }
 
-  // Apenas se realmente não há credencial nem no app nem no backend:
+  // Apenas se realmente NENHUMA credencial existe no app nem no backend:
   if (!isAuthenticated && !hasAnyCred) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
@@ -78,8 +80,9 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
   const hasValidBackup = Boolean(
     backup?.token && backup.token.length > 10 && !isJwtTokenExpired(backup.token),
   )
+  const hasAnyBackup = Boolean(backup?.token && backup.token.length > 10)
   const hasPbToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
-  const hasCredential = isAuthenticated || hasValidBackup || hasPbToken
+  const hasCredential = isAuthenticated || hasValidBackup || hasAnyBackup || hasPbToken
 
   useEffect(() => {
     if (!hasCredential) return

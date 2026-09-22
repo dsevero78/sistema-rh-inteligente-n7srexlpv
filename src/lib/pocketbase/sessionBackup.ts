@@ -21,8 +21,18 @@ export function isJwtTokenExpired(token: string): boolean {
     if (parts.length < 2) return false
     const base64Url = parts[1]
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    // Tolerância com padding em base64
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
+    const decodedStr =
+      typeof atob !== 'undefined'
+        ? atob(padded)
+        : typeof Buffer !== 'undefined'
+          ? Buffer.from(padded, 'base64').toString('binary')
+          : ''
+    if (!decodedStr) return false
+
     const jsonPayload = decodeURIComponent(
-      atob(base64)
+      decodedStr
         .split('')
         .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
         .join(''),
@@ -30,11 +40,11 @@ export function isJwtTokenExpired(token: string): boolean {
     const payload = JSON.parse(jsonPayload)
     if (typeof payload.exp === 'number') {
       const now = Math.floor(Date.now() / 1000)
-      // Se expira em menos de 10 segundos, considera expirado
-      return payload.exp <= now + 10
+      // Se o token já passou da expiração real, considera expirado
+      return payload.exp <= now
     }
   } catch {
-    // Se não conseguiu decodificar, não assume expirado imediatamente para tolerar tokens válidos
+    // Se não conseguiu decodificar, não assume expirado para tolerar tokens válidos
   }
   return false
 }
