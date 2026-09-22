@@ -77,6 +77,7 @@ import {
 } from '@/services/prestadoresPj'
 import { SecaoContratosEVinculos } from '@/components/pessoas/SecaoContratosEVinculos'
 import { AbaHorasPessoa } from '@/components/pessoas/AbaHorasPessoa'
+import { TabErrorBoundary } from '@/components/TabErrorBoundary'
 
 export default function PessoaDetalhesPage() {
   const { id } = useParams<{ id: string }>()
@@ -511,10 +512,14 @@ export default function PessoaDetalhesPage() {
               Valor Atual ({isPj ? 'Mensalidade' : 'Salário'})
             </span>
             <div className="text-lg font-black text-[#212B55] dark:text-[#F7F8FB] font-mono mt-0.5 truncate">
-              R$ {pessoa.valor_contratado?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R${' '}
+              {(Number(pessoa.valor_contratado) || 0).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+              })}
             </div>
             <span className="text-[10px] text-muted-foreground font-mono block mt-0.5">
-              R$ {pessoa.valor_hora?.toFixed(2)}/h ({pessoa.horas_mensais_base || 160}h/mês)
+              R$ {Number(pessoa.valor_hora || 0).toFixed(2)}/h ({pessoa.horas_mensais_base || 160}
+              h/mês)
             </span>
           </CardContent>
         </Card>
@@ -622,21 +627,31 @@ export default function PessoaDetalhesPage() {
 
         {/* ABA NOVA: HORAS E FECHAMENTO DE COMPETÊNCIA */}
         <TabsContent value="horas" className="space-y-4">
-          <AbaHorasPessoa pessoa={pessoa} onAtualizar={carregarFicha} />
+          <TabErrorBoundary
+            tabName="Horas & Competências"
+            onResetToDefaultTab={() => handleTabChange('dados')}
+          >
+            <AbaHorasPessoa pessoa={pessoa} onAtualizar={carregarFicha} />
+          </TabErrorBoundary>
         </TabsContent>
 
         {/* ABA NOVA: CONTRATOS & VÍNCULOS UNIFICADOS */}
         <TabsContent value="vinculos" className="space-y-4">
-          <SecaoContratosEVinculos
-            pessoa={pessoa}
-            vinculos={vinculos}
-            prestadorPj={prestadorPj}
-            contratosPj={contratosPj}
-            aditivosPj={aditivosPj}
-            marcosLifecycle={marcosLifecycle}
-            documentosCofre={documentos}
-            onAtualizar={carregarFicha}
-          />
+          <TabErrorBoundary
+            tabName="Contratos & Vínculos"
+            onResetToDefaultTab={() => handleTabChange('dados')}
+          >
+            <SecaoContratosEVinculos
+              pessoa={pessoa}
+              vinculos={vinculos}
+              prestadorPj={prestadorPj}
+              contratosPj={contratosPj}
+              aditivosPj={aditivosPj}
+              marcosLifecycle={marcosLifecycle}
+              documentosCofre={documentos}
+              onAtualizar={carregarFicha}
+            />
+          </TabErrorBoundary>
         </TabsContent>
 
         {/* ABA A: DADOS CADASTRAIS */}
@@ -819,7 +834,7 @@ export default function PessoaDetalhesPage() {
                     </span>
                     <span className="font-mono font-bold text-foreground text-sm block mt-0.5">
                       R${' '}
-                      {pessoa.valor_contratado?.toLocaleString('pt-BR', {
+                      {(Number(pessoa.valor_contratado) || 0).toLocaleString('pt-BR', {
                         minimumFractionDigits: 2,
                       })}
                     </span>
@@ -839,7 +854,7 @@ export default function PessoaDetalhesPage() {
                       Valor / Hora Calculado
                     </span>
                     <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm block mt-0.5">
-                      R$ {pessoa.valor_hora?.toFixed(2)}/h
+                      R$ {Number(pessoa.valor_hora || 0).toFixed(2)}/h
                     </span>
                   </div>
 
@@ -1051,263 +1066,273 @@ export default function PessoaDetalhesPage() {
 
         {/* ABA B: HISTÓRICO EM LINHA DO TEMPO */}
         <TabsContent value="timeline" className="space-y-4">
-          <Card className="bg-card border-border/80">
-            <CardHeader className="p-4 sm:p-5 border-b border-border/60">
-              <CardTitle className="text-base font-bold text-[#212B55] dark:text-[#F7F8FB] font-display flex items-center gap-2">
-                <Clock className="w-4 h-4 text-[#E9530E]" />
-                Cronologia Unificada do Ciclo de Vida
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
-                Eventos integrados em tempo real a partir de recrutamento, contratação, aditivos
-                contratuais, check-ins de integração 30-60-90 e cofre de documentos.
-              </CardDescription>
-            </CardHeader>
+          <TabErrorBoundary
+            tabName="Linha do Tempo Unificada"
+            onResetToDefaultTab={() => handleTabChange('dados')}
+          >
+            <Card className="bg-card border-border/80">
+              <CardHeader className="p-4 sm:p-5 border-b border-border/60">
+                <CardTitle className="text-base font-bold text-[#212B55] dark:text-[#F7F8FB] font-display flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#E9530E]" />
+                  Cronologia Unificada do Ciclo de Vida
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Eventos integrados em tempo real a partir de recrutamento, contratação, aditivos
+                  contratuais, check-ins de integração 30-60-90 e cofre de documentos.
+                </CardDescription>
+              </CardHeader>
 
-            <CardContent className="p-5">
-              {eventos.length === 0 ? (
-                <div className="p-12 text-center text-muted-foreground text-xs">
-                  Nenhum evento registrado ainda na linha do tempo.
-                </div>
-              ) : (
-                <div className="relative border-l-2 border-[#2E3A6E]/40 dark:border-[#2E3A6E] ml-3 sm:ml-4 space-y-6 py-2">
-                  {eventos.map((ev) => {
-                    const dataObj = new Date(ev.data)
-                    const dataFormatada = !isNaN(dataObj.getTime())
-                      ? dataObj.toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                        })
-                      : 'Data recente'
+              <CardContent className="p-5">
+                {eventos.length === 0 ? (
+                  <div className="p-12 text-center text-muted-foreground text-xs">
+                    Nenhum evento registrado ainda na linha do tempo.
+                  </div>
+                ) : (
+                  <div className="relative border-l-2 border-[#2E3A6E]/40 dark:border-[#2E3A6E] ml-3 sm:ml-4 space-y-6 py-2">
+                    {eventos.map((ev) => {
+                      const dataObj = new Date(ev.data)
+                      const dataFormatada = !isNaN(dataObj.getTime())
+                        ? dataObj.toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })
+                        : 'Data recente'
 
-                    return (
-                      <div key={ev.id} className="relative pl-6 sm:pl-7 group">
-                        {/* Marcador na linha */}
-                        <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-card border-2 border-[#E9530E] flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#E9530E]" />
-                        </div>
-
-                        {/* Card do evento */}
-                        <div className="p-3.5 rounded-xl border border-border/80 bg-card hover:border-[#E9530E]/40 transition-colors shadow-2xs space-y-1.5">
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground font-sans">
-                                {ev.categoria}
-                              </span>
-                              {ev.tipoBadge && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  {ev.tipoBadge}
-                                </Badge>
-                              )}
-                              {ev.statusBadge && (
-                                <Badge className="text-[10px] bg-[#212B55] text-white">
-                                  {ev.statusBadge}
-                                </Badge>
-                              )}
-                            </div>
-
-                            <span className="text-xs font-mono text-muted-foreground font-bold">
-                              {dataFormatada}
-                            </span>
+                      return (
+                        <div key={ev.id} className="relative pl-6 sm:pl-7 group">
+                          {/* Marcador na linha */}
+                          <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-card border-2 border-[#E9530E] flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#E9530E]" />
                           </div>
 
-                          <h4 className="text-xs sm:text-sm font-bold text-[#212B55] dark:text-[#F7F8FB] font-display">
-                            {ev.titulo}
-                          </h4>
+                          {/* Card do evento */}
+                          <div className="p-3.5 rounded-xl border border-border/80 bg-card hover:border-[#E9530E]/40 transition-colors shadow-2xs space-y-1.5">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground font-sans">
+                                  {ev.categoria}
+                                </span>
+                                {ev.tipoBadge && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    {ev.tipoBadge}
+                                  </Badge>
+                                )}
+                                {ev.statusBadge && (
+                                  <Badge className="text-[10px] bg-[#212B55] text-white">
+                                    {ev.statusBadge}
+                                  </Badge>
+                                )}
+                              </div>
 
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            {ev.descricao}
-                          </p>
-
-                          {ev.autor && (
-                            <div className="text-[10px] text-muted-foreground pt-1 border-t border-border/40 flex items-center justify-between">
-                              <span>
-                                Registrado por:{' '}
-                                <strong className="text-foreground">{ev.autor}</strong>
-                              </span>
-                              <span className="capitalize text-muted-foreground">
-                                Módulo: {ev.origemModulo}
+                              <span className="text-xs font-mono text-muted-foreground font-bold">
+                                {dataFormatada}
                               </span>
                             </div>
-                          )}
+
+                            <h4 className="text-xs sm:text-sm font-bold text-[#212B55] dark:text-[#F7F8FB] font-display">
+                              {ev.titulo}
+                            </h4>
+
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              {ev.descricao}
+                            </p>
+
+                            {ev.autor && (
+                              <div className="text-[10px] text-muted-foreground pt-1 border-t border-border/40 flex items-center justify-between">
+                                <span>
+                                  Registrado por:{' '}
+                                  <strong className="text-foreground">{ev.autor}</strong>
+                                </span>
+                                <span className="capitalize text-muted-foreground">
+                                  Módulo: {ev.origemModulo}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabErrorBoundary>
         </TabsContent>
 
         {/* ABA C: COFRE DE DOCUMENTOS COM UPLOAD REAL */}
         <TabsContent value="cofre" className="space-y-4">
-          <Card className="bg-card border-border/80">
-            <CardHeader className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60">
-              <div>
-                <CardTitle className="text-base font-bold text-[#212B55] dark:text-[#F7F8FB] font-display flex items-center gap-2">
-                  <FileCheck2 className="w-4 h-4 text-[#E9530E]" />
-                  Cofre Digital de Documentos
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground">
-                  Armazenamento real de PDFs e imagens com validação de vencimento e conformidade.
-                </CardDescription>
-              </div>
+          <TabErrorBoundary
+            tabName="Cofre de Documentos"
+            onResetToDefaultTab={() => handleTabChange('dados')}
+          >
+            <Card className="bg-card border-border/80">
+              <CardHeader className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60">
+                <div>
+                  <CardTitle className="text-base font-bold text-[#212B55] dark:text-[#F7F8FB] font-display flex items-center gap-2">
+                    <FileCheck2 className="w-4 h-4 text-[#E9530E]" />
+                    Cofre Digital de Documentos
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground">
+                    Armazenamento real de PDFs e imagens com validação de vencimento e conformidade.
+                  </CardDescription>
+                </div>
 
-              <Button
-                size="sm"
-                onClick={() => setModalUploadAberto(true)}
-                className="bg-[#E9530E] hover:bg-[#C5430A] text-white text-xs font-bold gap-1.5 shadow-xs"
-              >
-                <UploadCloud className="w-3.5 h-3.5" />
-                Upload de Documento
-              </Button>
-            </CardHeader>
+                <Button
+                  size="sm"
+                  onClick={() => setModalUploadAberto(true)}
+                  className="bg-[#E9530E] hover:bg-[#C5430A] text-white text-xs font-bold gap-1.5 shadow-xs"
+                >
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  Upload de Documento
+                </Button>
+              </CardHeader>
 
-            <CardContent className="p-5">
-              {documentos.length === 0 ? (
-                <div className="p-12 text-center flex flex-col items-center justify-center max-w-sm mx-auto space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-[#FEF1EA] dark:bg-[#212B55] flex items-center justify-center text-[#E9530E]">
-                    <UploadCloud className="w-6 h-6" />
+              <CardContent className="p-5">
+                {documentos.length === 0 ? (
+                  <div className="p-12 text-center flex flex-col items-center justify-center max-w-sm mx-auto space-y-3">
+                    <div className="w-12 h-12 rounded-full bg-[#FEF1EA] dark:bg-[#212B55] flex items-center justify-center text-[#E9530E]">
+                      <UploadCloud className="w-6 h-6" />
+                    </div>
+                    <h4 className="text-sm font-bold text-foreground font-display">
+                      Nenhum documento anexado ainda
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      O cofre está vazio. Envie o contrato assinado, certidão fiscal ou documentação
+                      admissional para centralizar o arquivo.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => setModalUploadAberto(true)}
+                      className="bg-[#E9530E] hover:bg-[#C5430A] text-white text-xs font-bold"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      Enviar Primeiro Arquivo
+                    </Button>
                   </div>
-                  <h4 className="text-sm font-bold text-foreground font-display">
-                    Nenhum documento anexado ainda
-                  </h4>
-                  <p className="text-xs text-muted-foreground">
-                    O cofre está vazio. Envie o contrato assinado, certidão fiscal ou documentação
-                    admissional para centralizar o arquivo.
-                  </p>
-                  <Button
-                    size="sm"
-                    onClick={() => setModalUploadAberto(true)}
-                    className="bg-[#E9530E] hover:bg-[#C5430A] text-white text-xs font-bold"
-                  >
-                    <Plus className="w-3.5 h-3.5 mr-1" />
-                    Enviar Primeiro Arquivo
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {documentos.map((doc) => {
-                    const isVencido = doc.statusCalculado === 'vencido'
-                    const isVencendo = doc.statusCalculado === 'vencendo'
-                    const tamanhoKb = doc.tamanho_bytes
-                      ? Math.round(doc.tamanho_bytes / 1024)
-                      : null
+                ) : (
+                  <div className="space-y-3">
+                    {documentos.map((doc) => {
+                      const isVencido = doc.statusCalculado === 'vencido'
+                      const isVencendo = doc.statusCalculado === 'vencendo'
+                      const tamanhoKb = doc.tamanho_bytes
+                        ? Math.round(doc.tamanho_bytes / 1024)
+                        : null
 
-                    return (
-                      <div
-                        key={doc.id}
-                        className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                          isVencido
-                            ? 'bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40'
-                            : isVencendo
-                              ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40'
-                              : 'bg-card border-border hover:border-[#E9530E]/40'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                              isVencido
-                                ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-200'
-                                : isVencendo
-                                  ? 'bg-amber-100 text-amber-600 dark:bg-amber-900 dark:text-amber-200'
-                                  : 'bg-[#FEF1EA] text-[#E9530E] dark:bg-[#212B55] dark:text-[#F19763]'
-                            }`}
-                          >
-                            <FileText className="w-5 h-5" />
-                          </div>
-
-                          <div className="min-w-0 space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-sm text-[#212B55] dark:text-[#F7F8FB] truncate font-display">
-                                {doc.nome}
-                              </span>
-                              <Badge
-                                variant="outline"
-                                className={`text-[10px] font-sans ${
-                                  isVencido
-                                    ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/60 dark:text-red-300'
-                                    : isVencendo
-                                      ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/60 dark:text-amber-300'
-                                      : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/60 dark:text-emerald-300'
-                                }`}
-                              >
-                                {isVencido
-                                  ? `Vencido (${Math.abs(doc.diasParaVencer || 0)}d)`
+                      return (
+                        <div
+                          key={doc.id}
+                          className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            isVencido
+                              ? 'bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40'
+                              : isVencendo
+                                ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40'
+                                : 'bg-card border-border hover:border-[#E9530E]/40'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div
+                              className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                                isVencido
+                                  ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-200'
                                   : isVencendo
-                                    ? `Vence em ${doc.diasParaVencer}d`
-                                    : doc.statusCalculado === 'vigente'
-                                      ? 'Vigente'
-                                      : 'Sem validade'}
-                              </Badge>
+                                    ? 'bg-amber-100 text-amber-600 dark:bg-amber-900 dark:text-amber-200'
+                                    : 'bg-[#FEF1EA] text-[#E9530E] dark:bg-[#212B55] dark:text-[#F19763]'
+                              }`}
+                            >
+                              <FileText className="w-5 h-5" />
                             </div>
 
-                            <p className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-foreground">{doc.tipo}</span>
-                              {tamanhoKb && <span>· {tamanhoKb} KB</span>}
-                              {doc.data_vencimento && (
-                                <span>
-                                  · Vencimento:{' '}
-                                  <strong className="font-mono text-foreground">
-                                    {new Date(doc.data_vencimento).toLocaleDateString('pt-BR')}
-                                  </strong>
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-sm text-[#212B55] dark:text-[#F7F8FB] truncate font-display">
+                                  {doc.nome}
                                 </span>
-                              )}
-                            </p>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] font-sans ${
+                                    isVencido
+                                      ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/60 dark:text-red-300'
+                                      : isVencendo
+                                        ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/60 dark:text-amber-300'
+                                        : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/60 dark:text-emerald-300'
+                                  }`}
+                                >
+                                  {isVencido
+                                    ? `Vencido (${Math.abs(doc.diasParaVencer || 0)}d)`
+                                    : isVencendo
+                                      ? `Vence em ${doc.diasParaVencer}d`
+                                      : doc.statusCalculado === 'vigente'
+                                        ? 'Vigente'
+                                        : 'Sem validade'}
+                                </Badge>
+                              </div>
 
-                            {doc.observacoes && (
-                              <p className="text-[11px] text-muted-foreground italic">
-                                &quot;{doc.observacoes}&quot;
+                              <p className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-foreground">{doc.tipo}</span>
+                                {tamanhoKb && <span>· {tamanhoKb} KB</span>}
+                                {doc.data_vencimento && (
+                                  <span>
+                                    · Vencimento:{' '}
+                                    <strong className="font-mono text-foreground">
+                                      {new Date(doc.data_vencimento).toLocaleDateString('pt-BR')}
+                                    </strong>
+                                  </span>
+                                )}
                               </p>
-                            )}
 
-                            <div className="text-[10px] text-muted-foreground">
-                              Enviado por {doc.enviado_por_nome || 'Gente & Gestão'} em{' '}
-                              <span className="font-mono">
-                                {new Date(doc.created).toLocaleDateString('pt-BR', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </span>
+                              {doc.observacoes && (
+                                <p className="text-[11px] text-muted-foreground italic">
+                                  &quot;{doc.observacoes}&quot;
+                                </p>
+                              )}
+
+                              <div className="text-[10px] text-muted-foreground">
+                                Enviado por {doc.enviado_por_nome || 'Gente & Gestão'} em{' '}
+                                <span className="font-mono">
+                                  {new Date(doc.created).toLocaleDateString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        {/* Ações do Documento */}
-                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                          <Button
-                            asChild
-                            size="sm"
-                            variant="outline"
-                            className="h-8 text-xs font-semibold gap-1.5"
-                          >
-                            <a href={doc.urlArquivo} target="_blank" rel="noreferrer" download>
-                              <Download className="w-3.5 h-3.5 text-[#E9530E]" />
-                              Baixar / Ver
-                            </a>
-                          </Button>
+                          {/* Ações do Documento */}
+                          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs font-semibold gap-1.5"
+                            >
+                              <a href={doc.urlArquivo} target="_blank" rel="noreferrer" download>
+                                <Download className="w-3.5 h-3.5 text-[#E9530E]" />
+                                Baixar / Ver
+                              </a>
+                            </Button>
 
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setDocParaExcluir(doc)}
-                            className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
-                            title="Excluir documento"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setDocParaExcluir(doc)}
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+                              title="Excluir documento"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabErrorBoundary>
         </TabsContent>
       </Tabs>
 

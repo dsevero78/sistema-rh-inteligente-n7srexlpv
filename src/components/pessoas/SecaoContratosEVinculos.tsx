@@ -137,18 +137,22 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
     setViewerOpen(true)
   }
 
-  // Cálculos de resumo
-  const vinculosAtivos = vinculos.filter(
-    (v) => v.situacao === 'Vigente' || v.situacao === 'Em integração' || v.situacao === 'Vencendo',
+  // Cálculos de resumo com proteção null-safe
+  const listaVinculos = Array.isArray(vinculos) ? vinculos : []
+  const vinculosAtivos = listaVinculos.filter(
+    (v) =>
+      v &&
+      (v.situacao === 'Vigente' || v.situacao === 'Em integração' || v.situacao === 'Vencendo'),
   )
-  const vinculosEncerrados = vinculos.filter(
-    (v) => v.situacao === 'Encerrado' || v.situacao === 'Rescindido',
+  const vinculosEncerrados = listaVinculos.filter(
+    (v) => v && (v.situacao === 'Encerrado' || v.situacao === 'Rescindido'),
   )
-  const totalMensal = vinculosAtivos.reduce((acc, v) => acc + (v.valorMensal || 0), 0)
+  const totalMensal = vinculosAtivos.reduce((acc, v) => acc + (Number(v?.valorMensal) || 0), 0)
 
-  // Informações de Renovação do Prestador PJ
+  // Informações de Renovação do Prestador PJ (apenas se for PJ e houver contratos válidos com prazo)
+  const isModalidadePj = pessoa?.modalidade === 'PJ' || !!prestadorPj
   const decisaoRenovacao =
-    prestadorPj && contratosPj.length > 0
+    isModalidadePj && prestadorPj && Array.isArray(contratosPj) && contratosPj.length > 0
       ? calcularDecisaoRenovacaoPrestador(prestadorPj, contratosPj, aditivosPj, [], [prestadorPj])
       : null
 
@@ -246,7 +250,7 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
               Custo Total Mensal
             </span>
             <div className="text-xl font-black text-emerald-700 dark:text-emerald-300 font-mono mt-0.5 tabular-nums">
-              R$ {totalMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {Number(totalMensal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
             <span className="text-[10px] text-muted-foreground font-mono">
               Consolidação de vínculos ativos
@@ -461,10 +465,13 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
                         </span>
                         <span className="text-sm font-bold font-mono text-[#212B55] dark:text-[#F7F8FB]">
                           R${' '}
-                          {ct.valor_mensal?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          {(Number(ct.valor_mensal) || 0).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                          })}
                         </span>
                         <span className="text-[10px] text-muted-foreground block">
-                          R$ {ct.valor_hora?.toFixed(2)}/h ({ct.horas_mensais_base || 160}h base)
+                          R$ {Number(ct.valor_hora || 0).toFixed(2)}/h (
+                          {ct.horas_mensais_base || 160}h base)
                         </span>
                       </div>
 
@@ -629,7 +636,9 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
                         </span>
                         <span className="text-sm font-bold font-mono text-[#212B55] dark:text-[#F7F8FB]">
                           R${' '}
-                          {vinc.valorMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          {(Number(vinc.valorMensal) || 0).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                          })}
                         </span>
                         <span className="text-[10px] text-muted-foreground block">
                           {vinc.tipoRemuneracao || 'Mensal'}
@@ -638,13 +647,13 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
 
                       <div className="bg-muted/30 p-2.5 rounded-lg border border-border/50">
                         <span className="text-[10px] text-muted-foreground uppercase font-semibold block">
-                          Valor / Hora (Base {vinc.horasMensaisBase}h)
+                          Valor / Hora (Base {vinc.horasMensaisBase || 160}h)
                         </span>
                         <span className="text-sm font-bold font-mono text-emerald-700 dark:text-emerald-400">
-                          R$ {vinc.valorHora.toFixed(2)}/h
+                          R$ {Number(vinc.valorHora || 0).toFixed(2)}/h
                         </span>
                         <span className="text-[10px] text-muted-foreground block">
-                          {vinc.horasMensaisBase}h mensais contratadas
+                          {vinc.horasMensaisBase || 160}h mensais contratadas
                         </span>
                       </div>
 

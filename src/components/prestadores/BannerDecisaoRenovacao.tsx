@@ -113,8 +113,10 @@ export function calcularDecisaoRenovacaoPrestador(
   }
 
   // Avaliação
-  const avs = avaliacoes.filter((a) => a.prestador === prestador.id)
-  const notaMedia = prestador.media_avaliacao || (avs.length > 0 ? avs[0].nota_media : 8.8)
+  const avs = (avaliacoes || []).filter((a) => a && a.prestador === prestador.id)
+  const notaMedia = Number(
+    prestador.media_avaliacao || (avs.length > 0 ? avs[0].nota_media : 8.8) || 8.8,
+  )
   const recomendacao = avs.length > 0 ? avs[0].recomendacao || '' : ''
 
   const custoPorPonto = notaMedia > 0 ? Number((valorHora / notaMedia).toFixed(2)) : valorHora
@@ -124,12 +126,14 @@ export function calcularDecisaoRenovacaoPrestador(
   let emoji = '🟢'
   let recomendacaoCurta = ''
 
+  const notaMediaFormatada = Number(notaMedia || 0).toFixed(1)
+
   if (notaMedia < 8.0 || recomendacao.toLowerCase().includes('não renovar')) {
     tier = 'REAVALIAR'
     emoji = '🔴'
     recomendacaoCurta =
       'Desempenho abaixo do limiar (nota ' +
-      notaMedia.toFixed(1) +
+      notaMediaFormatada +
       '/10). Abrir cotação no mercado para substituição ou plano de recuperação.'
   } else if (
     acimaDaMediana ||
@@ -146,7 +150,7 @@ export function calcularDecisaoRenovacaoPrestador(
     emoji = '🟢'
     recomendacaoCurta =
       'Excelente entrega (nota ' +
-      notaMedia.toFixed(1) +
+      notaMediaFormatada +
       '/10) e custo por ponto competitivo. Prorrogar vigência mantendo bases vigentes.'
   }
 
@@ -225,7 +229,7 @@ export const BannerDecisaoRenovacao: React.FC<BannerDecisaoRenovacaoProps> = ({
             </div>
 
             <div className="text-[11px] font-mono font-semibold text-slate-700">
-              R$ {decisao.valorHora.toFixed(2)}/h
+              R$ {Number(decisao.valorHora || 0).toFixed(2)}/h
             </div>
           </div>
 
@@ -235,8 +239,8 @@ export const BannerDecisaoRenovacao: React.FC<BannerDecisaoRenovacaoProps> = ({
 
           <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
             <span className="text-[10px] text-slate-500">
-              Custo/pt: <strong>R$ {decisao.custoPorPonto.toFixed(2)}</strong> (nota{' '}
-              {decisao.notaMedia.toFixed(1)})
+              Custo/pt: <strong>R$ {Number(decisao.custoPorPonto || 0).toFixed(2)}</strong> (nota{' '}
+              {Number(decisao.notaMedia || 0).toFixed(1)})
             </span>
 
             <Button
@@ -331,7 +335,10 @@ export const BannerDecisaoRenovacao: React.FC<BannerDecisaoRenovacaoProps> = ({
                 Valor Mensal Atual
               </span>
               <span className="text-sm font-bold font-mono text-slate-900 block mt-0.5 tabular-nums">
-                R$ {decisao.valorMensal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R${' '}
+                {Number(decisao.valorMensal || 0).toLocaleString('pt-BR', {
+                  minimumFractionDigits: 2,
+                })}
               </span>
               <span className="text-[9px] text-slate-400">Contrato vigente</span>
             </div>
@@ -341,7 +348,7 @@ export const BannerDecisaoRenovacao: React.FC<BannerDecisaoRenovacaoProps> = ({
                 Valor-Hora (160h)
               </span>
               <span className="text-sm font-bold font-mono text-indigo-900 block mt-0.5 tabular-nums">
-                R$ {decisao.valorHora.toFixed(2)}/h
+                R$ {Number(decisao.valorHora || 0).toFixed(2)}/h
               </span>
               <span className="text-[9px] text-indigo-600">Base contratual</span>
             </div>
@@ -351,7 +358,7 @@ export const BannerDecisaoRenovacao: React.FC<BannerDecisaoRenovacaoProps> = ({
                 Custo por Ponto
               </span>
               <span className="text-sm font-bold font-mono text-slate-900 block mt-0.5 tabular-nums">
-                R$ {decisao.custoPorPonto.toFixed(2)}/pt
+                R$ {Number(decisao.custoPorPonto || 0).toFixed(2)}/pt
               </span>
               <span className="text-[9px] text-slate-400">Hora ÷ Nota</span>
             </div>
@@ -362,7 +369,7 @@ export const BannerDecisaoRenovacao: React.FC<BannerDecisaoRenovacaoProps> = ({
               </span>
               <span className="text-sm font-bold font-mono text-purple-700 block mt-0.5 flex items-center gap-1 tabular-nums">
                 <Star className="w-3.5 h-3.5 fill-purple-600 text-purple-600" />
-                {decisao.notaMedia.toFixed(1)}/10
+                {Number(decisao.notaMedia || 0).toFixed(1)}/10
               </span>
               <span className="text-[9px] text-slate-400">Desempenho</span>
             </div>
@@ -372,7 +379,7 @@ export const BannerDecisaoRenovacao: React.FC<BannerDecisaoRenovacaoProps> = ({
                 Mediana do Portfólio
               </span>
               <span className="text-sm font-bold font-mono text-slate-800 block mt-0.5 tabular-nums">
-                R$ {decisao.medianaPortforlio.toFixed(2)}/h
+                R$ {Number(decisao.medianaPortforlio || 0).toFixed(2)}/h
               </span>
               <span
                 className={`text-[9px] font-bold ${decisao.acimaDaMediana ? 'text-amber-700' : 'text-emerald-700'}`}

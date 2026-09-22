@@ -329,7 +329,7 @@ export function AbaHorasPessoa({ pessoa, onAtualizar }: AbaHorasPessoaProps) {
                         <span className="text-xs text-muted-foreground block">Total Calculado</span>
                         <span className="text-base font-black font-mono text-[#212B55] dark:text-[#F7F8FB] tabular-nums">
                           R${' '}
-                          {f.valor_total_calculado.toLocaleString('pt-BR', {
+                          {(Number(f.valor_total_calculado) || 0).toLocaleString('pt-BR', {
                             minimumFractionDigits: 2,
                           })}
                         </span>
@@ -342,10 +342,10 @@ export function AbaHorasPessoa({ pessoa, onAtualizar }: AbaHorasPessoaProps) {
                           Horas Totais
                         </span>
                         <span className="font-mono font-bold text-foreground">
-                          {f.total_horas.toFixed(1)}h
+                          {Number(f.total_horas || 0).toFixed(1)}h
                         </span>
                         <span className="text-[10px] text-muted-foreground block">
-                          Normais: {f.horas_normais || f.total_horas}h | Extras:{' '}
+                          Normais: {f.horas_normais || f.total_horas || 0}h | Extras:{' '}
                           {f.horas_extras || 0}h
                         </span>
                       </div>
@@ -355,7 +355,7 @@ export function AbaHorasPessoa({ pessoa, onAtualizar }: AbaHorasPessoaProps) {
                           Valor/Hora Congelado
                         </span>
                         <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                          R$ {f.valor_hora_congelado.toFixed(2)}/h
+                          R$ {Number(f.valor_hora_congelado || 0).toFixed(2)}/h
                         </span>
                       </div>
 
@@ -480,10 +480,10 @@ export function AbaHorasPessoa({ pessoa, onAtualizar }: AbaHorasPessoaProps) {
 
                   <div className="text-right">
                     <span className="text-base font-bold font-mono text-[#212B55] dark:text-[#F7F8FB]">
-                      {ap.horas}h
+                      {ap.horas || 0}h
                     </span>
                     <span className="text-[10px] text-muted-foreground block">
-                      R$ {((ap.horas || 0) * (pessoa.valor_hora || 100)).toFixed(2)}
+                      R$ {Number((ap.horas || 0) * (pessoa.valor_hora || 0)).toFixed(2)}
                     </span>
                   </div>
                 </div>
