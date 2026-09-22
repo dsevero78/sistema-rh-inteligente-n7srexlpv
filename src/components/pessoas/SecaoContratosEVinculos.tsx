@@ -22,7 +22,13 @@ import {
   TrendingUp,
   Receipt,
   HeartPulse,
+  Gift,
+  Palmtree,
+  PauseCircle,
 } from 'lucide-react'
+import { AbaBeneficiosVinculo } from '@/components/pessoas/AbaBeneficiosVinculo'
+import { AbaFeriasClt } from '@/components/pessoas/AbaFeriasClt'
+import { AbaDescansoPj } from '@/components/pessoas/AbaDescansoPj'
 import {
   PessoaUnificada,
   VinculoPessoa,
@@ -85,6 +91,29 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
 
   // Aba ativa interna
   const [subAba, setSubAba] = useState<string>('contratos_digitais')
+
+  // Programações de descanso / férias ativas da pessoa
+  const [programacoesPessoa, setProgramacoesPessoa] = React.useState<any[]>([])
+
+  React.useEffect(() => {
+    if (!pessoa.id) return
+    let active = true
+    import('@/services/feriasDescansoService').then(({ feriasDescansoService }) => {
+      feriasDescansoService
+        .listarPorPessoa(pessoa.id)
+        .then((progs) => {
+          if (active) setProgramacoesPessoa(progs)
+        })
+        .catch((e) => console.warn('Erro ao carregar programações para banner:', e))
+    })
+    return () => {
+      active = false
+    }
+  }, [pessoa.id])
+
+  const proximaProgramacao = programacoesPessoa.find(
+    (p) => p.status === 'Programadas' || p.status === 'Em Gozo',
+  )
 
   // Contratos Digitais e Versionamento da Pessoa
   const [contratosDigitais, setContratosDigitais] = useState<ContratoUnificado[]>([])
@@ -241,6 +270,79 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
         />
       )}
 
+      {/* Banner de Suspensão Programada / Descanso PJ ou Férias CLT */}
+      {proximaProgramacao && (
+        <Card
+          className={`border shadow-xs ${
+            proximaProgramacao.tipo === 'PJ_DESCANSO'
+              ? 'border-purple-300 bg-gradient-to-r from-purple-50/70 via-card to-purple-50/40 dark:from-purple-950/30 dark:to-card'
+              : 'border-blue-300 bg-gradient-to-r from-blue-50/70 via-card to-blue-50/40 dark:from-blue-950/30 dark:to-card'
+          }`}
+        >
+          <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div
+                className={`p-2 rounded-lg text-white ${
+                  proximaProgramacao.tipo === 'PJ_DESCANSO' ? 'bg-purple-600' : 'bg-blue-600'
+                }`}
+              >
+                {proximaProgramacao.tipo === 'PJ_DESCANSO' ? (
+                  <PauseCircle className="w-5 h-5" />
+                ) : (
+                  <Palmtree className="w-5 h-5" />
+                )}
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] font-bold ${
+                      proximaProgramacao.tipo === 'PJ_DESCANSO'
+                        ? 'border-purple-400 text-purple-700 bg-purple-100 dark:bg-purple-900/50'
+                        : 'border-blue-400 text-blue-700 bg-blue-100 dark:bg-blue-900/50'
+                    }`}
+                  >
+                    {proximaProgramacao.tipo === 'PJ_DESCANSO'
+                      ? 'SUSPENSÃO PROGRAMADA PJ'
+                      : 'FÉRIAS CLT AGENDADAS'}
+                  </Badge>
+                  <span className="text-xs font-bold text-[#212B55] dark:text-[#F7F8FB]">
+                    {new Date(proximaProgramacao.data_inicio).toLocaleDateString('pt-BR')} até{' '}
+                    {new Date(proximaProgramacao.data_fim).toLocaleDateString('pt-BR')} (
+                    {proximaProgramacao.dias} dias)
+                  </span>
+                  <Badge
+                    className={`text-[10px] ${
+                      proximaProgramacao.status === 'Em Gozo'
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {proximaProgramacao.status}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {proximaProgramacao.tipo === 'PJ_DESCANSO'
+                    ? `Período acordado de descanso após 12 meses de parceria. Valor negociado do intervalo: R$ ${Number(proximaProgramacao.valor_periodo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`
+                    : `Férias com diária e 1/3 constitucional calculados: R$ ${Number(proximaProgramacao.valor_periodo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`}
+                </p>
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setSubAba(proximaProgramacao.tipo === 'PJ_DESCANSO' ? 'descanso_pj' : 'ferias_clt')
+              }
+              className="text-xs shrink-0 self-start sm:self-center"
+            >
+              Ver Detalhes do Período
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 3. Cards Resumo Financeiro e Operacional dos Vínculos */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="bg-card border-border/80 shadow-xs">
@@ -339,6 +441,34 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
                 Jornada & Marcos PJ ({marcosLifecycle.length})
               </TabsTrigger>
             </>
+          )}
+
+          <TabsTrigger
+            value="beneficios"
+            className="text-xs font-bold gap-1.5 data-[state=active]:bg-[#FEF1EA] data-[state=active]:text-[#E9530E] dark:data-[state=active]:bg-[#212B55]"
+          >
+            <Gift className="w-3.5 h-3.5" />
+            Benefícios & Remuneração
+          </TabsTrigger>
+
+          {pessoa.modalidade === 'CLT' && (
+            <TabsTrigger
+              value="ferias_clt"
+              className="text-xs font-bold gap-1.5 data-[state=active]:bg-[#FEF1EA] data-[state=active]:text-[#E9530E] dark:data-[state=active]:bg-[#212B55]"
+            >
+              <Palmtree className="w-3.5 h-3.5" />
+              Gestão de Férias CLT
+            </TabsTrigger>
+          )}
+
+          {isModalidadePj && (
+            <TabsTrigger
+              value="descanso_pj"
+              className="text-xs font-bold gap-1.5 data-[state=active]:bg-[#FEF1EA] data-[state=active]:text-[#E9530E] dark:data-[state=active]:bg-[#212B55]"
+            >
+              <PauseCircle className="w-3.5 h-3.5" />
+              Descanso Remunerado PJ
+            </TabsTrigger>
           )}
 
           <TabsTrigger
@@ -742,6 +872,48 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
               prestador={prestadorPj}
               marcos={marcosLifecycle}
               onAtualizar={onAtualizar}
+            />
+          </TabsContent>
+        )}
+
+        {/* ---------------- SUB-ABA BENEFÍCIOS NO VÍNCULO (CLT E PJ) ---------------- */}
+        <TabsContent value="beneficios" className="space-y-4">
+          <AbaBeneficiosVinculo
+            pessoaId={pessoa.id}
+            pessoaNome={pessoa.nome}
+            modalidade={pessoa.modalidade}
+            vinculos={vinculos}
+            onAtualizar={() => {
+              carregarContratosDigitais()
+              onAtualizar()
+            }}
+          />
+        </TabsContent>
+
+        {/* ---------------- SUB-ABA FÉRIAS CLT ---------------- */}
+        {pessoa.modalidade === 'CLT' && (
+          <TabsContent value="ferias_clt" className="space-y-4">
+            <AbaFeriasClt
+              pessoa={pessoa}
+              vinculos={vinculos}
+              onAtualizar={() => {
+                carregarContratosDigitais()
+                onAtualizar()
+              }}
+            />
+          </TabsContent>
+        )}
+
+        {/* ---------------- SUB-ABA DESCANSO REMUNERADO PJ ---------------- */}
+        {isModalidadePj && (
+          <TabsContent value="descanso_pj" className="space-y-4">
+            <AbaDescansoPj
+              pessoa={pessoa}
+              vinculos={vinculos}
+              onAtualizar={() => {
+                carregarContratosDigitais()
+                onAtualizar()
+              }}
             />
           </TabsContent>
         )}

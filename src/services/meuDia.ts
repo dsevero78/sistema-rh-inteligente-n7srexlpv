@@ -63,6 +63,7 @@ export type ModuloOrigemMeuDia =
   | 'documentos_pessoa'
   | 'horas_competencias'
   | 'notas_fiscais'
+  | 'contratos'
 
 export interface ItemMeuDia {
   id: string
@@ -1402,6 +1403,47 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
               rotaDestino: `/pessoas/${prog.pessoa}?tab=vinculos`,
               origemRecordId: prog.id,
               metaExtra: { pessoaId: prog.pessoa, programacaoId: prog.id },
+            })
+          }
+        }
+      }
+
+      // 4.12.3 Elegibilidade de Descanso Remunerado PJ (completou 12 meses sem descanso agendado)
+      const pjsAtivos = pessoas.filter(
+        (p) => p.modalidade === 'PJ' && p.situacao_contrato !== 'Encerrado',
+      )
+
+      for (const pj of pjsAtivos) {
+        if (!pj.data_inicio) continue
+        const dtIniPj = new Date(pj.data_inicio)
+        const mesesContrato =
+          (agora.getFullYear() - dtIniPj.getFullYear()) * 12 +
+          (agora.getMonth() - dtIniPj.getMonth())
+
+        // Se tem 12 ou mais meses de parceria
+        if (mesesContrato >= 12) {
+          // Checar se já tem descanso programado ou em gozo
+          const temDescansoAtivo = programacoesDescanso.some(
+            (pr) =>
+              pr.pessoa === pj.id &&
+              pr.tipo === 'PJ_DESCANSO' &&
+              (pr.status === 'Programadas' || pr.status === 'Em Gozo'),
+          )
+
+          if (!temDescansoAtivo) {
+            itens.push({
+              id: `rh-elegibilidade-descanso-pj-${pj.id}`,
+              tituloAcao: `Elegibilidade de Descanso PJ: ${pj.nome} completou ${mesesContrato} meses`,
+              contexto: `${pj.nome} · ${pj.cargo_funcao || 'Prestador PJ'} · Parceria desde ${dtIniPj.toLocaleDateString('pt-BR')}`,
+              detalhe: `Prestador atingiu a marca de 12 meses de prestação contínua. Alinhe com a liderança e prestador a programação da suspensão temporária acordada e valor do período.`,
+              modulo: 'contratos',
+              moduloLabel: 'Descanso PJ',
+              severidade: 'acompanhar',
+              severidadeLabel: 'Acompanhar',
+              dataLimiteLabel: '12m cumpridos',
+              rotaDestino: `/pessoas/${pj.id}?tab=vinculos`,
+              origemRecordId: pj.id,
+              metaExtra: { pessoaId: pj.id, mesesContrato },
             })
           }
         }

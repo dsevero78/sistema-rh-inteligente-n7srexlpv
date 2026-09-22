@@ -394,7 +394,7 @@ export default function PainelFinanceiro() {
           </CardHeader>
           <CardContent className="p-4 pt-2">
             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 border-t border-slate-100 pt-2 flex items-center justify-between">
-              <span>Decomposição por BU:</span>
+              <span>Decomposição por BU (inclui benefícios & descansos):</span>
               <span className="text-slate-500 font-normal">
                 {dados?.kpis.prestadoresPjCount || 0} prestador(es)
               </span>
@@ -474,7 +474,7 @@ export default function PainelFinanceiro() {
           </CardHeader>
           <CardContent className="p-4 pt-2">
             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 border-t border-slate-100 pt-2 flex items-center justify-between">
-              <span>Decomposição por BU:</span>
+              <span>Decomposição por BU (inclui benefícios & férias 1/3):</span>
               <span className="text-slate-500 font-normal">
                 {dados?.kpis.colaboradoresCltCount || 0} colaborador(es)
               </span>

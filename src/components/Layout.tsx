@@ -970,7 +970,7 @@ export default function Layout() {
         {/* Rodapé Institucional com Versão do Sistema */}
         <footer className="border-t border-[#E7EAF0] dark:border-[#2E3A6E] bg-white/60 dark:bg-[#1A2240]/60 py-3 px-4 sm:px-8 text-center text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-1">
           <span>Sistema RH Inteligente — SouYess People Hub</span>
-          <span className="font-mono text-[11px] font-semibold text-[#E9530E]">v0.0.59</span>
+          <span className="font-mono text-[11px] font-semibold text-[#E9530E]">v0.0.61</span>
         </footer>
       </div>
 
