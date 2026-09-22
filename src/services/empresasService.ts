@@ -132,6 +132,10 @@ export const empresasService = {
   /**
    * Lista todas as empresas cadastradas com métricas consolidadas
    */
+  async listar(): Promise<Empresa[]> {
+    return this.listarEmpresas()
+  },
+
   async listarEmpresas(): Promise<Empresa[]> {
     try {
       const records = await pb.collection('empresas').getFullList({

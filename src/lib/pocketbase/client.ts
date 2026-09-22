@@ -3,32 +3,41 @@ import PocketBase from 'pocketbase'
 const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL)
 pb.autoCancellation(false)
 
-// Deduplicação de chamadas concorrentes ao authRefresh via single-flight
-let refreshPromise: Promise<boolean> | null = null
+let activeRefreshPromise: Promise<boolean> | null = null
+
+/**
+ * Garante que apenas UMA requisição de auth-refresh ocorra ao mesmo tempo (single-flight)
+ * Evita concorrência e race condition que corrompem o authStore.
+ */
+export { pb }
 
 export async function singleFlightAuthRefresh(): Promise<boolean> {
-  if (!pb.authStore.isValid && !pb.authStore.token) {
-    return false
+  if (activeRefreshPromise) {
+    return activeRefreshPromise
   }
 
-  if (refreshPromise) {
-    return refreshPromise
-  }
-
-  refreshPromise = (async () => {
+  activeRefreshPromise = (async () => {
     try {
+      if (!pb.authStore.isValid && !pb.authStore.token) {
+        return false
+      }
       await pb.collection('users').authRefresh()
       return true
     } catch (err: unknown) {
-      console.warn('[PocketBase] Falha ao executar authRefresh:', err)
-      throw err
+      const status =
+        (err as { status?: number; response?: { status?: number } })?.status ||
+        (err as { response?: { status?: number } })?.response?.status
+      if (status === 401 || status === 403) {
+        throw err
+      }
+      // Erro de rede ou transitório não deve quebrar
+      return false
     } finally {
-      refreshPromise = null
+      activeRefreshPromise = null
     }
   })()
 
-  return refreshPromise
+  return activeRefreshPromise
 }
 
-export { pb }
 export default pb

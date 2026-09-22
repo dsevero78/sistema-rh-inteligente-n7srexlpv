@@ -1114,7 +1114,7 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
         pessoaNome={pessoa.nome}
         modalidadePadrao={pessoa.modalidade}
         empresaIdPadrao={pessoa.empresa}
-        salarioOuRemuneracaoPadrao={Number(pessoa.salario_base || totalMensal || 5000)}
+        salarioOuRemuneracaoPadrao={Number(pessoa.valor_contratado || totalMensal || 5000)}
         dataAdmissaoPadrao={pessoa.data_inicio}
         onSucesso={() => {
           onAtualizar()

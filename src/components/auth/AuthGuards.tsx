@@ -54,10 +54,10 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
   // Se já autenticado OU se tem credencial local válida no localStorage/authStore,
   // navega imediatamente para o destino em vez de renderizar login ou prender em loading eterno
   if (isAuthenticated || hasLocalCred) {
-    return <Navigate to={destination} replace />
+    const finalDest = destination.startsWith('/login') ? '/dashboard' : destination
+    return <Navigate to={finalDest} replace />
   }
-
-  // Se estiver carregando inicialmente sem nenhuma credencial salva
+  // Se estiver carregando inicialmente
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">

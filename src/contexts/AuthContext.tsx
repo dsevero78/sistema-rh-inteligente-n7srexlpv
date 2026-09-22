@@ -239,8 +239,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, pass: string) => {
     isExplicitLogoutRef.current = false
     const authData = await pb.collection('users').authWithPassword(email, pass)
-    setUser(authData.record)
+    // Sincroniza imediatamente o authStore e o localStorage
+    if (authData.token) {
+      pb.authStore.save(authData.token, authData.record)
+    }
     setToken(authData.token)
+    setUser(authData.record)
+    setIsLoading(false)
   }
 
   const logout = () => {
@@ -254,11 +259,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const syncAuthNow = (newToken: string, newRecord: RecordModel | null) => {
     isExplicitLogoutRef.current = false
-    setToken(newToken)
-    setUser(newRecord)
-    if (newToken && pb.authStore.token !== newToken) {
+    if (newToken) {
       pb.authStore.save(newToken, newRecord)
     }
+    setToken(newToken)
+    setUser(newRecord)
+    setIsLoading(false)
   }
 
   const refreshUser = async (): Promise<boolean> => {
@@ -302,16 +308,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Enquanto houver credencial no localStorage ou user/token válidos em memória, NÃO deslogar por transitoriedade
   const storedAuth = getStoredAuth()
   const hasValidStoredCredential = Boolean(
-    !isExplicitLogoutRef.current &&
-    storedAuth?.token &&
-    storedAuth.token.length > 10 &&
-    !isJwtExpired(storedAuth.token),
+    !isExplicitLogoutRef.current && storedAuth?.token && storedAuth.token.length > 10,
   )
 
   const hasAnyValidToken = Boolean(
     !isExplicitLogoutRef.current &&
-    ((token && !isJwtExpired(token)) ||
-      (pb.authStore.token && !isJwtExpired(pb.authStore.token)) ||
+    (Boolean(token && token.length > 10) ||
+      Boolean(pb.authStore.token && pb.authStore.token.length > 10) ||
       hasValidStoredCredential),
   )
 

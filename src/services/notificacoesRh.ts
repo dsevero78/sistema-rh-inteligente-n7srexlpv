@@ -87,6 +87,10 @@ export const notificacoesRhService = {
     }
   },
 
+  async criar(input: CriarNotificacaoRHInput): Promise<NotificacaoRH | null> {
+    return this.criarNotificacao(input)
+  },
+
   async criarNotificacao(input: CriarNotificacaoRHInput): Promise<NotificacaoRH | null> {
     try {
       const rec = await pb.collection('notificacoes_rh').create<NotificacaoRH>({

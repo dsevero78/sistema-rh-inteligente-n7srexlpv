@@ -35,65 +35,58 @@ export default function Login() {
   const [generalError, setGeneralError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  // Helper para redirecionar incondicionalmente com fallback de segurança por window.location.replace
+  // Helper para redirecionar incondicionalmente com fallback de segurança
   const executeGuaranteedRedirect = (dest: string) => {
     console.info(`[Login] Executando redirecionamento garantido para ${dest}`)
-    navigate(dest, { replace: true })
+    try {
+      navigate(dest, { replace: true })
+    } catch (e) {
+      console.warn('[Login] navigate() erro, usando window.location', e)
+    }
 
-    // Rede de segurança: se a rota do navegador ainda estiver em /login, força redirecionamento incondicional
+    // Rede de segurança: se após ~150ms o usuário ainda estiver em /login, força redirecionamento nativo
     setTimeout(() => {
-      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/login')) {
+      if (
+        typeof window !== 'undefined' &&
+        (window.location.pathname.startsWith('/login') || window.location.pathname === '/')
+      ) {
         console.warn(
           `[Login] Fallback de segurança acionado. Forçando window.location.replace('${dest}')...`,
         )
         window.location.replace(dest)
       }
-    }, 250)
+    }, 150)
   }
-
   // Fallback de recuperação automática em /login:
   // Se o usuário estiver na rota /login mas tiver credencial salva ou válida,
   // revalidar e navegar incondicionalmente para o painel.
   useEffect(() => {
-    let isCancelled = false
-
-    async function checkExistingSession() {
-      // Se já autenticado no contexto
-      if (isAuthenticated) {
-        executeGuaranteedRedirect(targetPath)
-        return
-      }
-
-      const stored = getStoredAuth()
-      const hasStoredToken = Boolean(stored?.token && stored.token.length > 10)
-      const hasMemToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
-
-      if (hasMemToken || hasStoredToken) {
-        // Redireciona imediatamente para o painel se já temos credencial preservada
-        const tokenToUse = pb.authStore.token || stored?.token || ''
-        const modelToUse = pb.authStore.record || stored?.model || null
-        if (!pb.authStore.token && stored?.token) {
-          pb.authStore.save(stored.token, stored.model)
-        }
-        syncAuthNow(tokenToUse, modelToUse)
-        executeGuaranteedRedirect(targetPath)
-
-        // Em segundo plano, dispara validação no backend
-        try {
-          await singleFlightAuthRefresh()
-        } catch (err: unknown) {
-          console.warn('[Login] Refresh de fundo completado ou com erro transitório:', err)
-        }
-        return
-      }
+    // Se já autenticado no contexto
+    if (isAuthenticated) {
+      executeGuaranteedRedirect(targetPath)
+      return
     }
 
-    checkExistingSession()
+    const stored = getStoredAuth()
+    const hasStoredToken = Boolean(stored?.token && stored.token.length > 10)
+    const hasMemToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
 
-    return () => {
-      isCancelled = true
+    if (hasMemToken || hasStoredToken) {
+      // Redireciona imediatamente para o painel se já temos credencial preservada
+      const tokenToUse = pb.authStore.token || stored?.token || ''
+      const modelToUse = pb.authStore.record || stored?.model || null
+      if (!pb.authStore.token && stored?.token) {
+        pb.authStore.save(stored.token, stored.model)
+      }
+      syncAuthNow(tokenToUse, modelToUse)
+      executeGuaranteedRedirect(targetPath)
+
+      // Em segundo plano, dispara validação no backend
+      singleFlightAuthRefresh().catch((err: unknown) => {
+        console.warn('[Login] Refresh de fundo completado ou com erro transitório:', err)
+      })
     }
-  }, [isAuthenticated, targetPath, navigate, syncAuthNow, toast])
+  }, [isAuthenticated, targetPath])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -112,6 +105,12 @@ export default function Login() {
     setIsLoading(true)
     try {
       await login(email, password)
+      // Sincroniza ativamente com o contexto para garantia de reatividade imediata
+      const currentToken = pb.authStore.token
+      const currentModel = pb.authStore.record
+      if (currentToken) {
+        syncAuthNow(currentToken, currentModel)
+      }
       toast({
         title: 'Bem-vindo(a) ao Sistema RH Inteligente',
         description: 'Sessão iniciada com sucesso.',

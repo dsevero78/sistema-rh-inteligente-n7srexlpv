@@ -68,6 +68,7 @@ export interface PessoaUnificada {
   data_renovacao?: string
   situacao_contrato: SituacaoContratoPessoa
   valor_contratado?: number
+  salario_base?: number
   horas_mensais_base?: number
   valor_hora?: number
   duracao_meses?: number

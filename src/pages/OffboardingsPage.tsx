@@ -63,7 +63,7 @@ export function OffboardingsPage() {
       setCarregando(true)
       const [todosOffboardings, todasEmpresas] = await Promise.all([
         offboardingService.listar(),
-        empresasService.listar(),
+        empresasService.listarEmpresas(),
       ])
       setLista(todosOffboardings)
       setEmpresas(todasEmpresas)
