@@ -1,6 +1,8 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import pb, { singleFlightAuthRefresh } from '@/lib/pocketbase/client'
+import { getStoredAuth } from '@/contexts/AuthContext'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,18 +19,71 @@ import { Users, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, Loader2 } from
 import { useToast } from '@/hooks/use-toast'
 
 export default function Login() {
-  const { login } = useAuth()
+  const { login, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { toast } = useToast()
 
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
+
   const [email, setEmail] = useState('severo.douglas2@gmail.com')
   const [password, setPassword] = useState('Skip@Pass')
   const [isLoading, setIsLoading] = useState(false)
+  const [isAutoRecovering, setIsAutoRecovering] = useState(false)
   const [generalError, setGeneralError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
+  // 2. Fallback de recuperação automática em /login:
+  // Se o usuário estiver na rota /login mas pb.authStore.isValid for verdadeiro
+  // (ou houver credencial no localStorage que o backend valide via authRefresh()),
+  // validar silenciosamente e redirecionar imediatamente para /dashboard (ou location.state.from)
+  useEffect(() => {
+    let isCancelled = false
+
+    async function checkExistingSession() {
+      if (isAuthenticated) {
+        navigate(from, { replace: true })
+        return
+      }
+
+      const stored = getStoredAuth()
+      const hasStoredToken = Boolean(stored?.token && stored.token.length > 10)
+      const hasMemToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
+
+      if (hasMemToken || hasStoredToken) {
+        setIsAutoRecovering(true)
+        try {
+          if (!pb.authStore.token && stored?.token) {
+            pb.authStore.save(stored.token, stored.model)
+          }
+
+          // Tenta revalidar no backend
+          const ok = await singleFlightAuthRefresh()
+          if (!isCancelled && (ok || pb.authStore.isValid)) {
+            toast({
+              title: 'Sessão restaurada com sucesso',
+              description: 'Redirecionando para o painel...',
+            })
+            navigate(from, { replace: true })
+            return
+          }
+        } catch {
+          // Token expirado/revogado definitivamente — usuário permanece no formulário
+          console.info('[Login] Nenhuma sessão válida prévia para recuperar automaticamente.')
+        } finally {
+          if (!isCancelled) {
+            setIsAutoRecovering(false)
+          }
+        }
+      }
+    }
+
+    checkExistingSession()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [isAuthenticated, from, navigate, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -102,6 +157,13 @@ export default function Login() {
 
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4 pt-6">
+            {isAutoRecovering && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 text-xs font-medium animate-pulse">
+                <Loader2 className="w-4 h-4 shrink-0 animate-spin text-blue-600" />
+                <span>Identificamos uma sessão salva. Validando e recuperando seu acesso...</span>
+              </div>
+            )}
+
             {generalError && (
               <div className="flex items-start gap-3 p-3 rounded-lg bg-[#F8DDD9] border border-[#f1b4ac] text-[#8B1E14] text-xs font-medium">
                 <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-[#D5392C]" />

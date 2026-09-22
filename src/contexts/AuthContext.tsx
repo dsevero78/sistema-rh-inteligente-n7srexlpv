@@ -13,6 +13,7 @@ interface AuthContextType {
   empresa?: string
   empresa_nome?: string
   area?: string
+  isRenewingSession: boolean
   login: (email: string, pass: string) => Promise<void>
   logout: () => void
   refreshUser: () => Promise<void>
@@ -23,18 +24,44 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 const AUTH_STORAGE_KEY = 'pocketbase_auth'
 
 /**
+ * Decodifica com segurança o payload do JWT do PocketBase para checar expiração e integridade
+ */
+function isJwtExpired(token: string): boolean {
+  try {
+    const parts = token.split('.')
+    if (parts.length < 2) return false
+    const base64Url = parts[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(''),
+    )
+    const payload = JSON.parse(jsonPayload)
+    if (typeof payload.exp === 'number') {
+      const now = Math.floor(Date.now() / 1000)
+      return payload.exp < now
+    }
+  } catch {
+    // Se falhar o parse, não assume expirado
+  }
+  return false
+}
+
+/**
  * Lê credenciais salvas no localStorage caso o authStore em memória tenha sido esvaziado
  */
-function getStoredAuth(): { token: string; model: RecordModel | null } | null {
+export function getStoredAuth(): { token: string; model: RecordModel | null } | null {
   if (typeof window === 'undefined') return null
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
-    if (parsed && typeof parsed.token === 'string' && parsed.token.length > 0) {
+    if (parsed && typeof parsed.token === 'string' && parsed.token.length > 10) {
       return {
         token: parsed.token,
-        model: parsed.record || parsed.model || null,
+        model: (parsed.record || parsed.model || null) as RecordModel | null,
       }
     }
   } catch {
@@ -44,17 +71,30 @@ function getStoredAuth(): { token: string; model: RecordModel | null } | null {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<RecordModel | null>(pb.authStore.record)
-  const [token, setToken] = useState<string>(pb.authStore.token)
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+  // Inicializa já restaurando do localStorage se o authStore do SDK estiver em branco
+  const initialStored = getStoredAuth()
+  if (!pb.authStore.token && initialStored?.token) {
+    try {
+      pb.authStore.save(initialStored.token, initialStored.model)
+    } catch {
+      // no-op
+    }
+  }
 
-  // 2.a) Flag de logout intencional
-  const isIntentionalLogoutRef = useRef<boolean>(false)
-  // Flag indicando se há recuperação/refresh em andamento para manter isAuthenticated durante o retry
+  const [user, setUser] = useState<RecordModel | null>(
+    pb.authStore.record || initialStored?.model || null,
+  )
+  const [token, setToken] = useState<string>(pb.authStore.token || initialStored?.token || '')
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [isRenewingSession, setIsRenewingSession] = useState<boolean>(false)
+
+  // Flag estrita: apenas o clique explícito de logout() do usuário pode limpar credenciais
+  const isExplicitLogoutRef = useRef<boolean>(false)
+  // Flag para rastrear refresh em andamento
   const isRecoveringAuthRef = useRef<boolean>(false)
 
   useEffect(() => {
-    // Listen for auth state changes
+    // Listener de mudanças no authStore do PocketBase
     const unsub = pb.authStore.onChange(async (tok, model) => {
       // 1. Caso com token e model válidos
       if (tok && model) {
@@ -63,61 +103,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return
       }
 
-      // 2. Caso (!tok && !model)
-      if (!tok && !model) {
-        // Se for logout explicitamente disparado pelo usuário (logout() chamado), limpa tudo
-        if (isIntentionalLogoutRef.current) {
-          setToken('')
-          setUser(null)
-          return
-        }
+      // 2. Caso (token ou model estejam ausentes no evento do onChange)
+      // Se foi um logout explicitamente disparado pelo usuário (logout() chamado), limpa tudo
+      if (isExplicitLogoutRef.current) {
+        setToken('')
+        setUser(null)
+        setIsRenewingSession(false)
+        return
+      }
 
-        // Se NÃO foi intencional (ex.: SDK PocketBase limpou authStore internamente após 401 transitório),
-        // NÃO deslogar imediatamente. Tentar recuperar pelo localStorage e executar singleFlightAuthRefresh()
+      // Se NÃO foi logout explícito, verificar se ainda há credencial no localStorage
+      const stored = getStoredAuth()
+      if (stored?.token) {
+        // PRESERVAÇÃO SILENCIOSA: Há credencial no localStorage!
+        // Não rebaixa o estado para deslogado por transição de evento, reconexão SSE ou troca de aba.
+        console.warn(
+          '[AuthContext] Evento transitório do authStore detectado. Preservando sessão pelo localStorage...',
+        )
+
+        // Restaura em memória no pb.authStore imediatamente
+        pb.authStore.save(stored.token, stored.model)
+        setToken(stored.token)
+        if (stored.model) setUser(stored.model)
+
+        // Se já há um refresh ou recuperação em andamento, não duplica
         if (isRecoveringAuthRef.current) {
-          // Já está em processo de recuperação, aguardar
           return
         }
 
-        const stored = getStoredAuth()
-        if (stored && stored.token) {
-          isRecoveringAuthRef.current = true
-          console.warn(
-            '[AuthContext] Limpeza não-intencional de sessão detectada. Tentando restabelecer do localStorage...',
-          )
+        isRecoveringAuthRef.current = true
+        setIsRenewingSession(true)
 
-          // Restaura temporariamente em memória para não quebrar componentes imediatamente
-          pb.authStore.save(stored.token, stored.model)
-          setToken(stored.token)
-          if (stored.model) setUser(stored.model)
-
-          // Tenta atualizar a sessão via backend
+        try {
           const ok = await singleFlightAuthRefresh()
-          isRecoveringAuthRef.current = false
-
           if (ok && pb.authStore.isValid) {
-            console.info('[AuthContext] Sessão revalidada com sucesso!')
+            console.info('[AuthContext] Sessão revalidada silenciosamente com sucesso!')
             setToken(pb.authStore.token)
             setUser(pb.authStore.record)
-          } else {
-            // Só desloga de verdade se o refresh falhou e o token for comprovadamente inválido
-            if (!pb.authStore.isValid && !pb.authStore.token) {
-              console.warn('[AuthContext] Sessão expirada em definitivo pelo servidor.')
-              setToken('')
-              setUser(null)
-            }
           }
-        } else {
-          // Não há dados nem no localStorage, zera de fato
-          setToken('')
-          setUser(null)
+        } catch (err: unknown) {
+          const status =
+            (err as { status?: number; response?: { status?: number } })?.status ||
+            (err as { response?: { status?: number } })?.response?.status
+
+          // `setUser(null)` / `setIsAuthed(false)` SÓ quando o backend rejeitar explicitamente (401/403 com token inválido/revogado)
+          if (status === 401 || status === 403) {
+            console.error(
+              '[AuthContext] Sessão rejeitada em definitivo pelo servidor (401/403). Limpando credenciais.',
+            )
+            logout()
+          } else {
+            console.warn(
+              '[AuthContext] Falha transitória de rede/latência ao revalidar sessão. Mantendo usuário ativo.',
+            )
+            // Mantém usuário e token restaurados silenciosamente
+            if (stored.token) setToken(stored.token)
+            if (stored.model) setUser(stored.model)
+          }
+        } finally {
+          isRecoveringAuthRef.current = false
+          setIsRenewingSession(false)
         }
+      } else {
+        // Não há credencial alguma no localStorage
+        console.info('[AuthContext] Nenhuma credencial no storage. Definindo sessão como vazia.')
+        setToken('')
+        setUser(null)
+        setIsRenewingSession(false)
       }
     })
 
-    // Validação inicial ao carregar a página
+    // Validação inicial ao carregar o aplicativo
     async function initAuth() {
-      // Se pb.authStore não tem token mas localStorage tem, restaura antes do init
+      // 1. Se pb.authStore não tem token mas localStorage tem, restaura antes do init
       if (!pb.authStore.token) {
         const stored = getStoredAuth()
         if (stored?.token) {
@@ -127,29 +185,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      if (pb.authStore.isValid) {
+      const storedNow = getStoredAuth()
+      const hasAnyToken = Boolean(pb.authStore.token || storedNow?.token)
+
+      if (hasAnyToken) {
+        // Se temos credencial local, manter usuário em memória enquanto revalida silenciosamente
+        const currentToken = pb.authStore.token || storedNow?.token || ''
+        const currentModel = pb.authStore.record || storedNow?.model || null
+
+        setToken(currentToken)
+        if (currentModel) setUser(currentModel)
+
+        // Se o token ainda é válido ou recém-restaurado, tenta um refresh silencioso
         try {
+          setIsRenewingSession(true)
           await singleFlightAuthRefresh()
           setUser(pb.authStore.record)
           setToken(pb.authStore.token)
-        } catch (err: any) {
-          const status = err?.status || err?.response?.status
+        } catch (err: unknown) {
+          const status =
+            (err as { status?: number; response?: { status?: number } })?.status ||
+            (err as { response?: { status?: number } })?.response?.status
+
+          // SÓ desloga se o servidor rejeitou explicitamente como 401/403 com token inválido
           if (status === 401 || status === 403) {
-            // Rejeição definitiva de credenciais pelo servidor
-            isIntentionalLogoutRef.current = true
-            pb.authStore.clear()
-            setUser(null)
-            setToken('')
+            console.warn('[AuthContext] Token rejeitado no init (401/403).')
+            logout()
           } else {
-            // Mantém os dados locais persistidos caso tenha sido falha de rede temporária
-            setUser(pb.authStore.record)
-            setToken(pb.authStore.token)
+            console.warn(
+              '[AuthContext] Revalidação inicial falhou por rede/offline. Mantendo credencial local preservada.',
+            )
+            setUser(pb.authStore.record || currentModel)
+            setToken(pb.authStore.token || currentToken)
           }
+        } finally {
+          setIsRenewingSession(false)
         }
       } else {
-        // Inicializa com o que estiver presente
-        setUser(pb.authStore.record || null)
-        setToken(pb.authStore.token || '')
+        setUser(null)
+        setToken('')
       }
       setIsLoading(false)
     }
@@ -162,30 +236,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const login = async (email: string, pass: string) => {
-    isIntentionalLogoutRef.current = false
+    isExplicitLogoutRef.current = false
     const authData = await pb.collection('users').authWithPassword(email, pass)
     setUser(authData.record)
     setToken(authData.token)
   }
 
   const logout = () => {
-    // 2.a) Apenas logout() manual marca isIntentionalLogout e limpa authStore
-    isIntentionalLogoutRef.current = true
+    // 3. Logout estrito: pb.authStore.clear() e limpeza de storage apenas no clique explícito de "Sair".
+    isExplicitLogoutRef.current = true
     pb.authStore.clear()
     setUser(null)
     setToken('')
+    setIsRenewingSession(false)
   }
 
   const refreshUser = async () => {
-    if (pb.authStore.isValid) {
+    const stored = getStoredAuth()
+    if (pb.authStore.isValid || stored?.token) {
       try {
+        setIsRenewingSession(true)
+        if (!pb.authStore.token && stored?.token) {
+          pb.authStore.save(stored.token, stored.model)
+        }
         const ok = await singleFlightAuthRefresh()
         if (ok) {
           setUser(pb.authStore.record)
           setToken(pb.authStore.token)
         }
-      } catch (_) {
-        // no-op
+      } catch (err: unknown) {
+        const status =
+          (err as { status?: number; response?: { status?: number } })?.status ||
+          (err as { response?: { status?: number } })?.response?.status
+        if (status === 401 || status === 403) {
+          logout()
+        }
+      } finally {
+        setIsRenewingSession(false)
       }
     }
   }
@@ -198,8 +285,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const empresa_nome = user?.empresa_nome || user?.expand?.empresa?.nome || ''
   const area = user?.area || user?.area_atuacao || ''
 
-  // 2.c) Manter estado autenticado durante o retry: se tivermos user e token OU recuperação ativa com token no store
-  const isAuthed = (!!user && !!token) || (isRecoveringAuthRef.current && !!pb.authStore.token)
+  // 1. Preservação silenciosa do estado:
+  // Enquanto houver credencial no localStorage ou user/token válidos em memória, NÃO deslogar por transitoriedade
+  const storedAuth = getStoredAuth()
+  const hasValidStoredCredential = Boolean(
+    !isExplicitLogoutRef.current &&
+    storedAuth?.token &&
+    storedAuth.token.length > 10 &&
+    !isJwtExpired(storedAuth.token),
+  )
+
+  const isAuthed =
+    !isExplicitLogoutRef.current &&
+    ((Boolean(user) && Boolean(token)) ||
+      hasValidStoredCredential ||
+      (isRecoveringAuthRef.current && Boolean(pb.authStore.token)))
 
   return (
     <AuthContext.Provider
@@ -208,6 +308,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         isAuthenticated: isAuthed,
         isLoading,
+        isRenewingSession,
         isGestorContratante,
         isRh,
         isRH,

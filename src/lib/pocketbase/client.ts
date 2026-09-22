@@ -1,41 +1,44 @@
 import PocketBase from 'pocketbase'
 
-export const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL)
+const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL)
 pb.autoCancellation(false)
 
+let inFlightAuthRefresh: Promise<boolean> | null = null
+
 /**
- * Single-flight auth refresh: evita requisições concorrentes de renovação de token.
- * Retorna true se a renovação foi bem-sucedida ou se já havia token válido.
+ * Garante que apenas uma requisição de authRefresh ocorra ao mesmo tempo (single-flight),
+ * evitando corrida entre múltiplas abas, listeners ou inicialização.
  */
-let refreshPromise: Promise<boolean> | null = null
-
 export async function singleFlightAuthRefresh(): Promise<boolean> {
-  if (!pb.authStore.isValid || !pb.authStore.token) {
-    return false
+  if (inFlightAuthRefresh) {
+    return inFlightAuthRefresh
   }
 
-  if (refreshPromise) {
-    return refreshPromise
-  }
-
-  refreshPromise = (async () => {
+  inFlightAuthRefresh = (async () => {
     try {
-      await pb.collection('users').authRefresh()
-      return true
-    } catch (err: any) {
-      const status = err?.status || err?.response?.status
-      if (status === 401 || status === 403) {
-        // Token definitivamente expirado/inválido
+      if (!pb.authStore.token) {
         return false
       }
-      // Outro erro de rede temporário: mantém o token local
-      return pb.authStore.isValid
+      await pb.collection('users').authRefresh()
+      return true
+    } catch (err: unknown) {
+      const status =
+        (err as { status?: number; response?: { status?: number } })?.status ||
+        (err as { response?: { status?: number } })?.response?.status
+      // Se rejeitado explicitamente como 401 ou 403 (token revogado/inválido), relança para o chamador decidir
+      if (status === 401 || status === 403) {
+        throw err
+      }
+      // Outros erros (rede, offline, latência, timeout) são transitórios
+      console.warn('[singleFlightAuthRefresh] Falha transitória ao renovar auth:', err)
+      return false
     } finally {
-      refreshPromise = null
+      inFlightAuthRefresh = null
     }
   })()
 
-  return refreshPromise
+  return inFlightAuthRefresh
 }
 
+export { pb }
 export default pb
