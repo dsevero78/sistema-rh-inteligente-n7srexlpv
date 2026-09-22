@@ -53,7 +53,9 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
   const { user } = useAuth()
   const { toast } = useToast()
 
-  const [templates, setTemplates] = useState<TemplateContrato[]>([])
+  const [templates, setTemplates] = useState<TemplateContrato[]>(() => {
+    return contratosService.getTemplates()
+  })
   const [carregandoTemplates, setCarregandoTemplates] = useState(false)
 
   // Filtra templates compatíveis com a modalidade da pessoa por padrão
@@ -62,13 +64,16 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
   )
 
   const templatesFiltrados = templates.filter(
-    (t) => t.modalidade === modalidade && t.ativo !== false,
+    (t) => t && t.modalidade === modalidade && t.ativo !== false,
   )
 
   const [templateSelecionadoId, setTemplateSelecionadoId] = useState<string>('')
 
   const templateAtual =
-    templates.find((t) => t.id === templateSelecionadoId) || templatesFiltrados[0] || templates[0]
+    templates.find((t) => t && t.id === templateSelecionadoId) ||
+    templatesFiltrados[0] ||
+    templates[0] ||
+    null
 
   useEffect(() => {
     if (open) {
@@ -76,26 +81,59 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
         setCarregandoTemplates(true)
         try {
           const lista = await modelosContratoService.listarTodos(true)
-          setTemplates(lista)
-          const comp = lista.filter(
-            (t) => t.modalidade === (pessoa.modalidade === 'CLT' ? 'CLT' : 'PJ'),
+          const modelosValidos = lista && lista.length > 0 ? lista : contratosService.getTemplates()
+          setTemplates(modelosValidos)
+          const comp = modelosValidos.filter(
+            (t) => t && t.modalidade === (pessoa.modalidade === 'CLT' ? 'CLT' : 'PJ'),
           )
-          if (comp.length > 0) {
-            setTemplateSelecionadoId(comp[0].id)
-            setTitulo(comp[0].titulo)
-            setPrazoTipo(comp[0].prazoTipoSugerido || 'Determinado')
+          const escolhido = comp[0] || modelosValidos[0]
+          if (escolhido) {
+            setTemplateSelecionadoId(escolhido.id)
+            setTitulo(
+              (prev) =>
+                prev ||
+                escolhido.titulo ||
+                `Contrato de ${pessoa.modalidade === 'CLT' ? 'Trabalho' : 'Prestação de Serviços'} — ${pessoa.nome || ''}`,
+            )
+            setPrazoTipo(
+              (prev) => prev || pessoa.prazo_tipo || escolhido.prazoTipoSugerido || 'Determinado',
+            )
+          } else {
+            setTemplateSelecionadoId('')
           }
         } catch {
-          setTemplates(contratosService.getTemplates())
+          const fallback = contratosService.getTemplates()
+          setTemplates(fallback)
+          const comp = fallback.filter(
+            (t) => t && t.modalidade === (pessoa.modalidade === 'CLT' ? 'CLT' : 'PJ'),
+          )
+          const escolhido = comp[0] || fallback[0]
+          if (escolhido) {
+            setTemplateSelecionadoId(escolhido.id)
+            setTitulo(
+              (prev) =>
+                prev ||
+                escolhido.titulo ||
+                `Contrato de ${pessoa.modalidade === 'CLT' ? 'Trabalho' : 'Prestação de Serviços'} — ${pessoa.nome || ''}`,
+            )
+            setPrazoTipo(
+              (prev) => prev || pessoa.prazo_tipo || escolhido.prazoTipoSugerido || 'Determinado',
+            )
+          } else {
+            setTemplateSelecionadoId('')
+          }
         } finally {
           setCarregandoTemplates(false)
         }
       }
       carregar()
     }
-  }, [open, pessoa.id, pessoa.modalidade])
+  }, [open, pessoa.id, pessoa.modalidade, pessoa.prazo_tipo, pessoa.nome])
 
-  const [titulo, setTitulo] = useState(templateAtual.titulo)
+  const [titulo, setTitulo] = useState(
+    templateAtual?.titulo ||
+      `Contrato de ${pessoa.modalidade === 'CLT' ? 'Trabalho' : 'Prestação de Serviços'} — ${pessoa.nome || ''}`,
+  )
   const [dataInicio, setDataInicio] = useState(
     pessoa.data_inicio ? pessoa.data_inicio.split('T')[0] : new Date().toISOString().split('T')[0],
   )
@@ -103,7 +141,7 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
   const [valorMensal, setValorMensal] = useState<number>(pessoa.valor_contratado || 0)
   const [horasBase, setHorasBase] = useState<number>(pessoa.horas_mensais_base || 160)
   const [prazoTipo, setPrazoTipo] = useState<string>(
-    pessoa.prazo_tipo || templateAtual.prazoTipoSugerido || 'Determinado',
+    pessoa.prazo_tipo || templateAtual?.prazoTipoSugerido || 'Determinado',
   )
   const [clausulasEspeciais, setClausulasEspeciais] = useState(pessoa.observacoes || '')
   const [resumoMudancas, setResumoMudancas] = useState(
@@ -134,24 +172,39 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
   // Ao mudar de modalidade, atualiza o template padrão
   const handleTrocaModalidade = (novaMod: ModalidadeContrato) => {
     setModalidade(novaMod)
-    const novos = templates.filter((t) => t.modalidade === novaMod && t.ativo !== false)
+    const novos = templates.filter((t) => t && t.modalidade === novaMod && t.ativo !== false)
     if (novos.length > 0) {
       setTemplateSelecionadoId(novos[0].id)
-      setTitulo(novos[0].titulo)
+      setTitulo(
+        novos[0].titulo ||
+          `Contrato de ${novaMod === 'CLT' ? 'Trabalho' : 'Prestação de Serviços'} — ${pessoa.nome || ''}`,
+      )
       setPrazoTipo(novos[0].prazoTipoSugerido || 'Determinado')
+    } else {
+      setTemplateSelecionadoId('')
     }
   }
 
   const handleTrocaTemplate = (tempId: string) => {
     setTemplateSelecionadoId(tempId)
-    const t = templates.find((item) => item.id === tempId)
-    if (t) {
+    const t = templates.find((item) => item && item.id === tempId)
+    if (t?.titulo) {
       setTitulo(t.titulo)
-      setPrazoTipo(t.prazoTipoSugerido)
+      setPrazoTipo(t.prazoTipoSugerido || 'Determinado')
     }
   }
 
   const handleGerarContrato = async () => {
+    if (!templateAtual || !templateAtual.id) {
+      toast({
+        title: 'Modelo não selecionado',
+        description:
+          'Selecione um modelo contratual ativo para prosseguir com a emissão da minuta.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     if (!titulo.trim() || !dataInicio) {
       toast({
         title: 'Campos obrigatórios',
@@ -160,7 +213,6 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
       })
       return
     }
-
     setCarregando(true)
     try {
       const res = await contratosService.criarContratoDoTemplate({
@@ -272,9 +324,19 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
           {/* Cards de Modelos Disponíveis */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold text-foreground">
-                Selecione o Modelo Contratual ({templatesFiltrados.length} disponível(is))
-              </Label>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs font-semibold text-foreground">
+                  Selecione o Modelo Contratual ({templatesFiltrados.length} disponível(is))
+                </Label>
+                {(!templateAtual || templatesFiltrados.length === 0) && (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950/40"
+                  >
+                    Modelo não encontrado
+                  </Badge>
+                )}
+              </div>
               {onAbrirGerenciadorModelos && (
                 <button
                   type="button"
@@ -291,28 +353,33 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
                 Carregando modelos disponíveis...
               </div>
             ) : templatesFiltrados.length === 0 ? (
-              <div className="p-4 rounded-xl border border-dashed text-center text-xs text-muted-foreground space-y-2">
-                <p>Nenhum modelo ativo encontrado para a modalidade {modalidade}.</p>
+              <div className="p-4 rounded-xl border border-dashed border-amber-300 bg-amber-50/40 dark:bg-amber-950/20 text-center text-xs text-amber-800 dark:text-amber-200 space-y-2">
+                <p className="font-medium">
+                  Nenhum modelo ativo encontrado para a modalidade {modalidade}.
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Abra a biblioteca de modelos para ativar ou cadastrar minutas contratuais.
+                </p>
                 {onAbrirGerenciadorModelos && (
                   <Button
                     size="sm"
                     variant="outline"
                     type="button"
                     onClick={onAbrirGerenciadorModelos}
-                    className="h-7 text-xs"
+                    className="h-7 text-xs border-amber-400"
                   >
-                    Adicionar modelo na biblioteca
+                    Abrir gerenciador de modelos
                   </Button>
                 )}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-1">
                 {templatesFiltrados.map((temp) => {
-                  const isSelected = temp.id === templateSelecionadoId
+                  const isSelected = temp?.id === (templateSelecionadoId || templateAtual?.id)
                   return (
                     <div
-                      key={temp.id}
-                      onClick={() => handleTrocaTemplate(temp.id)}
+                      key={temp?.id || Math.random().toString()}
+                      onClick={() => temp?.id && handleTrocaTemplate(temp.id)}
                       className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
                         isSelected
                           ? 'border-[#E9530E] bg-[#FEF1EA]/60 dark:bg-[#212B55] ring-1 ring-[#E9530E]'
@@ -321,17 +388,17 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-bold text-xs text-[#212B55] dark:text-[#F7F8FB] line-clamp-1">
-                          {temp.titulo}
+                          {temp?.titulo || 'Modelo de Minuta'}
                         </span>
                         {isSelected && (
                           <CheckCircle2 className="w-3.5 h-3.5 text-[#E9530E] shrink-0" />
                         )}
                       </div>
                       <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-                        {temp.descricaoBreve || 'Modelo pronto para geração.'}
+                        {temp?.descricaoBreve || 'Modelo pronto para geração.'}
                       </p>
                       <div className="flex items-center gap-1 mt-2 flex-wrap">
-                        {temp.ehPadraoSistema ? (
+                        {temp?.ehPadraoSistema ? (
                           <Badge
                             variant="outline"
                             className="text-[9px] px-1 py-0 font-mono text-muted-foreground"
@@ -343,7 +410,7 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
                             Próprio
                           </Badge>
                         )}
-                        {temp.tagsJuridicas.slice(0, 3).map((tag) => (
+                        {(temp?.tagsJuridicas || []).slice(0, 3).map((tag) => (
                           <Badge
                             key={tag}
                             variant="secondary"
@@ -371,8 +438,9 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
               <div className="space-y-1 sm:col-span-2">
                 <Label className="text-[11px] font-semibold">Título Formal do Contrato</Label>
                 <Input
-                  value={titulo}
+                  value={titulo || ''}
                   onChange={(e) => setTitulo(e.target.value)}
+                  placeholder="Ex: Contrato de Prestação de Serviços..."
                   className="h-8 text-xs font-medium"
                 />
               </div>
@@ -465,7 +533,7 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
               <div className="space-y-1">
                 <Label className="text-[11px] font-semibold">Tipo de Prazo</Label>
                 <select
-                  value={prazoTipo}
+                  value={prazoTipo || 'Determinado'}
                   onChange={(e) => setPrazoTipo(e.target.value)}
                   className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs"
                 >
@@ -510,8 +578,9 @@ export const ModalNovoContratoTemplate: React.FC<ModalNovoContratoTemplateProps>
             type="button"
             size="sm"
             onClick={handleGerarContrato}
-            disabled={carregando}
-            className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-semibold text-xs gap-1.5"
+            disabled={carregando || !templateAtual || !templateAtual.id}
+            title={!templateAtual ? 'Selecione um modelo válido para gerar a minuta' : undefined}
+            className="bg-[#E9530E] hover:bg-[#C5430A] text-white font-semibold text-xs gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Sparkles className="w-3.5 h-3.5" />
             {carregando ? 'Gerando Minuta v1.0...' : 'Gerar Minuta do Contrato'}

@@ -394,14 +394,13 @@ export const AbaAditivos: React.FC<AbaAditivosProps> = ({
                           {renderTipoBadge(aditivo.tipo)}
                           {renderStatusBadge(aditivo.status)}
                         </div>
-                        {contratoVinculado && (
-                          <span className="text-[11px] text-slate-500">
-                            Contrato: <strong>{contratoVinculado.titulo}</strong>
-                            {contratoVinculado.numero_contrato
-                              ? ` (${contratoVinculado.numero_contrato})`
-                              : ''}
-                          </span>
-                        )}
+                        <span className="text-[11px] text-slate-500">
+                          Contrato:{' '}
+                          <strong>{contratoVinculado?.titulo || 'Contrato não localizado'}</strong>
+                          {contratoVinculado?.numero_contrato
+                            ? ` (${contratoVinculado.numero_contrato})`
+                            : ''}
+                        </span>
                       </div>
                     </div>
 

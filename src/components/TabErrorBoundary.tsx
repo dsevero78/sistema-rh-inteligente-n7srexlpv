@@ -39,6 +39,13 @@ export class TabErrorBoundary extends Component<TabErrorBoundaryProps, TabErrorB
     this.setState({ hasError: false, error: null, errorInfo: null })
   }
 
+  public componentDidUpdate(prevProps: TabErrorBoundaryProps) {
+    // Se mudou de aba ou props essenciais, limpa o estado de erro
+    if (this.state.hasError && prevProps.tabName !== this.props.tabName) {
+      this.setState({ hasError: false, error: null, errorInfo: null })
+    }
+  }
+
   public render() {
     if (this.state.hasError) {
       const nomeAba = this.props.tabName || 'esta aba'

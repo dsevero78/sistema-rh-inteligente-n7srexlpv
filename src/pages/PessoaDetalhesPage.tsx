@@ -643,12 +643,12 @@ export default function PessoaDetalhesPage() {
           >
             <SecaoContratosEVinculos
               pessoa={pessoa}
-              vinculos={vinculos}
-              prestadorPj={prestadorPj}
-              contratosPj={contratosPj}
-              aditivosPj={aditivosPj}
-              marcosLifecycle={marcosLifecycle}
-              documentosCofre={documentos}
+              vinculos={vinculos || []}
+              prestadorPj={prestadorPj || null}
+              contratosPj={contratosPj || []}
+              aditivosPj={aditivosPj || []}
+              marcosLifecycle={marcosLifecycle || []}
+              documentosCofre={documentos || []}
               onAtualizar={carregarFicha}
             />
           </TabErrorBoundary>

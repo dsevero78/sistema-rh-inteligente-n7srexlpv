@@ -153,7 +153,20 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
   const isModalidadePj = pessoa?.modalidade === 'PJ' || !!prestadorPj
   const decisaoRenovacao =
     isModalidadePj && prestadorPj && Array.isArray(contratosPj) && contratosPj.length > 0
-      ? calcularDecisaoRenovacaoPrestador(prestadorPj, contratosPj, aditivosPj, [], [prestadorPj])
+      ? (() => {
+          try {
+            return calcularDecisaoRenovacaoPrestador(
+              prestadorPj,
+              contratosPj,
+              aditivosPj || [],
+              [],
+              [prestadorPj],
+            )
+          } catch (eDec) {
+            console.warn('[SecaoContratosEVinculos] Erro ao calcular decisão de renovação:', eDec)
+            return null
+          }
+        })()
       : null
 
   // Documentos PJ / Certidões no Cofre da Pessoa
@@ -411,16 +424,23 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
                         <span className="text-xs font-mono text-muted-foreground">
                           ({ct.codigo_contrato})
                         </span>
-                        {(ct.expand?.empresa || pessoa.empresa_nome) && (
+                        {ct.expand?.empresa || pessoa.empresa_nome ? (
                           <Badge
                             variant="secondary"
                             className="bg-orange-50 text-[#E9530E] dark:bg-orange-950/40 dark:text-orange-300 border-orange-200 text-[10px] font-semibold"
                           >
                             <Building2 className="w-3 h-3 mr-1" />
-                            {ct.expand?.empresa?.nome_fantasia || pessoa.empresa_nome}
+                            {ct.expand?.empresa?.nome_fantasia ||
+                              pessoa.empresa_nome ||
+                              'Empresa não atribuída'}
                             {ct.expand?.area?.nome || pessoa.area_nome
                               ? ` · ${ct.expand?.area?.nome || pessoa.area_nome}`
                               : ''}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            <Building2 className="w-3 h-3 mr-1 text-muted-foreground/60" />
+                            Não atribuído
                           </Badge>
                         )}
                         <Badge
@@ -508,10 +528,10 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
                           Departamento & Cargo
                         </span>
                         <span className="text-xs font-semibold text-[#212B55] dark:text-[#F7F8FB] truncate block">
-                          {ct.cargo_funcao || pessoa.cargo_funcao}
+                          {ct.cargo_funcao || pessoa.cargo_funcao || '—'}
                         </span>
                         <span className="text-[10px] text-muted-foreground truncate block">
-                          {ct.departamento || pessoa.departamento}
+                          {ct.departamento || pessoa.departamento || 'Não atribuído'}
                         </span>
                       </div>
                     </div>
@@ -568,16 +588,21 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
                             ({vinc.numeroContrato})
                           </span>
                         )}
-                        {(vinc.empresaNome || pessoa.empresa_nome) && (
+                        {vinc.empresaNome || pessoa.empresa_nome ? (
                           <Badge
                             variant="secondary"
                             className="bg-orange-50 text-[#E9530E] dark:bg-orange-950/40 dark:text-orange-300 border-orange-200 text-[10px] font-semibold"
                           >
                             <Building2 className="w-3 h-3 mr-1" />
-                            {vinc.empresaNome || pessoa.empresa_nome}
+                            {vinc.empresaNome || pessoa.empresa_nome || 'Empresa não atribuída'}
                             {vinc.areaNome || pessoa.area_nome
                               ? ` · ${vinc.areaNome || pessoa.area_nome}`
                               : ''}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            <Building2 className="w-3 h-3 mr-1 text-muted-foreground/60" />
+                            Não atribuído
                           </Badge>
                         )}
                         <Badge
