@@ -19,12 +19,14 @@ import { Users, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, Loader2 } from
 import { useToast } from '@/hooks/use-toast'
 
 export default function Login() {
-  const { login, isAuthenticated } = useAuth()
+  const { login, isAuthenticated, syncAuthNow } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { toast } = useToast()
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
+  const rawTarget =
+    (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
+  const targetPath = rawTarget.startsWith('/login') ? '/dashboard' : rawTarget
 
   const [email, setEmail] = useState('severo.douglas2@gmail.com')
   const [password, setPassword] = useState('Skip@Pass')
@@ -33,16 +35,34 @@ export default function Login() {
   const [generalError, setGeneralError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  // 2. Fallback de recuperação automática em /login:
-  // Se o usuário estiver na rota /login mas pb.authStore.isValid for verdadeiro
-  // (ou houver credencial no localStorage que o backend valide via authRefresh()),
-  // validar silenciosamente e redirecionar imediatamente para /dashboard (ou location.state.from)
+  // Helper para redirecionar incondicionalmente com fallback de segurança por window.location.replace
+  const executeGuaranteedRedirect = (dest: string) => {
+    console.info(`[Login] Executando redirecionamento garantido para ${dest}`)
+    // 1. Tentar navegação SPA via React Router imediatamente
+    navigate(dest, { replace: true })
+
+    // 2. Rede de segurança final (~500ms): se a rota do navegador ainda estiver em /login,
+    // força redirecionamento duro incondicionalmente via window.location.replace
+    setTimeout(() => {
+      if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+        console.warn(
+          `[Login] Fallback de segurança acionado. Forçando window.location.replace('${dest}')...`,
+        )
+        window.location.replace(dest)
+      }
+    }, 500)
+  }
+
+  // Fallback de recuperação automática em /login:
+  // Se o usuário estiver na rota /login mas tiver credencial salva ou válida,
+  // revalidar e navegar incondicionalmente para o painel.
   useEffect(() => {
     let isCancelled = false
 
     async function checkExistingSession() {
+      // Se já autenticado no contexto
       if (isAuthenticated) {
-        navigate(from, { replace: true })
+        executeGuaranteedRedirect(targetPath)
         return
       }
 
@@ -57,14 +77,22 @@ export default function Login() {
             pb.authStore.save(stored.token, stored.model)
           }
 
-          // Tenta revalidar no backend
+          // 1. Atualizar síncronamente o AuthContext com a credencial atual antes do refresh
+          if (pb.authStore.token) {
+            syncAuthNow(pb.authStore.token, pb.authStore.record || stored?.model || null)
+          }
+
+          // 2. Tenta revalidar no backend com authRefresh
           const ok = await singleFlightAuthRefresh()
+
           if (!isCancelled && (ok || pb.authStore.isValid || pb.authStore.token)) {
+            // Sincroniza estado com os dados atualizados pós-refresh
+            syncAuthNow(pb.authStore.token, pb.authStore.record)
             toast({
               title: 'Sessão restaurada com sucesso',
               description: 'Redirecionando para o painel...',
             })
-            navigate(from, { replace: true })
+            executeGuaranteedRedirect(targetPath)
             return
           }
         } catch (err: unknown) {
@@ -72,15 +100,19 @@ export default function Login() {
             (err as { status?: number; response?: { status?: number } })?.status ||
             (err as { response?: { status?: number } })?.response?.status
 
-          // Se for erro definitivo (401/403), remove credencial para não ficar em loop
+          // Se for erro definitivo (401/403 com token rejeitado), remove credencial para não ficar em loop
           if (status === 401 || status === 403) {
             console.info('[Login] Token inválido ou revogado. Permanecendo no formulário de login.')
           } else if (pb.authStore.isValid || stored?.token) {
-            // Em caso de erro transitório de rede, se temos credencial, ainda assim permite navegar
+            // Em caso de erro transitório de rede/offline, se temos credencial, preserva e navega
             console.warn(
-              '[Login] Erro de rede ao revalidar, prosseguindo com token local preservado.',
+              '[Login] Erro transitório de rede ao revalidar, prosseguindo com token local preservado.',
             )
-            navigate(from, { replace: true })
+            syncAuthNow(
+              pb.authStore.token || stored?.token || '',
+              pb.authStore.record || stored?.model || null,
+            )
+            executeGuaranteedRedirect(targetPath)
             return
           }
         } finally {
@@ -96,7 +128,7 @@ export default function Login() {
     return () => {
       isCancelled = true
     }
-  }, [isAuthenticated, from, navigate, toast])
+  }, [isAuthenticated, targetPath, navigate, syncAuthNow, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -119,7 +151,7 @@ export default function Login() {
         title: 'Bem-vindo(a) ao Sistema RH Inteligente',
         description: 'Sessão iniciada com sucesso.',
       })
-      navigate(from, { replace: true })
+      executeGuaranteedRedirect(targetPath)
     } catch (err: unknown) {
       const extracted = extractFieldErrors(err)
       if (Object.keys(extracted).length > 0) {

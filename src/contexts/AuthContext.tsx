@@ -16,7 +16,8 @@ interface AuthContextType {
   isRenewingSession: boolean
   login: (email: string, pass: string) => Promise<void>
   logout: () => void
-  refreshUser: () => Promise<void>
+  refreshUser: () => Promise<boolean>
+  syncAuthNow: (token: string, record: RecordModel | null) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -251,7 +252,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsRenewingSession(false)
   }
 
-  const refreshUser = async () => {
+  const syncAuthNow = (newToken: string, newRecord: RecordModel | null) => {
+    isExplicitLogoutRef.current = false
+    setToken(newToken)
+    setUser(newRecord)
+    if (newToken && pb.authStore.token !== newToken) {
+      pb.authStore.save(newToken, newRecord)
+    }
+  }
+
+  const refreshUser = async (): Promise<boolean> => {
     const stored = getStoredAuth()
     if (pb.authStore.isValid || stored?.token) {
       try {
@@ -263,6 +273,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (ok) {
           setUser(pb.authStore.record)
           setToken(pb.authStore.token)
+          return true
         }
       } catch (err: unknown) {
         const status =
@@ -271,10 +282,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (status === 401 || status === 403) {
           logout()
         }
+        throw err
       } finally {
         setIsRenewingSession(false)
       }
     }
+    return false
   }
 
   const isGestorContratante = user?.cargo_funcao === 'Gestor Contratante'
@@ -295,10 +308,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     !isJwtExpired(storedAuth.token),
   )
 
+  const hasAnyValidToken = Boolean(
+    !isExplicitLogoutRef.current &&
+    ((token && !isJwtExpired(token)) ||
+      (pb.authStore.token && !isJwtExpired(pb.authStore.token)) ||
+      hasValidStoredCredential),
+  )
+
   const isAuthed =
     !isExplicitLogoutRef.current &&
     ((Boolean(user) && Boolean(token)) ||
-      hasValidStoredCredential ||
+      hasAnyValidToken ||
       (isRecoveringAuthRef.current && Boolean(pb.authStore.token)))
 
   return (
@@ -318,6 +338,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         logout,
         refreshUser,
+        syncAuthNow,
       }}
     >
       {children}

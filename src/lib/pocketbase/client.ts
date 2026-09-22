@@ -6,7 +6,8 @@ pb.autoCancellation(false)
 let refreshPromise: Promise<boolean> | null = null
 
 /**
- * Executa authRefresh com single-flight (evita múltiplas chamadas simultâneas)
+ * Executa authRefresh com single-flight (apenas uma requisição em voo por vez).
+ * Retorna true se a sessão foi renovada com sucesso no backend.
  */
 export async function singleFlightAuthRefresh(): Promise<boolean> {
   if (refreshPromise) {
@@ -15,14 +16,11 @@ export async function singleFlightAuthRefresh(): Promise<boolean> {
 
   refreshPromise = (async () => {
     try {
-      if (!pb.authStore.isValid && !pb.authStore.token) {
+      if (!pb.authStore.token) {
         return false
       }
       await pb.collection('users').authRefresh()
       return true
-    } catch (err) {
-      console.warn('[singleFlightAuthRefresh] Falha ao renovar token:', err)
-      throw err
     } finally {
       refreshPromise = null
     }
