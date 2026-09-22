@@ -362,9 +362,30 @@ export function VideoEPercepcaoSection({
 
   const scoreGeral = candidato.video_score_geral || analiseIa?.score_geral || 0
 
+  // Identificação de falha de acesso ou análise com erro
+  const resumoTexto = String(analiseIa?.resumo_executivo || '').toLowerCase()
+  const statusAnalise = String(analiseIa?.status_analise || '').toLowerCase()
+  const temTextoFalhaAcesso =
+    resumoTexto.includes('não pôde ser acessado') ||
+    resumoTexto.includes('nao pode ser acessado') ||
+    resumoTexto.includes('não foi possível realizar a análise') ||
+    resumoTexto.includes('nao foi possivel realizar a analise') ||
+    resumoTexto.includes('impossibilidade de visualização') ||
+    resumoTexto.includes('impossibilidade de visualizacao') ||
+    resumoTexto.includes('falta de acesso ao vídeo') ||
+    resumoTexto.includes('falta de acesso ao video')
+
+  const ehAnaliseComFalha = Boolean(
+    analiseIa &&
+    (statusAnalise === 'erro' ||
+      statusAnalise === 'erro_acesso' ||
+      analiseIa.score_geral === 0 ||
+      temTextoFalhaAcesso),
+  )
+
   // Dados das novas camadas (com fallback seguro para não quebrar análises existentes como Rodrigo nota 6.8)
   const temConflitoIdentidade = Boolean(
-    analiseIa?.conflito_identidade && !analiseIa?.conflito_confirmado_rh,
+    !ehAnaliseComFalha && analiseIa?.conflito_identidade && !analiseIa?.conflito_confirmado_rh,
   )
   const conflitoConfirmadoRh = Boolean(analiseIa?.conflito_confirmado_rh)
   const nomeDetectadoVideo = analiseIa?.nome_detectado_no_video || null
@@ -482,7 +503,11 @@ export function VideoEPercepcaoSection({
                   <h3 className="font-display text-base font-bold text-[#212B55] dark:text-[#F7F8FB]">
                     Vídeo de Apresentação &amp; Avaliação IA
                   </h3>
-                  {analiseIa ? (
+                  {ehAnaliseComFalha ? (
+                    <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-300 dark:border-rose-700 text-[11px] font-bold">
+                      Falha no Acesso ao Vídeo
+                    </Badge>
+                  ) : analiseIa ? (
                     <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 text-[11px] font-bold">
                       ✓ Análise Concluída
                     </Badge>
@@ -647,7 +672,73 @@ export function VideoEPercepcaoSection({
                   </div>
                 )}
 
-                {analiseIa ? (
+                {ehAnaliseComFalha ? (
+                  <div className="space-y-4">
+                    {/* CARD ACIONÁVEL DE FALHA NO ACESSO AO VÍDEO */}
+                    <div className="p-5 rounded-xl border-2 border-amber-300 dark:border-amber-700 bg-amber-50/90 dark:bg-amber-950/40 text-amber-950 dark:text-amber-100 shadow-xs space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2.5 rounded-xl bg-amber-500 text-white shrink-0">
+                          <AlertTriangle className="w-5 h-5" />
+                        </div>
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-amber-600 text-white font-bold text-xs">
+                              Falha no Acesso ao Vídeo
+                            </Badge>
+                            <span className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                              O candidato não foi penalizado
+                            </span>
+                          </div>
+                          <p className="text-xs font-semibold leading-relaxed pt-1">
+                            Não foi possível acessar o vídeo pelo link fornecido. Verifique se o
+                            arquivo está compartilhado como "Qualquer pessoa com o link"
+                            (Visualizador) no Google Drive e tente novamente.
+                          </p>
+                          {analiseIa.resumo_executivo && (
+                            <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 italic pt-0.5">
+                              Retorno do modelo: "{analiseIa.resumo_executivo}"
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-amber-200 dark:border-amber-800 flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-[11px] text-amber-800 dark:text-amber-300">
+                          Dica: Links do Google Drive precisam estar públicos para visualização
+                          externa sem login.
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setModalVideoOpen(true)}
+                            className="text-xs h-8 border-amber-300 dark:border-amber-700 bg-white dark:bg-amber-950 text-amber-900 dark:text-amber-100"
+                          >
+                            Editar Link
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleDispararAnalise(false)}
+                            disabled={analisando}
+                            className="bg-[#E9530E] hover:bg-[#C5430A] text-white text-xs font-bold h-8 shadow-xs"
+                          >
+                            {analisando ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                Reanalisando...
+                              </>
+                            ) : (
+                              <>
+                                <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                                Tentar Novamente
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : analiseIa ? (
                   <div className="space-y-4">
                     {/* Score Geral & Veredito */}
                     <div className="flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-[#FEF1EA] to-white dark:from-[#212B55] dark:to-[#1A2240] border border-[#FBDCC9] dark:border-[#2E3A6E]">

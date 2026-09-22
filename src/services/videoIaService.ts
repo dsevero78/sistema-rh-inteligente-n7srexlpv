@@ -34,19 +34,20 @@ export interface VideoAnaliseDimensoes {
 
 export interface AnaliseVideoResponse {
   analiseId: string
-  score_geral: number
-  clareza_comunicacao: number
-  estrutura_narrativa: number
-  energia_postura: number
-  aderencia_vaga: number
+  status_analise?: string
+  score_geral: number | null
+  clareza_comunicacao?: number | null
+  estrutura_narrativa?: number | null
+  energia_postura?: number | null
+  aderencia_vaga?: number | null
   resumo_executivo: string
   comunicacao_oratoria?: string
   postura_presenca?: string
   dominio_experiencia?: string
   fit_cultural?: string
-  pontos_fortes: string[]
-  pontos_atencao: string[]
-  red_flags: string[]
+  pontos_fortes?: string[]
+  pontos_atencao?: string[]
+  red_flags?: string[]
   recomendacao_geral: string
   versao: number
   analisado_em: string
@@ -55,8 +56,8 @@ export interface AnaliseVideoResponse {
   conflito_identidade?: boolean
   detalhes_conflito_identidade?: string
   conflito_confirmado_rh?: boolean
-  indice_naturalidade?: number
-  veredito_naturalidade?: string
+  indice_naturalidade?: number | null
+  veredito_naturalidade?: string | null
   analise_linguistica?: AnaliseLinguisticaData
   pontos_cegos?: PontosCegosData
   expressao_socioemocional?: ExpressaoSocioemocionalData
@@ -64,12 +65,53 @@ export interface AnaliseVideoResponse {
 
 export interface RespostaAnaliseVideoApi {
   success: boolean
+  status_analise?: string
+  error?: string
   conflito_bloqueante?: boolean
   conflito_identidade?: boolean
   nome_detectado_no_video?: string
   nome_cadastro?: string
   detalhes_conflito_identidade?: string
   data: AnaliseVideoResponse
+}
+
+/**
+ * Normaliza links de streaming de vídeo para URLs diretas/incorporáveis:
+ * - Google Drive: extrai FILE_ID e converte para export=download
+ * - Dropbox: dl=0 -> raw=1
+ * - Loom: share/ID -> embed/ID
+ */
+export function formatarLinkVideoStreaming(url: string): string {
+  if (!url || typeof url !== 'string') return ''
+  const trimmed = url.trim()
+  if (!trimmed) return ''
+
+  // 1. Google Drive: file/d/FILE_ID, open?id=FILE_ID, uc?id=FILE_ID
+  const driveMatch =
+    trimmed.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/i) ||
+    trimmed.match(/drive\.google\.com\/(?:open|uc)\?(?:[a-zA-Z0-9_=&-]*&)?id=([a-zA-Z0-9_-]+)/i)
+  if (driveMatch && driveMatch[1]) {
+    return `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`
+  }
+
+  // 2. Dropbox: trocar dl=0 por raw=1 ou adicionar ?raw=1
+  if (/dropbox\.com/i.test(trimmed)) {
+    if (/([?&])dl=[01]/i.test(trimmed)) {
+      return trimmed.replace(/([?&])dl=[01]/i, '$1raw=1')
+    }
+    if (!/[?&]raw=1/i.test(trimmed)) {
+      return trimmed.includes('?') ? `${trimmed}&raw=1` : `${trimmed}?raw=1`
+    }
+    return trimmed
+  }
+
+  // 3. Loom: loom.com/share/ID -> https://www.loom.com/embed/ID
+  const loomMatch = trimmed.match(/loom\.com\/share\/([a-zA-Z0-9_-]+)/i)
+  if (loomMatch && loomMatch[1]) {
+    return `https://www.loom.com/embed/${loomMatch[1]}`
+  }
+
+  return trimmed
 }
 
 export type VideoStatus =
@@ -89,6 +131,24 @@ export const videoIaService = {
     candidatoId: string,
     permitirDivergencia = false,
   ): Promise<RespostaAnaliseVideoApi> {
+    // Normalizar link do candidato antes de disparar se houver
+    try {
+      const cand = await pb.collection('candidatos').getOne(candidatoId)
+      if (cand?.video_link) {
+        const linkFormatado = formatarLinkVideoStreaming(cand.video_link)
+        if (linkFormatado && linkFormatado !== cand.video_link) {
+          await pb.collection('candidatos').update(candidatoId, {
+            video_link: linkFormatado,
+          })
+        }
+      }
+    } catch (errCand) {
+      console.warn(
+        '[videoIaService] Não foi possível verificar/atualizar link pré-análise:',
+        errCand,
+      )
+    }
+
     const res = await pb.send<RespostaAnaliseVideoApi>('/backend/v1/analisar-video-ia', {
       method: 'POST',
       body: JSON.stringify({ candidatoId, permitirDivergencia }),
@@ -154,8 +214,9 @@ export const videoIaService = {
    * Não envia `video_status` (campo não existe na coleção candidatos).
    */
   async salvarLinkVideo(candidatoId: string, videoLink: string) {
+    const linkNormalizado = formatarLinkVideoStreaming(videoLink)
     return await pb.collection('candidatos').update(candidatoId, {
-      video_link: videoLink,
+      video_link: linkNormalizado,
     })
   },
 

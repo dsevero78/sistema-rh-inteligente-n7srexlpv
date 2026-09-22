@@ -76,8 +76,40 @@ routerAdd(
       )
       .join('\n')
 
+    // Normalizador de URLs de streaming (Google Drive, Dropbox, Loom, etc.)
+    let linkProcessado = videoLink ? videoLink.trim() : ''
+    if (linkProcessado) {
+      // 1. Google Drive
+      // Exemplos: drive.google.com/file/d/FILE_ID/..., drive.google.com/open?id=FILE_ID, drive.google.com/uc?id=FILE_ID
+      const driveMatch =
+        linkProcessado.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/i) ||
+        linkProcessado.match(
+          /drive\.google\.com\/(?:open|uc)\?(?:[a-zA-Z0-9_=&-]*&)?id=([a-zA-Z0-9_-]+)/i,
+        )
+      if (driveMatch && driveMatch[1]) {
+        linkProcessado = `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`
+      }
+
+      // 2. Dropbox: trocar dl=0 por raw=1 ou adicionar raw=1
+      if (/dropbox\.com/i.test(linkProcessado)) {
+        if (/([?&])dl=[01]/i.test(linkProcessado)) {
+          linkProcessado = linkProcessado.replace(/([?&])dl=[01]/i, '$1raw=1')
+        } else if (!/[?&]raw=1/i.test(linkProcessado)) {
+          linkProcessado += linkProcessado.includes('?') ? '&raw=1' : '?raw=1'
+        }
+      }
+
+      // 3. Loom: loom.com/share/ID -> https://www.loom.com/embed/ID
+      const loomMatch = linkProcessado.match(/loom\.com\/share\/([a-zA-Z0-9_-]+)/i)
+      if (loomMatch && loomMatch[1]) {
+        linkProcessado = `https://www.loom.com/embed/${loomMatch[1]}`
+      }
+    }
+
     // Metadados do vídeo
-    const fonteVideo = videoFile ? `Arquivo local: ${videoFile}` : `Link externo: ${videoLink}`
+    const fonteVideo = videoFile
+      ? `Arquivo local: ${videoFile}`
+      : `Link externo: ${linkProcessado || videoLink}`
     const versaoAtual = (candidato.getInt('video_versao') || 0) + 1
     const nomeCadastro = candidato.getString('nome') || ''
 
@@ -193,10 +225,24 @@ INSTRUÇÕES ESPECÍFICAS DESTA EXECUÇÃO:
       const conflitoDetectado = Boolean(parsed.conflito_identidade)
       const nomeDetectado = String(parsed.nome_detectado_no_video || '').trim()
       const detalhesConflito = String(parsed.detalhes_conflito_identidade || '').trim()
+      const resumoExecutivo = String(parsed.resumo_executivo || '').trim()
+
+      // Verificar se a IA reportou impossibilidade de acesso/leitura do vídeo
+      const textoCompletoAnalise =
+        `${resumoExecutivo} ${String(parsed.recomendacao_geral || '')} ${String(parsed.analise_linguistica?.estrutura_fala || '')}`.toLowerCase()
+      const ehErroAcessoVideo =
+        textoCompletoAnalise.includes('não pôde ser acessado') ||
+        textoCompletoAnalise.includes('nao pode ser acessado') ||
+        textoCompletoAnalise.includes('não foi possível realizar a análise') ||
+        textoCompletoAnalise.includes('nao foi possivel realizar a analise') ||
+        textoCompletoAnalise.includes('impossibilidade de visualização') ||
+        textoCompletoAnalise.includes('impossibilidade de visualizacao') ||
+        textoCompletoAnalise.includes('falta de acesso ao vídeo') ||
+        textoCompletoAnalise.includes('falta de acesso ao video')
 
       // Se houver conflito de identidade e o RH ainda não autorizou explicitamente (permitirDivergencia = false)
       // Avisamos no payload com status de alerta para o RH confirmar antes de prosseguir
-      const ehConflitoPendente = conflitoDetectado && !permitirDivergencia
+      const ehConflitoPendente = !ehErroAcessoVideo && conflitoDetectado && !permitirDivergencia
 
       // Salvar ou atualizar na coleção analises_video_ia
       let analiseRecord
@@ -220,6 +266,81 @@ INSTRUÇÕES ESPECÍFICAS DESTA EXECUÇÃO:
 
       if (vagaId) {
         analiseRecord.set('vaga', vagaId)
+      }
+
+      if (ehErroAcessoVideo) {
+        // Grava como erro_acesso, score_geral = null / 0 sem penalizar o candidato
+        const msgErro =
+          resumoExecutivo ||
+          'Não foi possível acessar o vídeo pelo link fornecido. Verifique se o arquivo está compartilhado publicamente.'
+
+        analiseRecord.set('resumo_executivo', msgErro)
+        analiseRecord.set('comunicacao_oratoria', '')
+        analiseRecord.set('postura_presenca', '')
+        analiseRecord.set('dominio_experiencia', '')
+        analiseRecord.set('fit_cultural', '')
+        analiseRecord.set('pontos_fortes', [])
+        analiseRecord.set('pontos_atencao', [])
+        analiseRecord.set('nota_estimada', null)
+        analiseRecord.set('score_geral', null)
+        analiseRecord.set('clareza_comunicacao', null)
+        analiseRecord.set('estrutura_narrativa', null)
+        analiseRecord.set('energia_postura', null)
+        analiseRecord.set('aderencia_vaga', null)
+        analiseRecord.set('red_flags', [])
+        analiseRecord.set('recomendacao_geral', 'Falha no Acesso')
+        analiseRecord.set(
+          'base_utilizada',
+          `Análise via IA Gateway Skip · Vídeo (${fonteVideo}) · Falha no acesso ao arquivo`,
+        )
+        analiseRecord.set('qtd_percepcoes_consideradas', percepcoes.length)
+        analiseRecord.set('data_geracao', new Date().toISOString())
+        analiseRecord.set('versao_video', versaoAtual)
+        analiseRecord.set('arquivo_analisado', videoFile ? 'arquivo' : 'link')
+        analiseRecord.set('status_analise', 'erro_acesso')
+        analiseRecord.set(
+          'erro_detalhes',
+          'O link do vídeo não pôde ser visualizado ou acessado publicamente.',
+        )
+        analiseRecord.set('nome_detectado_no_video', '')
+        analiseRecord.set('conflito_identidade', false)
+        analiseRecord.set('detalhes_conflito_identidade', '')
+        analiseRecord.set('conflito_confirmado_rh', false)
+        analiseRecord.set('indice_naturalidade', null)
+        analiseRecord.set('veredito_naturalidade', '')
+        analiseRecord.set('analise_linguistica', {})
+        analiseRecord.set('pontos_cegos', {})
+        analiseRecord.set('expressao_socioemocional', {})
+
+        if (e.auth) {
+          analiseRecord.set('gerado_por', e.auth.id)
+        }
+
+        $app.save(analiseRecord)
+
+        // NÃO sobrescreve os campos de score do candidato para não penalizá-lo por falha técnica
+        try {
+          candidato.set('video_versao', versaoAtual)
+          $app.save(candidato)
+        } catch (errCand) {
+          console.log('Aviso ao atualizar versão no candidato:', errCand.message)
+        }
+
+        return e.json(200, {
+          success: false,
+          status_analise: 'erro_acesso',
+          error:
+            'Não foi possível acessar o vídeo pelo link fornecido. Verifique se o arquivo está compartilhado como "Qualquer pessoa com o link" (Visualizador) no Google Drive e tente novamente.',
+          data: {
+            analiseId: analiseRecord.id,
+            status_analise: 'erro_acesso',
+            score_geral: null,
+            resumo_executivo: msgErro,
+            recomendacao_geral: 'Falha no Acesso',
+            versao: versaoAtual,
+            analisado_em: new Date().toISOString(),
+          },
+        })
       }
 
       const scoreGeral = Math.min(100, Math.max(0, Number(parsed.score_geral) || 75))
@@ -247,10 +368,7 @@ INSTRUÇÕES ESPECÍFICAS DESTA EXECUÇÃO:
         )
       }
 
-      analiseRecord.set(
-        'resumo_executivo',
-        parsed.resumo_executivo || 'Análise de vídeo concluída.',
-      )
+      analiseRecord.set('resumo_executivo', resumoExecutivo || 'Análise de vídeo concluída.')
       analiseRecord.set('comunicacao_oratoria', parsed.comunicacao_oratoria || '')
       analiseRecord.set('postura_presenca', parsed.postura_presenca || '')
       analiseRecord.set('dominio_experiencia', parsed.dominio_experiencia || '')
@@ -336,6 +454,7 @@ INSTRUÇÕES ESPECÍFICAS DESTA EXECUÇÃO:
 
       return e.json(200, {
         success: true,
+        status_analise: 'concluida',
         conflito_bloqueante: ehConflitoPendente,
         conflito_identidade: conflitoDetectado,
         nome_detectado_no_video: nomeDetectado,
@@ -343,6 +462,7 @@ INSTRUÇÕES ESPECÍFICAS DESTA EXECUÇÃO:
         detalhes_conflito_identidade: detalhesConflito,
         data: {
           analiseId: analiseRecord.id,
+          status_analise: 'concluida',
           score_geral: scoreGeral,
           clareza_comunicacao: clareza,
           estrutura_narrativa: estrutura,
@@ -357,7 +477,7 @@ INSTRUÇÕES ESPECÍFICAS DESTA EXECUÇÃO:
           analise_linguistica: parsed.analise_linguistica || {},
           pontos_cegos: parsed.pontos_cegos || {},
           expressao_socioemocional: parsed.expressao_socioemocional || {},
-          resumo_executivo: parsed.resumo_executivo,
+          resumo_executivo: resumoExecutivo,
           comunicacao_oratoria: parsed.comunicacao_oratoria,
           postura_presenca: parsed.postura_presenca,
           dominio_experiencia: parsed.dominio_experiencia,
