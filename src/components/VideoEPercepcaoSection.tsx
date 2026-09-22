@@ -83,18 +83,26 @@ export function VideoEPercepcaoSection({
   // Carregar dados
   const carregarDados = async () => {
     try {
-      const [percs, analise] = await Promise.all([
-        pb.collection('percepcoes_entrevista').getFullList({
+      const [percsResult, analise] = await Promise.allSettled([
+        pb.collection('percepcoes_rh').getFullList({
           filter: `candidato = "${candidato.id}"`,
           sort: '-created',
           expand: 'autor',
         }),
         videoIaService.obterAnaliseMaisRecente(candidato.id),
       ])
-      setPercepcoes(percs)
-      setAnaliseIa(analise)
+      if (percsResult.status === 'fulfilled') {
+        setPercepcoes(percsResult.value)
+      } else {
+        console.error('Erro ao buscar percepções RH:', percsResult.reason)
+      }
+      if (analise.status === 'fulfilled') {
+        setAnaliseIa(analise.value)
+      } else {
+        console.error('Erro ao buscar análise IA:', analise.reason)
+      }
     } catch (err) {
-      console.error('Erro ao buscar vídeo/percepções:', err)
+      console.error('Erro geral ao buscar vídeo/percepções:', err)
     } finally {
       setLoadingPercepcoes(false)
       setLoadingAnalise(false)
@@ -245,15 +253,17 @@ export function VideoEPercepcaoSection({
         .map((s) => s.trim())
         .filter(Boolean)
 
-      await pb.collection('percepcoes_entrevista').create({
+      await pb.collection('percepcoes_rh').create({
         candidato: candidato.id,
-        vaga: candidato.vaga,
-        origem_tipo: tipoOrigem,
+        vaga: candidato.vaga || undefined,
         autor: pb.authStore.record?.id,
-        observacoes,
-        destaques_positivos: posArray,
-        pontos_atencao: ateArray,
-        data_registro: new Date().toISOString(),
+        autor_nome: pb.authStore.record?.name || pb.authStore.record?.email || 'Avaliador RH',
+        visibilidade: 'Compartilhada com o gestor',
+        status_documento: 'Finalizada',
+        comunicacao_clareza: observacoes,
+        postura_apresentacao: destaquesPositivos,
+        pontos_fortes: posArray.join('\n'),
+        pontos_atencao: ateArray.join('\n'),
       })
 
       toast({
@@ -306,27 +316,23 @@ export function VideoEPercepcaoSection({
                   <h3 className="font-display text-base font-bold text-[#212B55] dark:text-[#F7F8FB]">
                     Vídeo de Apresentação & Avaliação IA
                   </h3>
-                  {videoStatus === 'analise_concluida' && (
+                  {analiseIa ? (
                     <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 text-[11px] font-bold">
                       ✓ Análise Concluída
                     </Badge>
-                  )}
-                  {videoStatus === 'enviado_aguardando' && (
-                    <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700 text-[11px] font-bold">
-                      Aguardando Análise
-                    </Badge>
-                  )}
-                  {videoStatus === 'analisando' && (
+                  ) : videoStatus === 'analisando' || analisando ? (
                     <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-300 dark:border-blue-700 text-[11px] font-bold animate-pulse">
                       Analisando com IA...
                     </Badge>
-                  )}
-                  {videoStatus === 'erro_processamento' && (
+                  ) : videoStatus === 'erro_processamento' ? (
                     <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-300 dark:border-rose-700 text-[11px] font-bold">
                       Erro no Processamento
                     </Badge>
-                  )}
-                  {videoStatus === 'sem_video' && (
+                  ) : temVideo ? (
+                    <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700 text-[11px] font-bold">
+                      Aguardando Análise
+                    </Badge>
+                  ) : (
                     <Badge variant="outline" className="text-[11px] font-medium text-slate-500">
                       Sem vídeo enviado
                     </Badge>
@@ -361,7 +367,7 @@ export function VideoEPercepcaoSection({
                       <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                       Processando IA...
                     </>
-                  ) : videoStatus === 'analise_concluida' ? (
+                  ) : analiseIa ? (
                     <>
                       <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
                       Reanalisar Vídeo
@@ -466,9 +472,9 @@ export function VideoEPercepcaoSection({
                   </div>
                 )}
 
-                {videoStatus === 'analise_concluida' ? (
+                {analiseIa ? (
                   <div className="space-y-4">
-                    {/* Score Geral & Recomendação */}
+                    {/* Score Geral & Veredito */}
                     <div className="flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-[#FEF1EA] to-white dark:from-[#212B55] dark:to-[#1A2240] border border-[#FBDCC9] dark:border-[#2E3A6E]">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl bg-[#E9530E] text-white flex flex-col items-center justify-center shrink-0 font-mono font-bold shadow-xs">
@@ -479,94 +485,33 @@ export function VideoEPercepcaoSection({
                         </div>
                         <div>
                           <span className="text-[10px] uppercase font-bold tracking-wider text-[#E9530E]">
-                            Índice Geral de Apresentação
+                            Veredito / Recomendação Geral
                           </span>
                           <h4 className="font-display text-sm font-bold text-[#212B55] dark:text-[#F7F8FB]">
-                            {analiseIa?.recomendacao_geral || 'Candidato Apto'}
+                            {analiseIa.recomendacao_geral || 'Candidato Apto'}
                           </h4>
+                          {analiseIa.nota_estimada && (
+                            <span className="text-[11px] text-slate-500">
+                              Nota Estimada: {analiseIa.nota_estimada}/10
+                            </span>
+                          )}
                         </div>
                       </div>
 
                       <div className="text-right text-xs text-slate-500 dark:text-slate-400">
-                        {candidato.video_analisado_em && (
+                        {(analiseIa.data_geracao || candidato.video_analisado_em) && (
                           <span>
                             Analisado em{' '}
-                            {new Date(candidato.video_analisado_em).toLocaleDateString('pt-BR')}
+                            {new Date(
+                              analiseIa.data_geracao || candidato.video_analisado_em,
+                            ).toLocaleDateString('pt-BR')}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Barras Dimensionais */}
-                    <div className="space-y-2.5 p-3.5 bg-slate-50 dark:bg-[#141B34] rounded-xl border border-slate-200 dark:border-[#2E3A6E]">
-                      <h5 className="font-display text-xs font-bold text-[#212B55] dark:text-[#F7F8FB] uppercase tracking-wider flex items-center gap-1.5">
-                        <BarChart3 className="w-3.5 h-3.5 text-[#E9530E]" />
-                        Dimensões Avaliadas pela IA
-                      </h5>
-
-                      <div className="space-y-2 pt-1">
-                        <div>
-                          <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            <span>Clareza de Comunicação & Dicção</span>
-                            <span className="font-bold font-mono">
-                              {dimensoes.clareza_comunicacao}%
-                            </span>
-                          </div>
-                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
-                              style={{ width: `${dimensoes.clareza_comunicacao}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            <span>Estrutura da Narrativa & Síntese</span>
-                            <span className="font-bold font-mono">
-                              {dimensoes.estrutura_narrativa}%
-                            </span>
-                          </div>
-                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-blue-500 transition-all duration-500 rounded-full"
-                              style={{ width: `${dimensoes.estrutura_narrativa}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            <span>Energia, Firmeza & Postura</span>
-                            <span className="font-bold font-mono">
-                              {dimensoes.energia_postura}%
-                            </span>
-                          </div>
-                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-purple-500 transition-all duration-500 rounded-full"
-                              style={{ width: `${dimensoes.energia_postura}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            <span>Aderência à Vaga & Domínio Técnico</span>
-                            <span className="font-bold font-mono">{dimensoes.aderencia_vaga}%</span>
-                          </div>
-                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-amber-500 transition-all duration-500 rounded-full"
-                              style={{ width: `${dimensoes.aderencia_vaga}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Resumo Executivo da Análise */}
-                    {analiseIa?.resumo_executivo && (
+                    {/* Resumo Executivo */}
+                    {analiseIa.resumo_executivo && (
                       <div className="p-3.5 bg-blue-50/50 dark:bg-[#141B34] border border-blue-200 dark:border-blue-900 rounded-xl space-y-1.5">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
                           Resumo da IA em pt-BR
@@ -577,12 +522,181 @@ export function VideoEPercepcaoSection({
                       </div>
                     )}
 
+                    {/* Avaliações Qualitativas Estruturadas (Comunicação, Postura, Domínio, Fit Cultural) */}
+                    {(analiseIa.comunicacao_oratoria ||
+                      analiseIa.postura_presenca ||
+                      analiseIa.dominio_experiencia ||
+                      analiseIa.fit_cultural) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        {analiseIa.comunicacao_oratoria && (
+                          <div className="p-3 rounded-lg border border-slate-200 dark:border-[#2E3A6E] bg-slate-50/80 dark:bg-[#141B34]/60 text-xs space-y-1">
+                            <span className="font-bold text-[#212B55] dark:text-[#F7F8FB] block">
+                              Comunicação & Oratória
+                            </span>
+                            <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                              {analiseIa.comunicacao_oratoria}
+                            </p>
+                          </div>
+                        )}
+                        {analiseIa.postura_presenca && (
+                          <div className="p-3 rounded-lg border border-slate-200 dark:border-[#2E3A6E] bg-slate-50/80 dark:bg-[#141B34]/60 text-xs space-y-1">
+                            <span className="font-bold text-[#212B55] dark:text-[#F7F8FB] block">
+                              Postura & Presença
+                            </span>
+                            <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                              {analiseIa.postura_presenca}
+                            </p>
+                          </div>
+                        )}
+                        {analiseIa.dominio_experiencia && (
+                          <div className="p-3 rounded-lg border border-slate-200 dark:border-[#2E3A6E] bg-slate-50/80 dark:bg-[#141B34]/60 text-xs space-y-1">
+                            <span className="font-bold text-[#212B55] dark:text-[#F7F8FB] block">
+                              Domínio de Experiência
+                            </span>
+                            <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                              {analiseIa.dominio_experiencia}
+                            </p>
+                          </div>
+                        )}
+                        {analiseIa.fit_cultural && (
+                          <div className="p-3 rounded-lg border border-slate-200 dark:border-[#2E3A6E] bg-slate-50/80 dark:bg-[#141B34]/60 text-xs space-y-1">
+                            <span className="font-bold text-[#212B55] dark:text-[#F7F8FB] block">
+                              Fit Cultural & Valores
+                            </span>
+                            <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                              {analiseIa.fit_cultural}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Barras Dimensionais (se houver notas numéricas) */}
+                    {(dimensoes.clareza_comunicacao > 0 ||
+                      dimensoes.estrutura_narrativa > 0 ||
+                      dimensoes.energia_postura > 0 ||
+                      dimensoes.aderencia_vaga > 0) && (
+                      <div className="space-y-2.5 p-3.5 bg-slate-50 dark:bg-[#141B34] rounded-xl border border-slate-200 dark:border-[#2E3A6E]">
+                        <h5 className="font-display text-xs font-bold text-[#212B55] dark:text-[#F7F8FB] uppercase tracking-wider flex items-center gap-1.5">
+                          <BarChart3 className="w-3.5 h-3.5 text-[#E9530E]" />
+                          Dimensões Avaliadas pela IA
+                        </h5>
+
+                        <div className="space-y-2 pt-1">
+                          {dimensoes.clareza_comunicacao > 0 && (
+                            <div>
+                              <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                <span>Clareza de Comunicação & Dicção</span>
+                                <span className="font-bold font-mono">
+                                  {dimensoes.clareza_comunicacao}%
+                                </span>
+                              </div>
+                              <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+                                  style={{ width: `${dimensoes.clareza_comunicacao}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {dimensoes.estrutura_narrativa > 0 && (
+                            <div>
+                              <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                <span>Estrutura da Narrativa & Síntese</span>
+                                <span className="font-bold font-mono">
+                                  {dimensoes.estrutura_narrativa}%
+                                </span>
+                              </div>
+                              <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-blue-500 transition-all duration-500 rounded-full"
+                                  style={{ width: `${dimensoes.estrutura_narrativa}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {dimensoes.energia_postura > 0 && (
+                            <div>
+                              <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                <span>Energia, Firmeza & Postura</span>
+                                <span className="font-bold font-mono">
+                                  {dimensoes.energia_postura}%
+                                </span>
+                              </div>
+                              <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-purple-500 transition-all duration-500 rounded-full"
+                                  style={{ width: `${dimensoes.energia_postura}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {dimensoes.aderencia_vaga > 0 && (
+                            <div>
+                              <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                <span>Aderência à Vaga & Domínio Técnico</span>
+                                <span className="font-bold font-mono">
+                                  {dimensoes.aderencia_vaga}%
+                                </span>
+                              </div>
+                              <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-amber-500 transition-all duration-500 rounded-full"
+                                  style={{ width: `${dimensoes.aderencia_vaga}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Pontos Fortes e Pontos de Atenção */}
+                    {((Array.isArray(analiseIa.pontos_fortes) &&
+                      analiseIa.pontos_fortes.length > 0) ||
+                      (Array.isArray(analiseIa.pontos_atencao) &&
+                        analiseIa.pontos_atencao.length > 0)) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {Array.isArray(analiseIa.pontos_fortes) &&
+                          analiseIa.pontos_fortes.length > 0 && (
+                            <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl space-y-1.5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Pontos Fortes Identificados
+                              </span>
+                              <ul className="text-xs text-emerald-950 dark:text-emerald-200 list-disc list-inside space-y-1">
+                                {analiseIa.pontos_fortes.map((pf: string, idx: number) => (
+                                  <li key={idx}>{pf}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        {Array.isArray(analiseIa.pontos_atencao) &&
+                          analiseIa.pontos_atencao.length > 0 && (
+                            <div className="p-3 bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl space-y-1.5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                Pontos de Atenção
+                              </span>
+                              <ul className="text-xs text-amber-950 dark:text-amber-200 list-disc list-inside space-y-1">
+                                {analiseIa.pontos_atencao.map((pa: string, idx: number) => (
+                                  <li key={idx}>{pa}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                      </div>
+                    )}
+
                     {/* Red Flags ou Alertas */}
                     {redFlags.length > 0 && (
                       <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl space-y-1.5">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1">
                           <ShieldAlert className="w-3.5 h-3.5" />
-                          Pontos de Atenção & Red Flags Identificados
+                          Red Flags Críticos
                         </span>
                         <ul className="text-xs text-rose-900 dark:text-rose-200 list-disc list-inside space-y-1">
                           {redFlags.map((rf, idx) => (

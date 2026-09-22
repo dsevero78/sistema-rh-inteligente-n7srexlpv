@@ -62,13 +62,24 @@ export const videoIaService = {
     try {
       const records = await pb.collection('analises_video_ia').getList(1, 1, {
         filter: `candidato = "${candidatoId}"`,
-        sort: '-created',
+        sort: '-data_geracao',
         expand: 'gerado_por,vaga',
       })
       return records.items[0] || null
     } catch (err) {
-      console.warn('Erro ao carregar análise de vídeo:', err)
-      return null
+      console.error('[videoIaService] Erro ao carregar análise de vídeo por -data_geracao:', err)
+      // Fallback para ordenação por -id se houver falha de índice/campo
+      try {
+        const fallbackRecords = await pb.collection('analises_video_ia').getList(1, 1, {
+          filter: `candidato = "${candidatoId}"`,
+          sort: '-id',
+          expand: 'gerado_por,vaga',
+        })
+        return fallbackRecords.items[0] || null
+      } catch (fallbackErr) {
+        console.error('[videoIaService] Erro no fallback de análise de vídeo por -id:', fallbackErr)
+        return null
+      }
     }
   },
 

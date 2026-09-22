@@ -37,9 +37,26 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [isAuthenticated, hasAnyCred, syncAuthNow])
 
-  // Se estiver em carregamento inicial OU há credencial em localStorage mas o estado do React está sincronizando:
-  // NUNCA ejeta para /login enquanto existir qualquer credencial em localStorage (souyess.session.backup)!
-  if (isLoading || (hasAnyCred && !isAuthenticated)) {
+  // Se existir QUALQUER credencial salva (backup em localStorage ou token no pb.authStore),
+  // NUNCA ejeta para /login — mantém a tela de transição até o estado consolidar!
+  if (hasAnyCred) {
+    if (!isAuthenticated || isLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] dark:bg-[#11162B]">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 text-[#E9530E] animate-spin" />
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+              Verificando sessão ativa...
+            </p>
+          </div>
+        </div>
+      )
+    }
+    return <>{children}</>
+  }
+
+  // Se estiver em carregamento inicial sem credenciais salvas identificadas ainda:
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] dark:bg-[#11162B]">
         <div className="flex flex-col items-center gap-3">

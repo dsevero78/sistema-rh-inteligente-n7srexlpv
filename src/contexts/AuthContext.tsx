@@ -150,11 +150,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsRenewingSession(false)
         }
       } else {
-        // Não há credencial alguma no backup
-        console.info('[AuthContext] Nenhuma credencial no backup. Definindo sessão como vazia.')
-        setToken('')
-        setUser(null)
-        setIsRenewingSession(false)
+        // Não há credencial no backup, MAS verificar se é logout explícito ou se o usuário ainda possui dados locais
+        if (isExplicitLogoutRef.current) {
+          console.info('[AuthContext] Sessão limpa após logout explícito confirmado.')
+          setToken('')
+          setUser(null)
+          setIsRenewingSession(false)
+        } else {
+          // Evento transitório do SDK onde o listener disparou vazio antes da sincronização
+          // Ignora a limpeza automática e preserva o estado atual em memória
+          console.warn(
+            '[AuthContext] pb.authStore.onChange disparou token vazio sem logout explícito. Ignorando rebaixamento para preservar autenticação.',
+          )
+        }
       }
     })
 
@@ -294,16 +302,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const backupNow = loadSessionBackup()
   const hasTokenStr = Boolean(token && token.length > 10)
   const hasPbStoreToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
-  const hasValidBackup = Boolean(
-    backupNow?.token && backupNow.token.length > 10 && !isJwtTokenExpired(backupNow.token),
-  )
   const hasAnyStoredBackup = Boolean(backupNow?.token && backupNow.token.length > 10)
 
   const isAuthed =
     !isExplicitLogoutRef.current &&
     (hasTokenStr ||
       hasPbStoreToken ||
-      hasValidBackup ||
       hasAnyStoredBackup ||
       isRecoveringAuthRef.current ||
       isRenewingSession)

@@ -6,6 +6,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { useToast } from '@/hooks/use-toast'
 import type { RecordModel } from 'pocketbase'
 import { notificacoesRhService } from '@/services/notificacoesRh'
+import { videoIaService } from '@/services/videoIaService'
 import {
   Briefcase,
   Users,
@@ -24,6 +25,8 @@ import {
   Send,
   Loader2,
   Lock,
+  BarChart3,
+  ShieldAlert,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -76,6 +79,8 @@ export default function GestorPortal() {
   // Modal Ver Detalhes do Candidato (Vídeo + Percepção Compartilhada + Matching)
   const [candDetalhesModal, setCandDetalhesModal] = useState(false)
   const [candEmVisualizacao, setCandEmVisualizacao] = useState<RecordModel | null>(null)
+  const [analiseIaCand, setAnaliseIaCand] = useState<RecordModel | null>(null)
+  const [loadingAnaliseIaCand, setLoadingAnaliseIaCand] = useState(false)
 
   const carregarDadosGestor = async () => {
     if (!user) return
@@ -288,9 +293,19 @@ export default function GestorPortal() {
   }
 
   // Abrir visualização de dossiê do candidato para o gestor
-  const handleVerDetalhesCand = (c: RecordModel) => {
+  const handleVerDetalhesCand = async (c: RecordModel) => {
     setCandEmVisualizacao(c)
+    setAnaliseIaCand(null)
+    setLoadingAnaliseIaCand(true)
     setCandDetalhesModal(true)
+    try {
+      const analise = await videoIaService.obterAnaliseMaisRecente(c.id)
+      setAnaliseIaCand(analise)
+    } catch (err) {
+      console.error('Erro ao carregar análise IA para gestor:', err)
+    } finally {
+      setLoadingAnaliseIaCand(false)
+    }
   }
 
   if (loading) {
@@ -852,6 +867,215 @@ export default function GestorPortal() {
               ) : (
                 <p className="text-slate-400 italic">
                   Nenhum arquivo de vídeo anexado por enquanto.
+                </p>
+              )}
+            </div>
+
+            {/* Seção Análise de Vídeo por IA (Visível para o Gestor) */}
+            <div className="space-y-3 p-4 bg-gradient-to-br from-orange-50/60 to-white rounded-xl border border-orange-200">
+              <div className="flex items-center justify-between border-b border-orange-100 pb-2">
+                <h4 className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
+                  <Sparkles className="w-4 h-4 text-[#E9530E]" />
+                  Avaliação Dimensional de IA (Apresentação &amp; Vídeo)
+                </h4>
+                {analiseIaCand && (
+                  <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold border-emerald-300">
+                    ✓ Análise Concluída
+                  </Badge>
+                )}
+              </div>
+
+              {loadingAnaliseIaCand ? (
+                <div className="flex items-center gap-2 py-4 justify-center text-slate-400">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#E9530E]" />
+                  <span>Carregando relatório da IA...</span>
+                </div>
+              ) : analiseIaCand ? (
+                <div className="space-y-3">
+                  {/* Score Geral & Veredito */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-white border border-orange-200/80">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-lg bg-[#E9530E] text-white flex flex-col items-center justify-center font-mono font-bold shrink-0">
+                        <span className="text-sm leading-none">
+                          {candEmVisualizacao?.video_score_geral || analiseIaCand.score_geral || 0}
+                        </span>
+                        <span className="text-[8px] opacity-90">/100</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase font-bold tracking-wider text-[#E9530E] block">
+                          Veredito Geral
+                        </span>
+                        <span className="font-bold text-slate-900 text-xs">
+                          {analiseIaCand.recomendacao_geral || 'Recomendado'}
+                        </span>
+                        {analiseIaCand.nota_estimada && (
+                          <span className="text-[10px] text-slate-500 block">
+                            Nota: {analiseIaCand.nota_estimada}/10
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {analiseIaCand.data_geracao && (
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(analiseIaCand.data_geracao).toLocaleDateString('pt-BR')}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Resumo Executivo */}
+                  {analiseIaCand.resumo_executivo && (
+                    <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-600 block">
+                        Síntese Executiva IA
+                      </span>
+                      <p className="text-slate-700 leading-relaxed">
+                        {analiseIaCand.resumo_executivo}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Dimensões Qualitativas */}
+                  {(analiseIaCand.comunicacao_oratoria ||
+                    analiseIaCand.postura_presenca ||
+                    analiseIaCand.dominio_experiencia ||
+                    analiseIaCand.fit_cultural) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {analiseIaCand.comunicacao_oratoria && (
+                        <div className="p-2.5 bg-white rounded-md border border-slate-200 text-slate-700">
+                          <strong className="text-slate-900 block text-[11px] mb-0.5">
+                            Comunicação:
+                          </strong>
+                          <p>{analiseIaCand.comunicacao_oratoria}</p>
+                        </div>
+                      )}
+                      {analiseIaCand.postura_presenca && (
+                        <div className="p-2.5 bg-white rounded-md border border-slate-200 text-slate-700">
+                          <strong className="text-slate-900 block text-[11px] mb-0.5">
+                            Postura:
+                          </strong>
+                          <p>{analiseIaCand.postura_presenca}</p>
+                        </div>
+                      )}
+                      {analiseIaCand.dominio_experiencia && (
+                        <div className="p-2.5 bg-white rounded-md border border-slate-200 text-slate-700">
+                          <strong className="text-slate-900 block text-[11px] mb-0.5">
+                            Domínio:
+                          </strong>
+                          <p>{analiseIaCand.dominio_experiencia}</p>
+                        </div>
+                      )}
+                      {analiseIaCand.fit_cultural && (
+                        <div className="p-2.5 bg-white rounded-md border border-slate-200 text-slate-700">
+                          <strong className="text-slate-900 block text-[11px] mb-0.5">
+                            Fit Cultural:
+                          </strong>
+                          <p>{analiseIaCand.fit_cultural}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Dimensões quantitativas (barras se existirem) */}
+                  {(analiseIaCand.clareza_comunicacao > 0 ||
+                    analiseIaCand.estrutura_narrativa > 0 ||
+                    analiseIaCand.energia_postura > 0 ||
+                    analiseIaCand.aderencia_vaga > 0) && (
+                    <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-2">
+                      <span className="text-[10px] font-bold uppercase text-slate-600 block flex items-center gap-1">
+                        <BarChart3 className="w-3.5 h-3.5 text-[#E9530E]" />
+                        Métricas Dimensionais
+                      </span>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                          <div className="flex justify-between text-slate-600">
+                            <span>Clareza</span>
+                            <span className="font-bold">{analiseIaCand.clareza_comunicacao}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-0.5">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full"
+                              style={{ width: `${analiseIaCand.clareza_comunicacao}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-slate-600">
+                            <span>Estrutura</span>
+                            <span className="font-bold">{analiseIaCand.estrutura_narrativa}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-0.5">
+                            <div
+                              className="h-full bg-blue-500 rounded-full"
+                              style={{ width: `${analiseIaCand.estrutura_narrativa}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-slate-600">
+                            <span>Energia &amp; Postura</span>
+                            <span className="font-bold">{analiseIaCand.energia_postura}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-0.5">
+                            <div
+                              className="h-full bg-purple-500 rounded-full"
+                              style={{ width: `${analiseIaCand.energia_postura}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-slate-600">
+                            <span>Aderência à Vaga</span>
+                            <span className="font-bold">{analiseIaCand.aderencia_vaga}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-0.5">
+                            <div
+                              className="h-full bg-amber-500 rounded-full"
+                              style={{ width: `${analiseIaCand.aderencia_vaga}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pontos Fortes e Atenção */}
+                  {((Array.isArray(analiseIaCand.pontos_fortes) &&
+                    analiseIaCand.pontos_fortes.length > 0) ||
+                    (Array.isArray(analiseIaCand.pontos_atencao) &&
+                      analiseIaCand.pontos_atencao.length > 0)) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {Array.isArray(analiseIaCand.pontos_fortes) &&
+                        analiseIaCand.pontos_fortes.length > 0 && (
+                          <div className="p-2.5 bg-emerald-50 rounded-md border border-emerald-200">
+                            <strong className="text-emerald-950 block text-[11px] mb-1">
+                              Pontos Fortes:
+                            </strong>
+                            <ul className="list-disc list-inside space-y-0.5 text-[11px] text-emerald-900">
+                              {analiseIaCand.pontos_fortes.map((pf: string, i: number) => (
+                                <li key={i}>{pf}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      {Array.isArray(analiseIaCand.pontos_atencao) &&
+                        analiseIaCand.pontos_atencao.length > 0 && (
+                          <div className="p-2.5 bg-amber-50 rounded-md border border-amber-200">
+                            <strong className="text-amber-950 block text-[11px] mb-1">
+                              Pontos de Atenção:
+                            </strong>
+                            <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-900">
+                              {analiseIaCand.pontos_atencao.map((pa: string, i: number) => (
+                                <li key={i}>{pa}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-slate-400 italic text-center py-2">
+                  Análise inteligente de vídeo ainda não processada para este candidato.
                 </p>
               )}
             </div>

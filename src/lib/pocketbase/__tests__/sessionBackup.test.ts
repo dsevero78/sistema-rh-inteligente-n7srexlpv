@@ -79,6 +79,23 @@ describe('SessionBackup & Auto-Recovery', () => {
     expect(isJwtTokenExpired(makeToken(pastExp))).toBe(true)
   })
 
+  it('loadSessionBackup preserva credenciais mesmo quando token expirou, sinalizando needsRefresh', () => {
+    const pastExp = Math.floor(Date.now() / 1000) - 3600
+    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+    const payload = btoa(JSON.stringify({ id: 'u_exp', exp: pastExp }))
+    const expiredToken = `${header}.${payload}.sig`
+    const userModel = { id: 'u_exp', email: 'expired@empresa.com' } as any
+
+    saveSessionBackup(expiredToken, userModel)
+
+    // O backup DEVE ser retornado para que o app tente refresh em vez de ejetar
+    const backup = loadSessionBackup()
+    expect(backup).not.toBeNull()
+    expect(backup?.token).toBe(expiredToken)
+    expect(backup?.needsRefresh).toBe(true)
+    expect(backup?.model?.id).toBe('u_exp')
+  })
+
   it('no reload em /login com credencial válida: restaura credencial síncrona antes de chamar singleFlightSafeAuthRefresh', async () => {
     const futureExp = Math.floor(Date.now() / 1000) + 7200
     const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))

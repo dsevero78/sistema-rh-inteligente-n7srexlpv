@@ -8,6 +8,11 @@ export interface AppSessionBackup {
   token: string
   model: RecordModel | null
   savedAt: number
+  /**
+   * Indica se o token precisa de refresh em segundo plano (ex.: expirado ou próximo de expirar).
+   * A presença do backup NUNCA é descartada localmente apenas por expiração de tempo.
+   */
+  needsRefresh?: boolean
 }
 
 /**
@@ -96,10 +101,12 @@ export function loadSessionBackup(): AppSessionBackup | null {
     if (rawBackup) {
       const parsed = JSON.parse(rawBackup) as Partial<AppSessionBackup>
       if (parsed && typeof parsed.token === 'string' && parsed.token.length > 10) {
+        const expired = isJwtTokenExpired(parsed.token)
         return {
           token: parsed.token,
           model: (parsed.model || null) as RecordModel | null,
           savedAt: typeof parsed.savedAt === 'number' ? parsed.savedAt : Date.now(),
+          needsRefresh: expired,
         }
       }
     }
@@ -113,12 +120,14 @@ export function loadSessionBackup(): AppSessionBackup | null {
     if (rawLegacy) {
       const parsed = JSON.parse(rawLegacy)
       if (parsed && typeof parsed.token === 'string' && parsed.token.length > 10) {
+        const expired = isJwtTokenExpired(parsed.token)
         const legacyBackup: AppSessionBackup = {
           token: parsed.token,
           model: (parsed.record || parsed.model || null) as RecordModel | null,
           savedAt: Date.now(),
+          needsRefresh: expired,
         }
-        // Migra atomicamente para a chave proprietária
+        // Migra atomicamente para a chave proprietária mantendo integridade
         saveSessionBackup(legacyBackup.token, legacyBackup.model)
         return legacyBackup
       }
