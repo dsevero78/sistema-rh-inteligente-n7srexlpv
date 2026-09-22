@@ -15,12 +15,26 @@ export interface BuKpiDecomposto {
   decomposicaoBu: BuItemValor[]
 }
 
+export interface ItemEncerramentoBu {
+  id: string
+  pessoaId: string
+  nomePessoa: string
+  modalidade: 'CLT' | 'PJ'
+  empresaId: string
+  empresaNome: string
+  tipoDesligamento: string
+  dataDesligamento: string
+  status: string
+  valorRescisorioOuPendente: number
+  detalhe: string
+}
+
 export interface BuVisaoLinha {
   empresaId: string
   sigla: string
   nome: string
   cor: string
-  tipo: string // 'Holding / Matriz' | 'BU / Filial'
+  tipo: string
   // PJ
   comprometidoPjMes: number
   nfsPagasPj: number
@@ -32,10 +46,13 @@ export interface BuVisaoLinha {
   folhaCltMes: number
   colaboradoresCltCount: number
   novasContratacoesClt: number
+  // Desligamentos / Encerramentos do Período
+  encerramentosPeriodoClt: number
+  encerramentosPeriodoPj: number
+  totalRescisorioBu: number
   // Total
   totalComprometidoGeral: number
 }
-
 export interface KpisFinanceiros {
   comprometidoMensalPj: number
   valorHoraMedioPj: number
@@ -64,6 +81,11 @@ export interface KpisFinanceiros {
   decompHorasApontadas: BuKpiDecomposto
   // Visão resumida por BU (linhas = BUs, colunas = indicadores PJ e CLT)
   visaoPorBu: BuVisaoLinha[]
+  // Encerramentos / Desligamentos no período com separação PJ x CLT
+  encerramentosPeriodo: ItemEncerramentoBu[]
+  totalRescisorioGeral: number
+  totalRescisorioClt: number
+  totalRescisorioPj: number
 }
 
 export interface MesProjecao {
@@ -249,6 +271,7 @@ export async function carregarDadosFinanceiros(
     apontamentos,
     beneficiosLista,
     programacoesLista,
+    offboardingsLista,
   ] = await Promise.all([
     pb
       .collection('prestadores_pj')
@@ -306,12 +329,44 @@ export async function carregarDadosFinanceiros(
       .collection('programacoes_descanso')
       .getFullList({ sort: '-created' })
       .catch(() => [] as RecordModel[]),
+    pb
+      .collection('offboardings')
+      .getFullList({ sort: '-data_desligamento', expand: 'pessoa,empresa' })
+      .catch(() => [] as RecordModel[]),
   ])
   const compStringMesAtual = `${String(mes).padStart(2, '0')}/${ano}`
 
   // 1. Prestadores Ativos e Comprometido Mensal (com reflexo de Benefícios PJ e Suspensão Programada de Descanso)
+  // Vínculos em desligamento/encerrados saem do comprometido mensal a partir da data de desligamento
+  const offboardingsValidos = offboardingsLista || []
+  const pessoasDesligadasIds = new Set<string>()
+  const prestadoresDesligadosIds = new Set<string>()
+
+  offboardingsValidos.forEach((off) => {
+    if (off.data_desligamento) {
+      const dtDeslig = new Date(off.data_desligamento).getTime()
+      // Se a data de desligamento for anterior ou dentro do mês de referência (fim do mês),
+      // ou se o processo já estiver com status "Concluído", sai do comprometido mensal
+      if (dtDeslig <= fimMesSelecionado || off.status === 'Concluído') {
+        if (off.pessoa) pessoasDesligadasIds.add(off.pessoa)
+        // Se for PJ, identificar se há prestador correspondente
+        if (off.modalidade === 'PJ') {
+          const pes = pessoas.find((p) => p.id === off.pessoa)
+          if (pes?.prestador_origem) {
+            prestadoresDesligadosIds.add(pes.prestador_origem)
+          }
+          if (pes?.cpf_cnpj) {
+            const pr = prestadores.find((p) => p.cnpj === pes.cpf_cnpj)
+            if (pr) prestadoresDesligadosIds.add(pr.id)
+          }
+        }
+      }
+    }
+  })
+
   const prestadoresAtivos = prestadores.filter(
-    (p) => p.status === 'Ativo' || p.status === 'Em renovação',
+    (p) =>
+      (p.status === 'Ativo' || p.status === 'Em renovação') && !prestadoresDesligadosIds.has(p.id),
   )
 
   // Mapeamento de benefícios ativos por pessoa e por prestador
@@ -1278,7 +1333,13 @@ export async function carregarDadosFinanceiros(
       .trim()
     // PJ NUNCA entra na folha CLT: exige explicitamente ser CLT
     const isClt = mod === 'CLT' && String(pes.tipo_pessoa || '').toUpperCase() !== 'PJ'
-    if (isClt && pes.status !== 'Inativo' && pes.status !== 'Desligado') {
+    const isDesligado =
+      pes.status === 'Inativo' ||
+      pes.status === 'Desligado' ||
+      pes.situacao_contrato === 'Encerrado' ||
+      pessoasDesligadasIds.has(pes.id)
+
+    if (isClt && !isDesligado) {
       const empId = normalizarBu(
         pes.empresa,
         pes.expand?.empresa?.nome_fantasia ||
@@ -1440,6 +1501,74 @@ export async function carregarDadosFinanceiros(
   const decompHorasApontadas = montarDecomposicao(buHorasMap, totalHorasApontadasPeriodo)
 
   // Montagem da tabela consolidada "Visão por BU"
+  // =========================================================================
+  // ENCERRAMENTOS / DESLIGAMENTOS NO PERÍODO (PJ x CLT por BU)
+  // Valores rescisórios apurados e NFs/competências em conciliação
+  // =========================================================================
+  const encerramentosPeriodo: ItemEncerramentoBu[] = []
+  const buEncerramentosCltMap = new Map<string, number>()
+  const buEncerramentosPjMap = new Map<string, number>()
+  const buRescisorioTotalMap = new Map<string, number>()
+
+  empresasLista.forEach((e) => {
+    buEncerramentosCltMap.set(e.id, 0)
+    buEncerramentosPjMap.set(e.id, 0)
+    buRescisorioTotalMap.set(e.id, 0)
+  })
+  buEncerramentosCltMap.set('sem-bu', 0)
+  buEncerramentosPjMap.set('sem-bu', 0)
+  buRescisorioTotalMap.set('sem-bu', 0)
+
+  let totalRescisorioGeral = 0
+  let totalRescisorioClt = 0
+  let totalRescisorioPj = 0
+
+  offboardingsValidos.forEach((off) => {
+    // Normalizar BU do offboarding
+    const buId = normalizarBu(
+      off.empresa,
+      off.expand?.empresa?.nome_fantasia || off.expand?.empresa?.nome || off.expand?.empresa?.sigla,
+    )
+
+    // Se o gestor tiver escopamento restrito por BU, filtrar registros fora da BU
+    if (empresaFiltroId && buId !== empresaFiltroId && off.empresa !== empresaFiltroId) {
+      return
+    }
+
+    const modalidade = (off.modalidade === 'PJ' ? 'PJ' : 'CLT') as 'CLT' | 'PJ'
+    const valor = Number(off.total_rescisorio) || 0
+    const nomePessoa = off.expand?.pessoa?.nome || 'Colaborador/Prestador'
+    const empNome =
+      off.expand?.empresa?.nome_fantasia || off.expand?.empresa?.razao_social || 'Unidade'
+
+    totalRescisorioGeral += valor
+    if (modalidade === 'PJ') {
+      totalRescisorioPj += valor
+      buEncerramentosPjMap.set(buId, (buEncerramentosPjMap.get(buId) || 0) + 1)
+    } else {
+      totalRescisorioClt += valor
+      buEncerramentosCltMap.set(buId, (buEncerramentosCltMap.get(buId) || 0) + 1)
+    }
+    buRescisorioTotalMap.set(buId, (buRescisorioTotalMap.get(buId) || 0) + valor)
+
+    encerramentosPeriodo.push({
+      id: off.id,
+      pessoaId: off.pessoa,
+      nomePessoa,
+      modalidade,
+      empresaId: buId,
+      empresaNome: empNome,
+      tipoDesligamento: off.tipo_desligamento || 'Encerramento de contrato',
+      dataDesligamento: off.data_desligamento || off.created,
+      status: off.status || 'Em andamento',
+      valorRescisorioOuPendente: valor,
+      detalhe:
+        modalidade === 'PJ'
+          ? `NFs/competências pendentes: R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          : `Rescisão líquida estimada CLT: R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+    })
+  })
+
   const visaoPorBu: BuVisaoLinha[] = empresasLista.map((e) => {
     const pj = buComprometidoPjMap.get(e.id) || 0
     const clt = buComprometidoCltMap.get(e.id) || 0
@@ -1460,6 +1589,9 @@ export async function carregarDadosFinanceiros(
       novasContratacoesClt: ofertas.filter(
         (o) => o.status === 'Aceita' && normalizarBu(o.expand?.vaga?.empresa) === e.id,
       ).length,
+      encerramentosPeriodoClt: buEncerramentosCltMap.get(e.id) || 0,
+      encerramentosPeriodoPj: buEncerramentosPjMap.get(e.id) || 0,
+      totalRescisorioBu: buRescisorioTotalMap.get(e.id) || 0,
       totalComprometidoGeral: pj + clt,
     }
   })
@@ -1485,6 +1617,9 @@ export async function carregarDadosFinanceiros(
       folhaCltMes: cltSemBu,
       colaboradoresCltCount: buContagemCltMap.get('sem-bu') || 0,
       novasContratacoesClt: 0,
+      encerramentosPeriodoClt: buEncerramentosCltMap.get('sem-bu') || 0,
+      encerramentosPeriodoPj: buEncerramentosPjMap.get('sem-bu') || 0,
+      totalRescisorioBu: buRescisorioTotalMap.get('sem-bu') || 0,
       totalComprometidoGeral: pjSemBu + cltSemBu,
     })
   }
@@ -1516,6 +1651,11 @@ export async function carregarDadosFinanceiros(
     decompTotalAtrasado,
     decompHorasApontadas,
     visaoPorBu,
+    // Encerramentos do período
+    encerramentosPeriodo,
+    totalRescisorioGeral,
+    totalRescisorioClt,
+    totalRescisorioPj,
   }
 
   return {

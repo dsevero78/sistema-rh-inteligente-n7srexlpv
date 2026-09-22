@@ -1470,27 +1470,6 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
       }
     }
 
-    // Ordenação: Pendentes primeiro; dentro deles: Urgente > Atenção > Acompanhar
-    const pesoSeveridade: Record<SeveridadeMeuDia, number> = {
-      urgente: 3,
-      atencao: 2,
-      acompanhar: 1,
-    }
-
-    itens.sort((a, b) => {
-      if (a.concluido !== b.concluido) {
-        return a.concluido ? 1 : -1
-      }
-      return pesoSeveridade[b.severidade] - pesoSeveridade[a.severidade]
-    })
-
-    // Contadores de KPIs
-    const itensPendentes = itens.filter((i) => !i.concluido)
-    const urgentesHoje = itensPendentes.filter((i) => i.severidade === 'urgente').length
-    const atencaoSemana = itensPendentes.filter((i) => i.severidade === 'atencao').length
-    const acompanharCount = itensPendentes.filter((i) => i.severidade === 'acompanhar').length
-    const concluidas7d = itens.filter((i) => i.concluido).length
-
     // =========================================================================
     // PENDÊNCIAS DE OFFBOARDING (CLT & PJ)
     // =========================================================================
@@ -1531,6 +1510,27 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
         })
       }
     }
+
+    // Ordenação: Pendentes primeiro; dentro deles: Urgente > Atenção > Acompanhar
+    const pesoSeveridade: Record<SeveridadeMeuDia, number> = {
+      urgente: 3,
+      atencao: 2,
+      acompanhar: 1,
+    }
+
+    itens.sort((a, b) => {
+      if (a.concluido !== b.concluido) {
+        return a.concluido ? 1 : -1
+      }
+      return pesoSeveridade[b.severidade] - pesoSeveridade[a.severidade]
+    })
+
+    // Contadores de KPIs
+    const itensPendentes = itens.filter((i) => !i.concluido)
+    const urgentesHoje = itensPendentes.filter((i) => i.severidade === 'urgente').length
+    const atencaoSemana = itensPendentes.filter((i) => i.severidade === 'atencao').length
+    const acompanharCount = itensPendentes.filter((i) => i.severidade === 'acompanhar').length
+    const concluidas7d = itens.filter((i) => i.concluido).length
 
     // Definição do Foco do Dia
     let focoPrincipal = 'Tudo em dia por aqui! Aproveite para planejar o ciclo.'

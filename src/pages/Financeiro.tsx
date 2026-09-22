@@ -53,7 +53,7 @@ import {
 import { SecaoMetasOrcamento } from '@/components/financeiro/SecaoMetasOrcamento'
 import { SecaoComparativoCusto } from '@/components/financeiro/SecaoComparativoCusto'
 import { useAuth } from '@/contexts/AuthContext'
-import { Scale, Lock } from 'lucide-react'
+import { Scale, Lock, UserMinus } from 'lucide-react'
 
 const MESES = [
   { valor: 1, nome: 'Janeiro' },
@@ -999,6 +999,12 @@ export default function PainelFinanceiro() {
                     <th className="p-3.5 bg-purple-50/40 text-purple-900">
                       <span>Colaboradores CLT</span>
                     </th>
+                    <th className="p-3.5 bg-rose-50/70 text-rose-900 border-l border-rose-100">
+                      <div className="flex items-center gap-1">
+                        <Badge className="bg-rose-600 text-white text-[9px] px-1 py-0">OFF</Badge>
+                        <span>Encerramentos Período</span>
+                      </div>
+                    </th>
                     <th className="p-3.5 bg-indigo-50/80 text-indigo-950 font-black border-l border-indigo-100 pr-5">
                       <div className="flex items-center gap-1">
                         <Badge className="bg-indigo-700 text-white text-[9px] px-1 py-0">
@@ -1087,6 +1093,29 @@ export default function PainelFinanceiro() {
                           <span className="text-[10px] text-slate-400 ml-1">colaborador(es)</span>
                         </td>
 
+                        {/* DESLIGAMENTOS NO PERÍODO */}
+                        <td className="p-3.5 bg-rose-50/30 border-l border-rose-100">
+                          {bu.encerramentosPeriodoClt > 0 || bu.encerramentosPeriodoPj > 0 ? (
+                            <div>
+                              <div className="font-bold text-rose-800">
+                                {formatarMoeda(bu.totalRescisorioBu)}
+                              </div>
+                              <div className="text-[10px] text-rose-600 flex items-center gap-1 mt-0.5">
+                                {bu.encerramentosPeriodoClt > 0 && (
+                                  <span>{bu.encerramentosPeriodoClt} CLT</span>
+                                )}
+                                {bu.encerramentosPeriodoClt > 0 &&
+                                  bu.encerramentosPeriodoPj > 0 && <span>•</span>}
+                                {bu.encerramentosPeriodoPj > 0 && (
+                                  <span>{bu.encerramentosPeriodoPj} PJ</span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-[11px]">—</span>
+                          )}
+                        </td>
+
                         {/* TOTAL GERAL DA BU */}
                         <td className="p-3.5 bg-indigo-50/40 border-l border-indigo-100 pr-5">
                           <div className="font-black text-indigo-950 text-sm">
@@ -1101,7 +1130,7 @@ export default function PainelFinanceiro() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={8} className="p-6 text-center text-xs text-slate-400">
+                      <td colSpan={9} className="p-6 text-center text-xs text-slate-400">
                         Nenhum dado por BU disponível no momento.
                       </td>
                     </tr>
@@ -1130,12 +1159,128 @@ export default function PainelFinanceiro() {
                       <td className="p-3.5 bg-purple-100/60 text-slate-800">
                         {dados.kpis.colaboradoresCltCount} colaboradores
                       </td>
+                      <td className="p-3.5 bg-rose-100/80 border-l border-rose-200 text-rose-950">
+                        <div>{formatarMoeda(dados.kpis.totalRescisorioGeral || 0)}</div>
+                        <div className="text-[9px] font-normal text-rose-800">
+                          CLT: {formatarMoeda(dados.kpis.totalRescisorioClt || 0)} | PJ:{' '}
+                          {formatarMoeda(dados.kpis.totalRescisorioPj || 0)}
+                        </div>
+                      </td>
                       <td className="p-3.5 bg-indigo-200/80 border-l border-indigo-200 pr-5 text-indigo-950 text-sm font-black">
                         {formatarMoeda(dados.kpis.comprometidoTotalGrupo)}
                       </td>
                     </tr>
                   </tfoot>
                 )}
+              </table>
+            </div>
+          </Card>
+
+          {/* CARD DETALHADO: Encerramentos / Desligamentos no Período (PJ × CLT com Escopo por BU) */}
+          <Card className="border-slate-200/80 shadow-xs overflow-hidden">
+            <CardHeader className="p-4 sm:p-5 border-b border-slate-100 bg-rose-50/40">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                      <UserMinus className="w-4 h-4 text-rose-600" />
+                      Encerramentos e Desligamentos no Período (PJ × CLT)
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="bg-rose-100 text-rose-800 border-rose-200 text-[10px] font-bold"
+                    >
+                      {dados?.kpis.encerramentosPeriodo?.length || 0} registro(s)
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs text-slate-500 mt-0.5">
+                    Impacto rescisório apurado e conciliação de competências/NFs pendentes para
+                    vínculos desligados ou em transição formal. Vínculos saem do comprometido mensal
+                    recorrente e entram aqui como desembolsos pontuais de rescisão/encerramento.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href="/offboardings"
+                    className="text-xs font-semibold text-rose-700 hover:text-rose-800 hover:underline flex items-center gap-1"
+                  >
+                    Abrir Módulo de Desligamentos →
+                  </a>
+                </div>
+              </div>
+            </CardHeader>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                    <th className="p-3.5 pl-5">Colaborador / Prestador</th>
+                    <th className="p-3.5">BU / Unidade</th>
+                    <th className="p-3.5">Modalidade</th>
+                    <th className="p-3.5">Tipo de Desligamento</th>
+                    <th className="p-3.5">Data de Desligamento</th>
+                    <th className="p-3.5">Status Processo</th>
+                    <th className="p-3.5 pr-5">Valor Rescisório / Pendências</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {dados &&
+                  dados.kpis.encerramentosPeriodo &&
+                  dados.kpis.encerramentosPeriodo.length > 0 ? (
+                    dados.kpis.encerramentosPeriodo.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="p-3.5 pl-5">
+                          <div className="font-bold text-slate-900">{item.nomePessoa}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            ID: {item.pessoaId}
+                          </div>
+                        </td>
+                        <td className="p-3.5 font-semibold text-slate-800">{item.empresaNome}</td>
+                        <td className="p-3.5">
+                          <Badge
+                            className={`text-[10px] font-bold ${
+                              item.modalidade === 'PJ'
+                                ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                : 'bg-purple-100 text-purple-800 border-purple-200'
+                            }`}
+                          >
+                            {item.modalidade}
+                          </Badge>
+                        </td>
+                        <td className="p-3.5 text-slate-800 font-medium">
+                          {item.tipoDesligamento}
+                        </td>
+                        <td className="p-3.5 text-slate-600">
+                          {new Date(item.dataDesligamento).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="p-3.5">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] font-semibold ${
+                              item.status === 'Concluído'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                : 'bg-amber-50 text-amber-800 border-amber-300'
+                            }`}
+                          >
+                            {item.status}
+                          </Badge>
+                        </td>
+                        <td className="p-3.5 pr-5">
+                          <div className="font-extrabold text-slate-900">
+                            {formatarMoeda(item.valorRescisorioOuPendente)}
+                          </div>
+                          <div className="text-[10px] text-slate-400">{item.detalhe}</div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="p-6 text-center text-xs text-slate-400">
+                        Nenhum desligamento ou encerramento registrado no período para o escopo
+                        selecionado.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
               </table>
             </div>
           </Card>
