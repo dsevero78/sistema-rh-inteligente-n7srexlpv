@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T23:26:07.477Z",
+  "generatedAt": "2026-09-22T23:47:04.395Z",
   "collections": [
     {
       "name": "users",
@@ -480,6 +480,30 @@
         {
           "name": "video_nome_detectado",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "video_versao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "video_score_geral",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "video_analise_dimensoes",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "video_analisado_em",
+          "type": "date",
           "required": false,
           "system": false
         }
@@ -1668,6 +1692,73 @@
         {
           "name": "expressao_socioemocional",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_analise",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["concluida", "erro", "processando", "erro_acesso"]
+        },
+        {
+          "name": "erro_detalhes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score_geral",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "clareza_comunicacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estrutura_narrativa",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "energia_postura",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aderencia_vaga",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "red_flags",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "versao_video",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo_analisado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "recomendacao_detalhada",
+          "type": "text",
           "required": false,
           "system": false
         }

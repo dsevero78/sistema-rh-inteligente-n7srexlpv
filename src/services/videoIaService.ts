@@ -49,6 +49,7 @@ export interface AnaliseVideoResponse {
   pontos_atencao?: string[]
   red_flags?: string[]
   recomendacao_geral: string
+  recomendacao_detalhada?: string
   versao: number
   analisado_em: string
   // Camadas aprimoradas
@@ -67,12 +68,14 @@ export interface RespostaAnaliseVideoApi {
   success: boolean
   status_analise?: string
   error?: string
+  details?: string
+  code?: string
   conflito_bloqueante?: boolean
   conflito_identidade?: boolean
   nome_detectado_no_video?: string
   nome_cadastro?: string
   detalhes_conflito_identidade?: string
-  data: AnaliseVideoResponse
+  data?: AnaliseVideoResponse
 }
 
 /**
@@ -149,19 +152,42 @@ export const videoIaService = {
       )
     }
 
-    const res = await pb.send<RespostaAnaliseVideoApi>('/backend/v1/analisar-video-ia', {
-      method: 'POST',
-      body: JSON.stringify({ candidatoId, permitirDivergencia }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    try {
+      const res = await pb.send<RespostaAnaliseVideoApi>('/backend/v1/analisar-video-ia', {
+        method: 'POST',
+        body: JSON.stringify({ candidatoId, permitirDivergencia }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
-    if (!res?.data) {
-      throw new Error('Resposta inválida do serviço de análise de vídeo.')
+      if (!res?.data && !res?.error) {
+        throw new Error('Resposta inválida do serviço de análise de vídeo.')
+      }
+
+      return res
+    } catch (err: any) {
+      // Capturar respostas de erro HTTP do PocketBase (422, 500, etc.)
+      const responseData = err?.data || err?.response?.data || {}
+      const erroServidor = responseData.error || err.message || ''
+
+      if (
+        responseData.code === 'DATABASE_VALIDATION_ERROR' ||
+        erroServidor.includes('falha de validação') ||
+        erroServidor.includes('Invalid value')
+      ) {
+        throw new Error(
+          'A análise foi gerada mas houve falha ao salvar — tente novamente. Detalhes: ' +
+            (responseData.details || erroServidor),
+        )
+      }
+
+      if (responseData.error) {
+        throw new Error(responseData.error)
+      }
+
+      throw err
     }
-
-    return res
   },
 
   /**

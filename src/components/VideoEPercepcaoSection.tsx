@@ -145,7 +145,16 @@ export function VideoEPercepcaoSection({
     try {
       const resp = await videoIaService.dispararAnalise(candidato.id, permitirDivergencia)
 
-      if (resp.conflito_bloqueante && !permitirDivergencia) {
+      if (resp.status_analise === 'erro_acesso' || !resp.data) {
+        // Falha no acesso ao vídeo (o candidato não é penalizado)
+        toast({
+          title: 'Aviso: Falha no Acesso ao Vídeo',
+          description:
+            resp.error ||
+            'Não foi possível acessar o vídeo pelo link fornecido. Verifique se o arquivo está público no Google Drive.',
+          variant: 'destructive',
+        })
+      } else if (resp.conflito_bloqueante && !permitirDivergencia) {
         setDadosConflitoBloqueante({
           nomeDetectado: resp.nome_detectado_no_video || 'Não identificado',
           nomeCadastro: resp.nome_cadastro || candidato.nome || 'Candidato',
@@ -161,9 +170,11 @@ export function VideoEPercepcaoSection({
         })
       } else {
         setModalConflitoBloqueante(false)
+        const scoreDesc =
+          resp.data.score_geral !== null ? `${resp.data.score_geral}/100` : 'Sem nota'
         toast({
           title: 'Análise de vídeo concluída!',
-          description: `Score IA: ${resp.data.score_geral}/100 · ${resp.data.recomendacao_geral} · Autenticidade: ${resp.data.veredito_naturalidade || 'Avaliada'}`,
+          description: `Score IA: ${scoreDesc} · ${resp.data.recomendacao_geral} · Autenticidade: ${resp.data.veredito_naturalidade || 'Avaliada'}`,
         })
       }
 
@@ -173,9 +184,17 @@ export function VideoEPercepcaoSection({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Falha na comunicação com o serviço de IA.'
       setErroAnalise(msg)
+
+      const ehFalhaValidacaoSalvar =
+        msg.includes('falha ao salvar') ||
+        msg.includes('DATABASE_VALIDATION_ERROR') ||
+        msg.includes('falha de validação')
+
       toast({
-        title: 'Erro ao analisar vídeo',
-        description: msg,
+        title: ehFalhaValidacaoSalvar ? 'Falha ao Salvar Análise' : 'Erro ao analisar vídeo',
+        description: ehFalhaValidacaoSalvar
+          ? 'A análise foi gerada mas houve falha ao salvar — tente novamente'
+          : msg,
         variant: 'destructive',
       })
     } finally {
