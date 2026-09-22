@@ -93,6 +93,7 @@ export default function MeuDia() {
   useRealtime('entrevistas', () => carregarRotina(true))
   useRealtime('aditivos_pj', () => carregarRotina(true))
   useRealtime('onboardings', () => carregarRotina(true))
+  useRealtime('offboardings', () => carregarRotina(true))
   useRealtime('alertas', () => carregarRotina(true))
   useRealtime('feedbacks_gestor', () => carregarRotina(true))
   useRealtime('documentos_pessoa', () => carregarRotina(true))

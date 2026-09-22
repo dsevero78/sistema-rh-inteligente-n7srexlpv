@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T02:03:34.945Z",
+  "generatedAt": "2026-09-22T02:14:21.923Z",
   "collections": [
     {
       "name": "users",
@@ -5336,6 +5336,175 @@
         "CREATE INDEX idx_prog_tipo ON programacoes_descanso (tipo)",
         "CREATE INDEX idx_prog_status ON programacoes_descanso (status)",
         "CREATE INDEX idx_prog_datas ON programacoes_descanso (data_inicio, data_fim)"
+      ]
+    },
+    {
+      "name": "offboardings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "pessoa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pessoas"
+        },
+        {
+          "name": "vinculo_origem_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "modalidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["CLT", "PJ"]
+        },
+        {
+          "name": "tipo_desligamento",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Pedido de demissão",
+            "Demissão sem justa causa",
+            "Demissão por justa causa",
+            "Acordo mútuo (Art. 484-A CLT)",
+            "Término de contrato de experiência",
+            "Término de contrato PJ",
+            "Rescisão antecipada PJ",
+            "Não renovação PJ"
+          ]
+        },
+        {
+          "name": "data_aviso",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_desligamento",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "aviso_previo_tipo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Trabalhado", "Indenizado", "Dispensado", "Não aplicável"]
+        },
+        {
+          "name": "dias_aviso_previo",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Em andamento", "Aguardando homologação", "Concluído", "Cancelado"]
+        },
+        {
+          "name": "responsavel_rh",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "responsavel_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "empresa",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "motivo_detalhado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itens_checklist",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "calculo_rescisorio",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_rescisorio",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes_finais",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_conclusao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "concluido_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "termo_rescisao_arquivo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_offboarding_pessoa ON offboardings (pessoa)",
+        "CREATE INDEX idx_offboarding_status ON offboardings (status)",
+        "CREATE INDEX idx_offboarding_empresa ON offboardings (empresa)",
+        "CREATE INDEX idx_offboarding_data ON offboardings (data_desligamento DESC)"
       ]
     }
   ]

@@ -41,6 +41,7 @@ import {
   Compass,
   Sun,
   Moon,
+  UserMinus,
 } from 'lucide-react'
 import { carregarMeuDia } from '@/services/meuDia'
 import type { RecordModel } from 'pocketbase'
@@ -216,6 +217,8 @@ export default function Layout() {
     if (path.startsWith('/entrevistas')) return 'Gestão de Entrevistas & Calendário'
     if (path.startsWith('/chat')) return 'Chat com Gestor de Talentos (IA)'
     if (path.startsWith('/integracao')) return 'Rotina de Integração 30-60-90'
+    if (path.startsWith('/offboardings') || path.startsWith('/desligamentos'))
+      return 'Desligamentos & Offboarding'
     if (path.startsWith('/importar')) return 'Assistente de Importação em Lote'
     if (path.startsWith('/financeiro')) return 'Painel Financeiro Consolidado'
     if (path.startsWith('/indicadores')) return 'Indicadores Estratégicos de Recrutamento'
@@ -334,6 +337,12 @@ export default function Layout() {
                 href: '/integracao',
                 icon: Compass,
                 badge: 'Rotina',
+              },
+              {
+                title: 'Desligamentos',
+                href: '/offboardings',
+                icon: UserMinus,
+                badge: 'Offboarding',
               },
               {
                 title: 'Experiência',

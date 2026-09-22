@@ -37,6 +37,7 @@ import Financeiro from '@/pages/Financeiro'
 import Alertas from '@/pages/Alertas'
 import Onboarding from '@/pages/Onboarding'
 import RotinaIntegracaoPage from '@/pages/RotinaIntegracaoPage'
+import { OffboardingsPage } from '@/pages/OffboardingsPage'
 import ExperienciaCandidato from '@/pages/ExperienciaCandidato'
 import PessoasListaPage from '@/pages/PessoasListaPage'
 import PessoaDetalhesPage from '@/pages/PessoaDetalhesPage'
@@ -127,6 +128,8 @@ export default function App() {
                 <Route path="ofertas" element={<Ofertas />} />
                 <Route path="onboarding" element={<Onboarding />} />
                 <Route path="integracao" element={<RotinaIntegracaoPage />} />
+                <Route path="offboardings" element={<OffboardingsPage />} />
+                <Route path="desligamentos" element={<OffboardingsPage />} />
                 <Route path="experiencia" element={<ExperienciaCandidato />} />{' '}
                 <Route path="indicacoes" element={<Indicacoes />} />
                 {/* Redirecionamento unificado: Prestadores PJ -> Pessoas */}

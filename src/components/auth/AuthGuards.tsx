@@ -51,14 +51,14 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
     (pb.authStore.token && pb.authStore.token.length > 10),
   )
 
-  // Se já autenticado, redireciona imediatamente
-  if (isAuthenticated) {
+  // Se já autenticado OU se tem credencial local válida no localStorage/authStore,
+  // navega imediatamente para o destino em vez de renderizar login ou prender em loading eterno
+  if (isAuthenticated || hasLocalCred) {
     return <Navigate to={destination} replace />
   }
 
-  // Enquanto carrega ou enquanto há credencial local sendo validada, exibe tela de verificação
-  // e NUNCA renderiza o formulário de login para evitar 'flicker' e retenção indevida
-  if (isLoading || hasLocalCred) {
+  // Se estiver carregando inicialmente sem nenhuma credencial salva
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">

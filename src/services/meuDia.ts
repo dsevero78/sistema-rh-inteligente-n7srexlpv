@@ -55,6 +55,7 @@ export type ModuloOrigemMeuDia =
   | 'candidatos'
   | 'entrevistas'
   | 'onboarding'
+  | 'offboarding'
   | 'integracao_rotina'
   | 'pj_aditivos'
   | 'pj_renovacoes'
@@ -319,6 +320,15 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
             expand: 'pessoa',
           }),
       },
+      {
+        nome: 'offboardings',
+        fn: () =>
+          pb.collection('offboardings').getFullList({
+            filter: "status != 'Concluído' && status != 'Cancelado'",
+            sort: 'data_desligamento',
+            expand: 'pessoa,empresa',
+          }),
+      },
     ]
 
     const resultadosSettled = await Promise.allSettled(queries.map((q) => q.fn()))
@@ -356,6 +366,7 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
     const notasFiscais = dadosMapeados['notas_fiscais'] || []
     const contratosUnificados = dadosMapeados['contratos_unificados'] || []
     const programacoesDescanso = dadosMapeados['programacoes_descanso'] || []
+    const offboardingsAtivos = dadosMapeados['offboardings'] || []
 
     // =========================================================================
     // 2. REGRAS PARA O GESTOR CONTRATANTE (Líder de BU)
@@ -1479,6 +1490,47 @@ export async function carregarMeuDia(usuario: RecordModel | null): Promise<MeuDi
     const atencaoSemana = itensPendentes.filter((i) => i.severidade === 'atencao').length
     const acompanharCount = itensPendentes.filter((i) => i.severidade === 'acompanhar').length
     const concluidas7d = itens.filter((i) => i.concluido).length
+
+    // =========================================================================
+    // PENDÊNCIAS DE OFFBOARDING (CLT & PJ)
+    // =========================================================================
+    for (const off of offboardingsAtivos) {
+      // Regra de escopamento por BU: se for gestor contratante restrito, filtra
+      if (isGestor && usuario.empresa && off.empresa && off.empresa !== usuario.empresa) {
+        continue
+      }
+
+      const nomePessoa = off.expand?.pessoa?.nome || 'Colaborador/Prestador'
+      const empresaNome =
+        off.expand?.empresa?.nome_fantasia || off.expand?.empresa?.razao_social || 'BU'
+      const checklist = Array.isArray(off.itens_checklist) ? off.itens_checklist : []
+      const pendentesItens = checklist.filter((c: any) => !c.concluido)
+
+      const dtDeslig = new Date(off.data_desligamento)
+      const diffDias = Math.ceil((dtDeslig.getTime() - agora.getTime()) / (1000 * 60 * 60 * 24))
+      const isUrgente = diffDias <= 3
+
+      if (pendentesItens.length > 0) {
+        itens.push({
+          id: `offboarding-checklist-${off.id}`,
+          tituloAcao: `Executar checklist de desligamento de ${nomePessoa} (${off.modalidade})`,
+          contexto: `${empresaNome} · ${off.tipo_desligamento} · ${pendentesItens.length} etapa(s) pendente(s)`,
+          detalhe: `Último dia: ${dtDeslig.toLocaleDateString('pt-BR')}. Próxima etapa: "${pendentesItens[0]?.titulo}".`,
+          modulo: 'offboarding',
+          moduloLabel: 'Desligamentos',
+          severidade: isUrgente ? 'urgente' : 'atencao',
+          severidadeLabel: isUrgente ? 'Urgente' : 'Atenção',
+          dataLimiteLabel: diffDias <= 0 ? 'Hoje' : `Em ${diffDias} dia(s)`,
+          rotaDestino: `/offboardings`,
+          origemRecordId: off.id,
+          metaExtra: {
+            offboardingId: off.id,
+            pessoaId: off.pessoa,
+            modalidade: off.modalidade,
+          },
+        })
+      }
+    }
 
     // Definição do Foco do Dia
     let focoPrincipal = 'Tudo em dia por aqui! Aproveite para planejar o ciclo.'

@@ -25,7 +25,9 @@ import {
   Gift,
   Palmtree,
   PauseCircle,
+  UserMinus,
 } from 'lucide-react'
+import { ModalIniciarOffboarding } from '@/components/offboarding/ModalIniciarOffboarding'
 import { AbaBeneficiosVinculo } from '@/components/pessoas/AbaBeneficiosVinculo'
 import { AbaFeriasClt } from '@/components/pessoas/AbaFeriasClt'
 import { AbaDescansoPj } from '@/components/pessoas/AbaDescansoPj'
@@ -150,6 +152,7 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
   const [modalNovaNfOpen, setModalNovaNfOpen] = useState(false)
   const [modalJuridicoOpen, setModalJuridicoOpen] = useState(false)
   const [aditivoEmFoco, setAditivoEmFoco] = useState<AditivoPJ | null>(null)
+  const [modalIniciarOffboardingOpen, setModalIniciarOffboardingOpen] = useState(false)
 
   // Visualizador de documentos
   const [viewerOpen, setViewerOpen] = useState(false)
@@ -257,6 +260,16 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
               Propor Aditivo
             </Button>
           )}
+
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => setModalIniciarOffboardingOpen(true)}
+            className="h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-semibold shadow-xs gap-1"
+          >
+            <UserMinus className="w-3.5 h-3.5" />
+            Desligamento / Offboarding
+          </Button>
         </div>
       </div>
 
@@ -1090,6 +1103,22 @@ export const SecaoContratosEVinculos: React.FC<SecaoContratosEVinculosProps> = (
         onAtualizar={() => {
           carregarContratosDigitais()
           onAtualizar()
+        }}
+      />
+
+      {/* Modal de Iniciar Offboarding / Desligamento */}
+      <ModalIniciarOffboarding
+        open={modalIniciarOffboardingOpen}
+        onOpenChange={setModalIniciarOffboardingOpen}
+        pessoaId={pessoa.id}
+        pessoaNome={pessoa.nome}
+        modalidadePadrao={pessoa.modalidade}
+        empresaIdPadrao={pessoa.empresa}
+        salarioOuRemuneracaoPadrao={Number(pessoa.salario_base || totalMensal || 5000)}
+        dataAdmissaoPadrao={pessoa.data_inicio}
+        onSucesso={() => {
+          onAtualizar()
+          carregarContratosDigitais()
         }}
       />
 

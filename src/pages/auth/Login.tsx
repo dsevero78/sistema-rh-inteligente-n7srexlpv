@@ -38,19 +38,17 @@ export default function Login() {
   // Helper para redirecionar incondicionalmente com fallback de segurança por window.location.replace
   const executeGuaranteedRedirect = (dest: string) => {
     console.info(`[Login] Executando redirecionamento garantido para ${dest}`)
-    // 1. Tentar navegação SPA via React Router imediatamente
     navigate(dest, { replace: true })
 
-    // 2. Rede de segurança final (~500ms): se a rota do navegador ainda estiver em /login,
-    // força redirecionamento duro incondicionalmente via window.location.replace
+    // Rede de segurança: se a rota do navegador ainda estiver em /login, força redirecionamento incondicional
     setTimeout(() => {
-      if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/login')) {
         console.warn(
           `[Login] Fallback de segurança acionado. Forçando window.location.replace('${dest}')...`,
         )
         window.location.replace(dest)
       }
-    }, 500)
+    }, 250)
   }
 
   // Fallback de recuperação automática em /login:
@@ -71,55 +69,22 @@ export default function Login() {
       const hasMemToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
 
       if (hasMemToken || hasStoredToken) {
-        setIsAutoRecovering(true)
-        try {
-          if (!pb.authStore.token && stored?.token) {
-            pb.authStore.save(stored.token, stored.model)
-          }
-
-          // 1. Atualizar síncronamente o AuthContext com a credencial atual antes do refresh
-          if (pb.authStore.token) {
-            syncAuthNow(pb.authStore.token, pb.authStore.record || stored?.model || null)
-          }
-
-          // 2. Tenta revalidar no backend com authRefresh
-          const ok = await singleFlightAuthRefresh()
-
-          if (!isCancelled && (ok || pb.authStore.isValid || pb.authStore.token)) {
-            // Sincroniza estado com os dados atualizados pós-refresh
-            syncAuthNow(pb.authStore.token, pb.authStore.record)
-            toast({
-              title: 'Sessão restaurada com sucesso',
-              description: 'Redirecionando para o painel...',
-            })
-            executeGuaranteedRedirect(targetPath)
-            return
-          }
-        } catch (err: unknown) {
-          const status =
-            (err as { status?: number; response?: { status?: number } })?.status ||
-            (err as { response?: { status?: number } })?.response?.status
-
-          // Se for erro definitivo (401/403 com token rejeitado), remove credencial para não ficar em loop
-          if (status === 401 || status === 403) {
-            console.info('[Login] Token inválido ou revogado. Permanecendo no formulário de login.')
-          } else if (pb.authStore.isValid || stored?.token) {
-            // Em caso de erro transitório de rede/offline, se temos credencial, preserva e navega
-            console.warn(
-              '[Login] Erro transitório de rede ao revalidar, prosseguindo com token local preservado.',
-            )
-            syncAuthNow(
-              pb.authStore.token || stored?.token || '',
-              pb.authStore.record || stored?.model || null,
-            )
-            executeGuaranteedRedirect(targetPath)
-            return
-          }
-        } finally {
-          if (!isCancelled) {
-            setIsAutoRecovering(false)
-          }
+        // Redireciona imediatamente para o painel se já temos credencial preservada
+        const tokenToUse = pb.authStore.token || stored?.token || ''
+        const modelToUse = pb.authStore.record || stored?.model || null
+        if (!pb.authStore.token && stored?.token) {
+          pb.authStore.save(stored.token, stored.model)
         }
+        syncAuthNow(tokenToUse, modelToUse)
+        executeGuaranteedRedirect(targetPath)
+
+        // Em segundo plano, dispara validação no backend
+        try {
+          await singleFlightAuthRefresh()
+        } catch (err: unknown) {
+          console.warn('[Login] Refresh de fundo completado ou com erro transitório:', err)
+        }
+        return
       }
     }
 

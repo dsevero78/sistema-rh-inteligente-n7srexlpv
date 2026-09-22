@@ -759,6 +759,57 @@ export const pessoasService = {
       /* intentionally ignored */
     }
 
+    // 8. Eventos de Offboarding / Desligamento
+    try {
+      const offboardings = await pb.collection('offboardings').getFullList<RecordModel>({
+        filter: `pessoa = '${pessoa.id}'`,
+        sort: '-created',
+      })
+
+      for (const off of offboardings) {
+        const totalFmt = Number(off.total_rescisorio || 0).toLocaleString('pt-BR', {
+          style: 'currency',
+          currency: 'BRL',
+        })
+        const dtDeslig = off.data_desligamento
+          ? new Date(off.data_desligamento).toLocaleDateString('pt-BR')
+          : 'Data a definir'
+
+        // Evento geral do processo
+        eventos.push({
+          id: `off-${off.id}`,
+          data: off.data_conclusao || off.data_aviso || off.created,
+          origemModulo: 'offboarding' as any,
+          categoria: 'DESLIGAMENTO / OFFBOARDING',
+          titulo: `Processo de Desligamento: ${off.tipo_desligamento} (${off.modalidade})`,
+          descricao: `Status: ${off.status}. Data de desligamento: ${dtDeslig}. Valor rescisório apurado: ${totalFmt}. Motivo: "${off.motivo_detalhado || 'Sem observações'}".`,
+          autor: off.concluido_por || off.responsavel_nome || 'Gente & Gestão',
+          tipoBadge: 'Desligamento',
+          statusBadge: off.status,
+        })
+
+        // Se houver itens de checklist concluídos, registrar cada etapa na linha do tempo
+        const checklist = Array.isArray(off.itens_checklist) ? off.itens_checklist : []
+        for (const item of checklist) {
+          if (item.concluido && item.dataConclusao) {
+            eventos.push({
+              id: `off-item-${item.id}-${off.id}`,
+              data: item.dataConclusao,
+              origemModulo: 'offboarding' as any,
+              categoria: 'CHECKLIST DESLIGAMENTO',
+              titulo: `Etapa Concluída: ${item.titulo}`,
+              descricao: `Área responsável: ${item.responsavel}.${item.observacao ? ` Observações: "${item.observacao}".` : ''}`,
+              autor: item.responsavel || 'RH',
+              tipoBadge: 'Offboarding Etapa',
+              statusBadge: 'Concluído',
+            })
+          }
+        }
+      }
+    } catch {
+      /* intentionally ignored */
+    }
+
     // Ordenar descrescente por data
     eventos.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
 
