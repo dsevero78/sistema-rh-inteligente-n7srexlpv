@@ -1,4 +1,4 @@
-import { pb } from '@/lib/pocketbase/client'
+import pb from '@/lib/pocketbase/client'
 import type { RecordModel } from 'pocketbase'
 
 export type TipoBeneficio =

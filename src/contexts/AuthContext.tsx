@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
-import pb, { singleFlightAuthRefresh } from '@/lib/pocketbase/client'
+import pb from '@/lib/pocketbase/client'
 import type { RecordModel } from 'pocketbase'
+import {
+  saveSessionBackup,
+  loadSessionBackup,
+  clearAllSessionBackups,
+  restorePbAuthStoreFromBackup,
+  singleFlightSafeAuthRefresh,
+  isJwtTokenExpired,
+  type AppSessionBackup,
+} from '@/lib/pocketbase/sessionBackup'
 
 interface AuthContextType {
   user: RecordModel | null
@@ -22,112 +31,73 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-const AUTH_STORAGE_KEY = 'pocketbase_auth'
-
 /**
- * Decodifica com segurança o payload do JWT do PocketBase para checar expiração e integridade
- */
-function isJwtExpired(token: string): boolean {
-  try {
-    const parts = token.split('.')
-    if (parts.length < 2) return false
-    const base64Url = parts[1]
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join(''),
-    )
-    const payload = JSON.parse(jsonPayload)
-    if (typeof payload.exp === 'number') {
-      const now = Math.floor(Date.now() / 1000)
-      return payload.exp < now
-    }
-  } catch {
-    // Se falhar o parse, não assume expirado
-  }
-  return false
-}
-
-/**
- * Lê credenciais salvas no localStorage caso o authStore em memória tenha sido esvaziado
+ * Compatibilidade legada para funções que importavam getStoredAuth()
  */
 export function getStoredAuth(): { token: string; model: RecordModel | null } | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (parsed && typeof parsed.token === 'string' && parsed.token.length > 10) {
-      return {
-        token: parsed.token,
-        model: (parsed.record || parsed.model || null) as RecordModel | null,
-      }
-    }
-  } catch {
-    // Ignora erros de parsing
+  const backup = loadSessionBackup()
+  if (!backup) return null
+  return {
+    token: backup.token,
+    model: backup.model,
   }
-  return null
 }
 
+/**
+ * Exporta o refresh seguro com single flight
+ */
+export const singleFlightAuthRefresh = singleFlightSafeAuthRefresh
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Inicializa já restaurando do localStorage se o authStore do SDK estiver em branco
-  const initialStored = getStoredAuth()
-  if (!pb.authStore.token && initialStored?.token) {
-    try {
-      pb.authStore.save(initialStored.token, initialStored.model)
-    } catch {
-      // no-op
-    }
-  }
+  // 1. Restauração imediata síncrona na montagem
+  const initialBackup = restorePbAuthStoreFromBackup()
 
   const [user, setUser] = useState<RecordModel | null>(
-    pb.authStore.record || initialStored?.model || null,
+    pb.authStore.record || initialBackup?.model || null,
   )
-  const [token, setToken] = useState<string>(pb.authStore.token || initialStored?.token || '')
+  const [token, setToken] = useState<string>(pb.authStore.token || initialBackup?.token || '')
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [isRenewingSession, setIsRenewingSession] = useState<boolean>(false)
 
   // Flag estrita: apenas o clique explícito de logout() do usuário pode limpar credenciais
   const isExplicitLogoutRef = useRef<boolean>(false)
-  // Flag para rastrear refresh em andamento
+  // Flag para evitar loops de recuperação
   const isRecoveringAuthRef = useRef<boolean>(false)
 
   useEffect(() => {
     // Listener de mudanças no authStore do PocketBase
     const unsub = pb.authStore.onChange(async (tok, model) => {
-      // 1. Caso com token e model válidos
+      // 1. Caso com token e model válidos no evento
       if (tok && model) {
         setToken(tok)
         setUser(model)
+        // Salva backup proprietário atualizado
+        saveSessionBackup(tok, model)
         return
       }
 
-      // 2. Caso (token ou model estejam ausentes no evento do onChange)
-      // Se foi um logout explicitamente disparado pelo usuário (logout() chamado), limpa tudo
+      // 2. Se foi um logout explicitamente disparado pelo usuário (logout() chamado), limpa tudo
       if (isExplicitLogoutRef.current) {
         setToken('')
         setUser(null)
         setIsRenewingSession(false)
+        clearAllSessionBackups()
         return
       }
 
-      // Se NÃO foi logout explícito, verificar se ainda há credencial no localStorage
-      const stored = getStoredAuth()
-      if (stored?.token) {
-        // PRESERVAÇÃO SILENCIOSA: Há credencial no localStorage!
-        // Não rebaixa o estado para deslogado por transição de evento, reconexão SSE ou troca de aba.
+      // 3. Se NÃO foi logout explícito, verificar o backup do app no localStorage
+      const backup = loadSessionBackup()
+      if (backup?.token) {
         console.warn(
-          '[AuthContext] Evento transitório do authStore detectado. Preservando sessão pelo localStorage...',
+          '[AuthContext] SDK authStore foi esvaziado externamente (evento transitório/reconexão). Auto-restaurando a partir do backup...',
         )
 
-        // Restaura em memória no pb.authStore imediatamente
-        pb.authStore.save(stored.token, stored.model)
-        setToken(stored.token)
-        if (stored.model) setUser(stored.model)
+        // Restaura imediatamente no pb.authStore em memória
+        restorePbAuthStoreFromBackup()
+        setToken(backup.token)
+        if (backup.model) setUser(backup.model)
 
-        // Se já há um refresh ou recuperação em andamento, não duplica
+        // Evita chamadas concorrentes de recuperação
         if (isRecoveringAuthRef.current) {
           return
         }
@@ -136,9 +106,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsRenewingSession(true)
 
         try {
-          const ok = await singleFlightAuthRefresh()
+          const ok = await singleFlightSafeAuthRefresh()
           if (ok && pb.authStore.isValid) {
-            console.info('[AuthContext] Sessão revalidada silenciosamente com sucesso!')
+            console.info('[AuthContext] Sessão revalidada silenciosamente com sucesso via backup!')
             setToken(pb.authStore.token)
             setUser(pb.authStore.record)
           }
@@ -147,27 +117,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             (err as { status?: number; response?: { status?: number } })?.status ||
             (err as { response?: { status?: number } })?.response?.status
 
-          // `setUser(null)` / `setIsAuthed(false)` SÓ quando o backend rejeitar explicitamente (401/403 com token inválido/revogado)
+          // `setUser(null)` SÓ quando o backend rejeitar explicitamente (401/403 com token inválido/revogado)
           if (status === 401 || status === 403) {
             console.error(
               '[AuthContext] Sessão rejeitada em definitivo pelo servidor (401/403). Limpando credenciais.',
             )
-            logout()
+            isExplicitLogoutRef.current = true
+            clearAllSessionBackups()
+            pb.authStore.clear()
+            setToken('')
+            setUser(null)
           } else {
             console.warn(
-              '[AuthContext] Falha transitória de rede/latência ao revalidar sessão. Mantendo usuário ativo.',
+              '[AuthContext] Falha transitória de rede ao revalidar sessão. Mantendo usuário ativo pelo backup.',
             )
             // Mantém usuário e token restaurados silenciosamente
-            if (stored.token) setToken(stored.token)
-            if (stored.model) setUser(stored.model)
+            if (backup.token) setToken(backup.token)
+            if (backup.model) setUser(backup.model)
           }
         } finally {
           isRecoveringAuthRef.current = false
           setIsRenewingSession(false)
         }
       } else {
-        // Não há credencial alguma no localStorage
-        console.info('[AuthContext] Nenhuma credencial no storage. Definindo sessão como vazia.')
+        // Não há credencial alguma no backup
+        console.info('[AuthContext] Nenhuma credencial no backup. Definindo sessão como vazia.')
         setToken('')
         setUser(null)
         setIsRenewingSession(false)
@@ -176,45 +150,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Validação inicial ao carregar o aplicativo
     async function initAuth() {
-      // 1. Se pb.authStore não tem token mas localStorage tem, restaura antes do init
-      if (!pb.authStore.token) {
-        const stored = getStoredAuth()
-        if (stored?.token) {
-          pb.authStore.save(stored.token, stored.model)
-          setToken(stored.token)
-          if (stored.model) setUser(stored.model)
-        }
-      }
-
-      const storedNow = getStoredAuth()
-      const hasAnyToken = Boolean(pb.authStore.token || storedNow?.token)
+      // 1. Restaura do backup se authStore não tem token
+      const backup = restorePbAuthStoreFromBackup()
+      const hasAnyToken = Boolean(pb.authStore.token || backup?.token)
 
       if (hasAnyToken) {
-        // Se temos credencial local, manter usuário em memória enquanto revalida silenciosamente
-        const currentToken = pb.authStore.token || storedNow?.token || ''
-        const currentModel = pb.authStore.record || storedNow?.model || null
+        const currentToken = pb.authStore.token || backup?.token || ''
+        const currentModel = pb.authStore.record || backup?.model || null
 
         setToken(currentToken)
         if (currentModel) setUser(currentModel)
 
-        // Se o token ainda é válido ou recém-restaurado, tenta um refresh silencioso
+        // Validação proativa em segundo plano
         try {
           setIsRenewingSession(true)
-          await singleFlightAuthRefresh()
-          setUser(pb.authStore.record)
-          setToken(pb.authStore.token)
+          await singleFlightSafeAuthRefresh()
+          if (pb.authStore.token) {
+            setUser(pb.authStore.record)
+            setToken(pb.authStore.token)
+          }
         } catch (err: unknown) {
           const status =
             (err as { status?: number; response?: { status?: number } })?.status ||
             (err as { response?: { status?: number } })?.response?.status
 
-          // SÓ desloga se o servidor rejeitou explicitamente como 401/403 com token inválido
+          // SÓ desloga se o servidor rejeitou explicitamente como 401/403
           if (status === 401 || status === 403) {
-            console.warn('[AuthContext] Token rejeitado no init (401/403).')
-            logout()
+            console.warn('[AuthContext] Token rejeitado no init (401/403). Limpando backup.')
+            isExplicitLogoutRef.current = true
+            clearAllSessionBackups()
+            pb.authStore.clear()
+            setUser(null)
+            setToken('')
           } else {
             console.warn(
-              '[AuthContext] Revalidação inicial falhou por rede/offline. Mantendo credencial local preservada.',
+              '[AuthContext] Revalidação inicial falhou por rede/latência. Mantendo credencial local restaurada.',
             )
             setUser(pb.authStore.record || currentModel)
             setToken(pb.authStore.token || currentToken)
@@ -239,9 +209,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, pass: string) => {
     isExplicitLogoutRef.current = false
     const authData = await pb.collection('users').authWithPassword(email, pass)
-    // Sincroniza imediatamente o authStore e o localStorage
     if (authData.token) {
+      // 1. Salva no authStore do PocketBase
       pb.authStore.save(authData.token, authData.record)
+      // 2. Salva atomicamente no backup proprietário do app
+      saveSessionBackup(authData.token, authData.record)
     }
     setToken(authData.token)
     setUser(authData.record)
@@ -249,8 +221,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const logout = () => {
-    // 3. Logout estrito: pb.authStore.clear() e limpeza de storage apenas no clique explícito de "Sair".
+    // Logout estrito: acionado unicamente pelo clique explícito no botão "Sair"
+    console.info('[AuthContext] Logout solicitado explicitamente pelo usuário.')
     isExplicitLogoutRef.current = true
+    clearAllSessionBackups()
     pb.authStore.clear()
     setUser(null)
     setToken('')
@@ -261,6 +235,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isExplicitLogoutRef.current = false
     if (newToken) {
       pb.authStore.save(newToken, newRecord)
+      saveSessionBackup(newToken, newRecord)
     }
     setToken(newToken)
     setUser(newRecord)
@@ -268,14 +243,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const refreshUser = async (): Promise<boolean> => {
-    const stored = getStoredAuth()
-    if (pb.authStore.isValid || stored?.token) {
+    const backup = loadSessionBackup()
+    if (pb.authStore.isValid || backup?.token) {
       try {
         setIsRenewingSession(true)
-        if (!pb.authStore.token && stored?.token) {
-          pb.authStore.save(stored.token, stored.model)
-        }
-        const ok = await singleFlightAuthRefresh()
+        restorePbAuthStoreFromBackup()
+        const ok = await singleFlightSafeAuthRefresh()
         if (ok) {
           setUser(pb.authStore.record)
           setToken(pb.authStore.token)
@@ -304,25 +277,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const empresa_nome = user?.empresa_nome || user?.expand?.empresa?.nome || ''
   const area = user?.area || user?.area_atuacao || ''
 
-  // 1. Preservação silenciosa do estado:
-  // Enquanto houver credencial no localStorage ou user/token válidos em memória, NÃO deslogar por transitoriedade
-  const storedAuth = getStoredAuth()
-  const hasValidStoredCredential = Boolean(
-    !isExplicitLogoutRef.current && storedAuth?.token && storedAuth.token.length > 10,
+  // Preservação da autenticação:
+  // Se o usuário não deu logout explícito e houver backup íntegro ou token válido,
+  // considera como autenticado!
+  const backupNow = loadSessionBackup()
+  const hasValidBackup = Boolean(
+    !isExplicitLogoutRef.current &&
+    backupNow?.token &&
+    backupNow.token.length > 10 &&
+    !isJwtTokenExpired(backupNow.token),
   )
 
   const hasAnyValidToken = Boolean(
     !isExplicitLogoutRef.current &&
-    (Boolean(token && token.length > 10) ||
-      Boolean(pb.authStore.token && pb.authStore.token.length > 10) ||
-      hasValidStoredCredential),
+    ((token && token.length > 10) ||
+      (pb.authStore.token && pb.authStore.token.length > 10) ||
+      hasValidBackup),
   )
 
   const isAuthed =
     !isExplicitLogoutRef.current &&
     ((Boolean(user) && Boolean(token)) ||
       hasAnyValidToken ||
-      (isRecoveringAuthRef.current && Boolean(pb.authStore.token)))
+      hasValidBackup ||
+      (isRecoveringAuthRef.current && Boolean(backupNow?.token)))
 
   return (
     <AuthContext.Provider

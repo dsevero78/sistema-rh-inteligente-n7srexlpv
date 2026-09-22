@@ -1,8 +1,13 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import pb, { singleFlightAuthRefresh } from '@/lib/pocketbase/client'
-import { getStoredAuth } from '@/contexts/AuthContext'
+import pb from '@/lib/pocketbase/client'
+import {
+  loadSessionBackup,
+  restorePbAuthStoreFromBackup,
+  isJwtTokenExpired,
+  singleFlightSafeAuthRefresh,
+} from '@/lib/pocketbase/sessionBackup'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Users, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react'
+import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 export default function Login() {
@@ -34,6 +39,7 @@ export default function Login() {
   const [isAutoRecovering, setIsAutoRecovering] = useState(false)
   const [generalError, setGeneralError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Helper para redirecionar incondicionalmente com fallback de segurança
   const executeGuaranteedRedirect = (dest: string) => {
@@ -44,8 +50,11 @@ export default function Login() {
       console.warn('[Login] navigate() erro, usando window.location', e)
     }
 
-    // Rede de segurança: se após ~150ms o usuário ainda estiver em /login, força redirecionamento nativo
-    setTimeout(() => {
+    // Rede de segurança: se após ~250ms o usuário ainda estiver em /login, força redirecionamento nativo
+    if (redirectTimeoutRef.current) {
+      clearTimeout(redirectTimeoutRef.current)
+    }
+    redirectTimeoutRef.current = setTimeout(() => {
       if (
         typeof window !== 'undefined' &&
         (window.location.pathname.startsWith('/login') || window.location.pathname === '/')
@@ -55,38 +64,42 @@ export default function Login() {
         )
         window.location.replace(dest)
       }
-    }, 150)
+    }, 250)
   }
-  // Fallback de recuperação automática em /login:
-  // Se o usuário estiver na rota /login mas tiver credencial salva ou válida,
-  // revalidar e navegar incondicionalmente para o painel.
-  useEffect(() => {
-    // Se já autenticado no contexto
-    if (isAuthenticated) {
-      executeGuaranteedRedirect(targetPath)
-      return
-    }
 
-    const stored = getStoredAuth()
-    const hasStoredToken = Boolean(stored?.token && stored.token.length > 10)
+  // Fallback e auto-recuperação na rota /login:
+  // Se houver backup no localStorage ou token em memória, auto-restaura e redireciona imediatamente
+  useEffect(() => {
+    const backup = loadSessionBackup()
+    const hasValidBackup = Boolean(
+      backup?.token && backup.token.length > 10 && !isJwtTokenExpired(backup.token),
+    )
     const hasMemToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
 
-    if (hasMemToken || hasStoredToken) {
-      // Redireciona imediatamente para o painel se já temos credencial preservada
-      const tokenToUse = pb.authStore.token || stored?.token || ''
-      const modelToUse = pb.authStore.record || stored?.model || null
-      if (!pb.authStore.token && stored?.token) {
-        pb.authStore.save(stored.token, stored.model)
+    if (isAuthenticated || hasValidBackup || hasMemToken) {
+      setIsAutoRecovering(true)
+      const restored = restorePbAuthStoreFromBackup()
+      const tokenToUse = restored?.token || pb.authStore.token
+      const modelToUse = restored?.model || pb.authStore.record
+
+      if (tokenToUse) {
+        syncAuthNow(tokenToUse, modelToUse)
       }
-      syncAuthNow(tokenToUse, modelToUse)
+
       executeGuaranteedRedirect(targetPath)
 
-      // Em segundo plano, dispara validação no backend
-      singleFlightAuthRefresh().catch((err: unknown) => {
-        console.warn('[Login] Refresh de fundo completado ou com erro transitório:', err)
+      // Em segundo plano valida com o backend
+      singleFlightSafeAuthRefresh().catch((err: unknown) => {
+        console.warn('[Login] Background authRefresh completado com aviso:', err)
       })
     }
-  }, [isAuthenticated, targetPath])
+
+    return () => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current)
+      }
+    }
+  }, [isAuthenticated, targetPath, syncAuthNow])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -128,6 +141,21 @@ export default function Login() {
     }
   }
 
+  // Se estiver auto-recuperando, exibe loader limpo em vez do formulário
+  if (isAutoRecovering) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] dark:bg-[#11162B]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-[#E9530E] animate-spin" />
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Sessão ativa identificada
+          </p>
+          <span className="text-xs text-slate-500">Redirecionando para o painel principal...</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] dark:bg-[#11162B] relative overflow-hidden px-4">
       {/* SouYess Brand Geometry Accents */}
@@ -166,13 +194,6 @@ export default function Login() {
 
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4 pt-6">
-            {isAutoRecovering && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 text-xs font-medium animate-pulse">
-                <Loader2 className="w-4 h-4 shrink-0 animate-spin text-blue-600" />
-                <span>Identificamos uma sessão salva. Validando e recuperando seu acesso...</span>
-              </div>
-            )}
-
             {generalError && (
               <div className="flex items-start gap-3 p-3 rounded-lg bg-[#F8DDD9] border border-[#f1b4ac] text-[#8B1E14] text-xs font-medium">
                 <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-[#D5392C]" />
