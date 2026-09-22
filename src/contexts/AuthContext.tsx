@@ -51,12 +51,15 @@ export const singleFlightAuthRefresh = singleFlightSafeAuthRefresh
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // 1. Restauração imediata síncrona na montagem
   const initialBackup = restorePbAuthStoreFromBackup()
+  const initialToken = pb.authStore.token || initialBackup?.token || ''
+  const initialModel = pb.authStore.record || initialBackup?.model || null
 
-  const [user, setUser] = useState<RecordModel | null>(
-    pb.authStore.record || initialBackup?.model || null,
+  const [user, setUser] = useState<RecordModel | null>(initialModel)
+  const [token, setToken] = useState<string>(initialToken)
+  // Se já possui token de backup válido na inicialização síncrona, isLoading inicia falso para não travar
+  const [isLoading, setIsLoading] = useState<boolean>(
+    Boolean(!initialToken && !initialBackup?.token),
   )
-  const [token, setToken] = useState<string>(pb.authStore.token || initialBackup?.token || '')
-  const [isLoading, setIsLoading] = useState<boolean>(true)
   const [isRenewingSession, setIsRenewingSession] = useState<boolean>(false)
 
   // Flag estrita: apenas o clique explícito de logout() do usuário pode limpar credenciais
@@ -164,8 +167,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Validação proativa em segundo plano
         try {
           setIsRenewingSession(true)
-          await singleFlightSafeAuthRefresh()
-          if (pb.authStore.token) {
+          const refreshed = await singleFlightSafeAuthRefresh()
+          if (refreshed && pb.authStore.token) {
             setUser(pb.authStore.record)
             setToken(pb.authStore.token)
           }
@@ -191,12 +194,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } finally {
           setIsRenewingSession(false)
+          setIsLoading(false)
         }
       } else {
         setUser(null)
         setToken('')
+        setIsLoading(false)
       }
-      setIsLoading(false)
     }
 
     initAuth()
@@ -281,24 +285,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Se o usuário não deu logout explícito e houver backup íntegro ou token válido,
   // considera como autenticado!
   const backupNow = loadSessionBackup()
+  const hasTokenStr = Boolean(token && token.length > 10)
+  const hasPbStoreToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
   const hasValidBackup = Boolean(
-    !isExplicitLogoutRef.current &&
-    backupNow?.token &&
-    backupNow.token.length > 10 &&
-    !isJwtTokenExpired(backupNow.token),
-  )
-
-  const hasAnyValidToken = Boolean(
-    !isExplicitLogoutRef.current &&
-    ((token && token.length > 10) ||
-      (pb.authStore.token && pb.authStore.token.length > 10) ||
-      hasValidBackup),
+    backupNow?.token && backupNow.token.length > 10 && !isJwtTokenExpired(backupNow.token),
   )
 
   const isAuthed =
     !isExplicitLogoutRef.current &&
-    ((Boolean(user) && Boolean(token)) ||
-      hasAnyValidToken ||
+    (hasTokenStr ||
+      hasPbStoreToken ||
       hasValidBackup ||
       (isRecoveringAuthRef.current && Boolean(backupNow?.token)))
 

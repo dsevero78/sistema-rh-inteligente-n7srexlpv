@@ -50,7 +50,7 @@ export default function Login() {
       console.warn('[Login] navigate() erro, usando window.location', e)
     }
 
-    // Rede de segurança: se após ~250ms o usuário ainda estiver em /login, força redirecionamento nativo
+    // Rede de segurança: se após ~500ms o usuário ainda estiver em /login, força redirecionamento nativo
     if (redirectTimeoutRef.current) {
       clearTimeout(redirectTimeoutRef.current)
     }
@@ -64,11 +64,11 @@ export default function Login() {
         )
         window.location.replace(dest)
       }
-    }, 250)
+    }, 500)
   }
 
   // Fallback e auto-recuperação na rota /login:
-  // Se houver backup no localStorage ou token em memória, auto-restaura e redireciona imediatamente
+  // Se houver backup no localStorage ou token em memória, auto-restaura, consolida e redireciona
   useEffect(() => {
     const backup = loadSessionBackup()
     const hasValidBackup = Boolean(
@@ -76,8 +76,14 @@ export default function Login() {
     )
     const hasMemToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
 
-    if (isAuthenticated || hasValidBackup || hasMemToken) {
-      setIsAutoRecovering(true)
+    if (!isAuthenticated && !hasValidBackup && !hasMemToken) {
+      return
+    }
+
+    setIsAutoRecovering(true)
+    let isSubscribed = true
+
+    const doLoginRedirect = async () => {
       const restored = restorePbAuthStoreFromBackup()
       const tokenToUse = restored?.token || pb.authStore.token
       const modelToUse = restored?.model || pb.authStore.record
@@ -86,15 +92,25 @@ export default function Login() {
         syncAuthNow(tokenToUse, modelToUse)
       }
 
-      executeGuaranteedRedirect(targetPath)
+      // Aguarda o refresh para consolidar o estado antes de redirecionar
+      try {
+        await singleFlightSafeAuthRefresh()
+        if (pb.authStore.token && isSubscribed) {
+          syncAuthNow(pb.authStore.token, pb.authStore.record)
+        }
+      } catch (err: unknown) {
+        console.warn('[Login] authRefresh completado com aviso:', err)
+      }
 
-      // Em segundo plano valida com o backend
-      singleFlightSafeAuthRefresh().catch((err: unknown) => {
-        console.warn('[Login] Background authRefresh completado com aviso:', err)
-      })
+      if (isSubscribed) {
+        executeGuaranteedRedirect(targetPath)
+      }
     }
 
+    doLoginRedirect()
+
     return () => {
+      isSubscribed = false
       if (redirectTimeoutRef.current) {
         clearTimeout(redirectTimeoutRef.current)
       }

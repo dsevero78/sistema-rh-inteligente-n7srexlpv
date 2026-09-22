@@ -82,34 +82,65 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
   const hasCredential = isAuthenticated || hasValidBackup || hasPbToken
 
   useEffect(() => {
-    if (hasCredential) {
-      // 1. Restaura em memória
+    if (!hasCredential) return
+
+    let isSubscribed = true
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null
+
+    const runRedirectFlow = async () => {
+      // 1. Restaura síncrono e consolida estado do contexto
       const restored = restorePbAuthStoreFromBackup()
-      if (restored) {
-        syncAuthNow(restored.token, restored.model)
+      const effectiveToken = restored?.token || pb.authStore.token
+      const effectiveModel = restored?.model || pb.authStore.record
+      if (effectiveToken) {
+        syncAuthNow(effectiveToken, effectiveModel)
       }
 
-      // 2. Dispara refresh silencioso de background
-      singleFlightSafeAuthRefresh().catch(() => {})
+      // 2. Aguarda a validação do token com o backend de forma síncrona/esperada
+      try {
+        await singleFlightSafeAuthRefresh()
+        if (pb.authStore.token && isSubscribed) {
+          syncAuthNow(pb.authStore.token, pb.authStore.record)
+        }
+      } catch (err) {
+        console.warn('[PublicRoute] Revalidação authRefresh falhou de forma não-fatal:', err)
+      }
 
-      // 3. Tenta navegação por History API do React Router
-      navigate(destination, { replace: true })
+      if (!isSubscribed) return
 
-      // 4. Rede de segurança: se após 400ms ainda estiver em rota /login, força window.location.replace
-      const timeout = setTimeout(() => {
+      // 3. Navega para o destino
+      console.info(`[PublicRoute] Redirecionando sessão validada para ${destination}`)
+      try {
+        navigate(destination, { replace: true })
+      } catch (err) {
+        console.warn('[PublicRoute] navigate falhou, recorrendo a window.location', err)
+      }
+
+      // 4. Fallback forçado com verificação real de rota: se após ~500ms ainda estiver em rota pública,
+      // força window.location.replace para desbloquear o Dashboard
+      fallbackTimer = setTimeout(() => {
         if (
           typeof window !== 'undefined' &&
-          (window.location.pathname.startsWith('/login') || window.location.pathname === '/')
+          (window.location.pathname.startsWith('/login') ||
+            window.location.pathname.startsWith('/forgot-password') ||
+            window.location.pathname.startsWith('/reset-password') ||
+            window.location.pathname === '/')
         ) {
           console.warn(
-            '[PublicRoute] Executando fallback garantido window.location.replace para',
-            destination,
+            `[PublicRoute] Fallback forçado acionado (ainda em ${window.location.pathname}). Executando window.location.replace('${destination}')...`,
           )
           window.location.replace(destination)
         }
-      }, 400)
+      }, 500)
+    }
 
-      return () => clearTimeout(timeout)
+    runRedirectFlow()
+
+    return () => {
+      isSubscribed = false
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer)
+      }
     }
   }, [hasCredential, destination, navigate, syncAuthNow])
 

@@ -4,6 +4,7 @@ import {
   loadSessionBackup,
   clearAllSessionBackups,
   restorePbAuthStoreFromBackup,
+  singleFlightSafeAuthRefresh,
   isJwtTokenExpired,
   APP_SESSION_BACKUP_KEY,
   PB_AUTH_STORAGE_KEY,
@@ -76,5 +77,45 @@ describe('SessionBackup & Auto-Recovery', () => {
 
     expect(isJwtTokenExpired(makeToken(futureExp))).toBe(false)
     expect(isJwtTokenExpired(makeToken(pastExp))).toBe(true)
+  })
+
+  it('no reload em /login com credencial válida: restaura credencial síncrona antes de chamar singleFlightSafeAuthRefresh', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 7200
+    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+    const payload = btoa(JSON.stringify({ id: 'user_reload_test', exp: futureExp }))
+    const validJwt = `${header}.${payload}.sig`
+    const userModel = { id: 'user_reload_test', email: 'severo.douglas2@gmail.com' } as any
+
+    // Simula reload da página: gravação prévia no localStorage da sessão
+    saveSessionBackup(validJwt, userModel)
+
+    // Esvazia memória do SDK (como acontece ao recarregar a página)
+    pb.authStore.clear()
+    expect(pb.authStore.token).toBe('')
+    expect(pb.authStore.record).toBeNull()
+
+    // 1. Restauração síncrona imediata
+    const restored = restorePbAuthStoreFromBackup()
+    expect(restored).not.toBeNull()
+    expect(restored?.token).toBe(validJwt)
+    expect(pb.authStore.token).toBe(validJwt)
+    expect(pb.authStore.record?.id).toBe('user_reload_test')
+
+    // 2. Mock de sucesso do authRefresh da coleção users
+    const refreshedToken = `${header}.${btoa(JSON.stringify({ id: 'user_reload_test', exp: futureExp + 3600 }))}.sig2`
+    const authRefreshSpy = vi.spyOn(pb.collection('users'), 'authRefresh').mockResolvedValueOnce({
+      token: refreshedToken,
+      record: userModel,
+    } as any)
+
+    // 3. Execução do singleFlightSafeAuthRefresh
+    const ok = await singleFlightSafeAuthRefresh()
+    expect(ok).toBe(true)
+    expect(authRefreshSpy).toHaveBeenCalledTimes(1)
+    expect(pb.authStore.token).toBe(refreshedToken)
+
+    // 4. Confirma que o backup foi consolidado com o novo token
+    const updatedBackup = loadSessionBackup()
+    expect(updatedBackup?.token).toBe(refreshedToken)
   })
 })
