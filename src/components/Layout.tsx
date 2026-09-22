@@ -80,22 +80,14 @@ interface NavItem {
   href: string
   icon: typeof LayoutDashboard
   badge?: string
-  countKey?: 'alertas' | 'meudia'
+  countKey?: 'alertas' | 'meudia' | 'desligamentos'
 }
 
-const navItems: NavItem[] = [
-  { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { title: 'Vagas', href: '/vagas', icon: Briefcase },
-  { title: 'Candidatos', href: '/candidatos', icon: Users2 },
-  { title: 'Pipeline', href: '/pipeline', icon: GitPullRequest },
-  { title: 'Ofertas', href: '/ofertas', icon: FileCheck2 },
-  { title: 'Banco de Talentos', href: '/banco-talentos', icon: Sparkles, badge: 'Talentos' },
-  { title: 'Alertas', href: '/alertas', icon: Bell, countKey: 'alertas' },
-  { title: 'Entrevistas', href: '/entrevistas', icon: Calendar },
-  { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
-  { title: 'Relatórios', href: '/relatorios', icon: FileText },
-  { title: 'Relatório Executivo', href: '/relatorio-executivo', icon: BarChart3, badge: 'Mensal' },
-]
+interface NavGroup {
+  id: string
+  label: string
+  items: NavItem[]
+}
 
 export default function Layout() {
   const { user, logout, refreshUser, isGestorContratante } = useAuth()
@@ -116,6 +108,19 @@ export default function Layout() {
   const [alertasNovosCount, setAlertasNovosCount] = useState(0)
   const [loadingAlertas, setLoadingAlertas] = useState(true)
   const [meuDiaCount, setMeuDiaCount] = useState(0)
+  const [desligamentosCount, setDesligamentosCount] = useState(0)
+
+  const carregarDesligamentosPendentes = async () => {
+    try {
+      const records = await pb.collection('offboardings').getList(1, 1, {
+        filter: "status != 'concluido' && status != 'cancelado'",
+        fields: 'id',
+      })
+      setDesligamentosCount(records.totalItems)
+    } catch {
+      // Coleção pode não estar acessível ou vazia; ignora silenciosamente
+    }
+  }
 
   const carregarPendenciasMeuDia = async () => {
     try {
@@ -150,6 +155,7 @@ export default function Layout() {
   useEffect(() => {
     carregarAlertas()
     carregarPendenciasMeuDia()
+    carregarDesligamentosPendentes()
     // Verificação proativa de contratos vencendo/em renovação para disparo de notificações e e-mails
     notificacoesRhService.verificarEDispararAlertasContratosVencendo().catch(() => {})
 
@@ -173,6 +179,10 @@ export default function Layout() {
   useRealtime('aditivos_pj', () => carregarPendenciasMeuDia())
   useRealtime('onboardings', () => carregarPendenciasMeuDia())
   useRealtime('feedbacks_gestor', () => carregarPendenciasMeuDia())
+  useRealtime('offboardings', () => {
+    carregarDesligamentosPendentes()
+    carregarPendenciasMeuDia()
+  })
   const handleMarcarVisualizado = async (alertaId: string, e: React.MouseEvent) => {
     e.stopPropagation()
     try {
@@ -283,162 +293,261 @@ export default function Layout() {
         </div>
       </div>
 
-      {/* Nav List */}
-      <div className="flex-1 py-5 px-3 space-y-1 overflow-y-auto font-sans">
+      {/* Nav List Agrupada em Seções do Ciclo de RH */}
+      <div className="flex-1 py-4 px-3 space-y-4 overflow-y-auto font-sans scrollbar-thin scrollbar-thumb-[#2E3A6E]/60 scrollbar-track-transparent">
         {(isGestorContratante
           ? [
-              { title: 'Meu Dia', href: '/meu-dia', icon: Sunrise, countKey: 'meudia' as const },
-              { title: 'Pessoas (Unificado)', href: '/pessoas', icon: Users, badge: 'Ficha' },
               {
-                title: 'Horas & Competências',
-                href: '/horas-competencias',
-                icon: Clock,
-                badge: 'Apontar',
+                id: 'visao_geral',
+                label: 'Visão Geral',
+                items: [
+                  {
+                    title: 'Meu Dia',
+                    href: '/meu-dia',
+                    icon: Sunrise,
+                    countKey: 'meudia' as const,
+                  },
+                ],
               },
-              { title: 'Minhas Vagas', href: '/gestor', icon: Briefcase },
-              { title: 'Indicadores', href: '/indicadores', icon: Compass, badge: 'KPIs' },
-              { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
+              {
+                id: 'recrutamento',
+                label: 'Recrutamento',
+                items: [{ title: 'Minhas Vagas', href: '/gestor', icon: Briefcase }],
+              },
+              {
+                id: 'pessoas',
+                label: 'Pessoas & Operação',
+                items: [
+                  { title: 'Pessoas (Unificado)', href: '/pessoas', icon: Users, badge: 'Ficha' },
+                  {
+                    title: 'Horas & Competências',
+                    href: '/horas-competencias',
+                    icon: Clock,
+                    badge: 'Apontar',
+                  },
+                ],
+              },
+              {
+                id: 'inteligencia',
+                label: 'Inteligência & IA',
+                items: [
+                  { title: 'Indicadores', href: '/indicadores', icon: Compass, badge: 'KPIs' },
+                  { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
+                ],
+              },
             ]
           : [
-              { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-              { title: 'Meu Dia', href: '/meu-dia', icon: Sunrise, countKey: 'meudia' as const },
               {
-                title: 'Empresas & Unidades',
-                href: '/empresas',
-                icon: Building2,
-                badge: 'Holding',
+                id: 'visao_geral',
+                label: 'Visão Geral',
+                items: [
+                  { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+                  {
+                    title: 'Meu Dia',
+                    href: '/meu-dia',
+                    icon: Sunrise,
+                    countKey: 'meudia' as const,
+                  },
+                  { title: 'Alertas', href: '/alertas', icon: Bell, countKey: 'alertas' as const },
+                  { title: 'E-mails de Status', href: '/alertas?aba=emails_status', icon: Mail },
+                ],
               },
               {
-                title: 'Contratos',
-                href: '/contratos',
-                icon: FileSignature,
-                badge: 'PJ & CLT',
+                id: 'recrutamento',
+                label: 'Recrutamento & Seleção',
+                items: [
+                  { title: 'Vagas', href: '/vagas', icon: Briefcase },
+                  {
+                    title: 'Minhas Vagas (Gestor)',
+                    href: '/gestor',
+                    icon: UserCheck,
+                    badge: 'Portal',
+                  },
+                  { title: 'Candidatos', href: '/candidatos', icon: Users2 },
+                  { title: 'Pipeline', href: '/pipeline', icon: GitPullRequest },
+                  { title: 'Entrevistas', href: '/entrevistas', icon: Calendar },
+                  { title: 'Ofertas', href: '/ofertas', icon: FileCheck2 },
+                  {
+                    title: 'Banco de Talentos',
+                    href: '/banco-talentos',
+                    icon: Sparkles,
+                    badge: 'Talentos',
+                  },
+                  {
+                    title: 'Indicações',
+                    href: '/indicacoes',
+                    icon: Gift,
+                    badge: 'Promotores',
+                  },
+                  {
+                    title: 'Experiência',
+                    href: '/experiencia',
+                    icon: Heart,
+                    badge: 'NPS',
+                  },
+                ],
               },
               {
-                title: 'Horas & Competências',
-                href: '/horas-competencias',
-                icon: Clock,
-                badge: 'NFs Lote',
+                id: 'pessoas_ciclo',
+                label: 'Pessoas & Ciclo de Vida',
+                items: [
+                  {
+                    title: 'Pessoas (Unificado)',
+                    href: '/pessoas',
+                    icon: Users,
+                    badge: 'CLT & PJ',
+                  },
+                  { title: 'Onboarding', href: '/onboarding', icon: UserCheck, badge: 'Dia 1' },
+                  {
+                    title: 'Integração 30-60-90',
+                    href: '/integracao',
+                    icon: Compass,
+                    badge: 'Rotina',
+                  },
+                  {
+                    title: 'Horas & Competências',
+                    href: '/horas-competencias',
+                    icon: Clock,
+                    badge: 'NFs Lote',
+                  },
+                  {
+                    title: 'Desligamentos',
+                    href: '/offboardings',
+                    icon: UserMinus,
+                    badge: 'Offboarding',
+                    countKey: 'desligamentos' as const,
+                  },
+                ],
               },
               {
-                title: 'Pessoas (Unificado)',
-                href: '/pessoas',
-                icon: Users,
-                badge: 'CLT & PJ',
-              },
-              { title: 'Minhas Vagas (Gestor)', href: '/gestor', icon: UserCheck, badge: 'Portal' },
-              { title: 'Vagas', href: '/vagas', icon: Briefcase },
-              { title: 'Candidatos', href: '/candidatos', icon: Users2 },
-              { title: 'Pipeline', href: '/pipeline', icon: GitPullRequest },
-              { title: 'Ofertas', href: '/ofertas', icon: FileCheck2 },
-              { title: 'Onboarding', href: '/onboarding', icon: UserCheck, badge: 'Dia 1' },
-              {
-                title: 'Integração 30-60-90',
-                href: '/integracao',
-                icon: Compass,
-                badge: 'Rotina',
-              },
-              {
-                title: 'Desligamentos',
-                href: '/offboardings',
-                icon: UserMinus,
-                badge: 'Offboarding',
-              },
-              {
-                title: 'Experiência',
-                href: '/experiencia',
-                icon: Heart,
-                badge: 'NPS',
-              },
-              {
-                title: 'Indicações',
-                href: '/indicacoes',
-                icon: Gift,
-                badge: 'Promotores',
+                id: 'gestao_institucional',
+                label: 'Gestão Institucional',
+                items: [
+                  {
+                    title: 'Empresas & Unidades',
+                    href: '/empresas',
+                    icon: Building2,
+                    badge: 'Holding',
+                  },
+                  {
+                    title: 'Contratos',
+                    href: '/contratos',
+                    icon: FileSignature,
+                    badge: 'PJ & CLT',
+                  },
+                  {
+                    title: 'Financeiro',
+                    href: '/financeiro',
+                    icon: CircleDollarSign,
+                    badge: 'NFs & PJ',
+                  },
+                  {
+                    title: 'Importar Dados',
+                    href: '/importar',
+                    icon: FileSpreadsheet,
+                    badge: '10 min',
+                  },
+                ],
               },
               {
-                title: 'Banco de Talentos',
-                href: '/banco-talentos',
-                icon: Sparkles,
-                badge: 'Talentos',
-              },
-              { title: 'Alertas', href: '/alertas', icon: Bell, countKey: 'alertas' as const },
-              { title: 'Entrevistas', href: '/entrevistas', icon: Calendar },
-              { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
-              {
-                title: 'Importar Dados',
-                href: '/importar',
-                icon: FileSpreadsheet,
-                badge: '10 min',
-              },
-              { title: 'E-mails de Status', href: '/alertas?aba=emails_status', icon: Mail },
-              {
-                title: 'Financeiro',
-                href: '/financeiro',
-                icon: CircleDollarSign,
-                badge: 'NFs & PJ',
-              },
-              {
-                title: 'Indicadores',
-                href: '/indicadores',
-                icon: Compass,
-                badge: 'KPIs',
-              },
-              { title: 'Relatórios', href: '/relatorios', icon: FileText },
-              {
-                title: 'Relatório Executivo',
-                href: '/relatorio-executivo',
-                icon: BarChart3,
-                badge: 'Mensal',
+                id: 'inteligencia_relatorios',
+                label: 'Inteligência & Relatórios',
+                items: [
+                  {
+                    title: 'Indicadores',
+                    href: '/indicadores',
+                    icon: Compass,
+                    badge: 'KPIs',
+                  },
+                  { title: 'Relatórios', href: '/relatorios', icon: FileText },
+                  {
+                    title: 'Relatório Executivo',
+                    href: '/relatorio-executivo',
+                    icon: BarChart3,
+                    badge: 'Mensal',
+                  },
+                  { title: 'Chat com IA', href: '/chat', icon: MessageSquare, badge: 'Agente' },
+                ],
               },
             ]
-        ).map((item) => {
-          const Icon = item.icon
-          const isActive =
-            location.pathname === item.href ||
-            (item.href !== '/dashboard' && location.pathname.startsWith(item.href))
-          return (
-            <NavLink
-              key={item.href}
-              to={item.href}
-              onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium tracking-normal font-sans transition-all duration-150 group relative ${
-                isActive
-                  ? 'bg-[#FEF1EA] text-[#E9530E] font-semibold shadow-xs'
-                  : 'text-[#D3D7E5] hover:text-[#F7F8FB] hover:bg-[#2E3A6E]'
-              }`}
-            >
-              {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#E9530E] rounded-r-full" />
-              )}
-              <Icon
-                className={`w-4 h-4 transition-colors shrink-0 ${isActive ? 'text-[#E9530E]' : 'text-[#A8B0C9] group-hover:text-[#F7F8FB]'}`}
-              />
-              <span className="flex-1 truncate font-sans text-sm">{item.title}</span>
-              {item.badge && (
-                <span
-                  className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.2 rounded border font-sans ${
-                    isActive
-                      ? 'bg-[#E9530E] text-white border-transparent'
-                      : 'bg-[#2E3A6E] text-[#D3D7E5] border-[#4A567E]/60'
-                  }`}
-                >
-                  {item.badge}
-                </span>
-              )}
-              {item.countKey === 'alertas' && alertasNovosCount > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#E9530E] text-white min-w-[18px] text-center font-mono shadow-xs">
-                  {alertasNovosCount}
-                </span>
-              )}
-              {item.countKey === 'meudia' && meuDiaCount > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#E9530E] text-white min-w-[18px] text-center font-mono shadow-xs animate-in zoom-in-50">
-                  {meuDiaCount}
-                </span>
-              )}
-            </NavLink>
-          )
-        })}
+        ).map((group, groupIdx) => (
+          <div key={group.id} className="space-y-1">
+            {/* Título de Seção Discreto */}
+            <div className="flex items-center px-3 pt-2 pb-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#7C88B1] font-display">
+                {group.label}
+              </span>
+            </div>
+
+            {/* Itens do Grupo */}
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const Icon = item.icon
+                const isActive =
+                  location.pathname === item.href ||
+                  (item.href !== '/dashboard' &&
+                    item.href !== '/alertas' &&
+                    location.pathname.startsWith(item.href)) ||
+                  (item.href === '/alertas' &&
+                    location.pathname === '/alertas' &&
+                    !location.search.includes('aba=emails_status')) ||
+                  (item.href === '/alertas?aba=emails_status' &&
+                    location.pathname === '/alertas' &&
+                    location.search.includes('aba=emails_status'))
+
+                return (
+                  <NavLink
+                    key={item.href}
+                    to={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-3.5 py-2 rounded-lg text-sm font-medium tracking-normal font-sans transition-all duration-150 group relative ${
+                      isActive
+                        ? 'bg-[#FEF1EA] text-[#E9530E] font-semibold shadow-xs'
+                        : 'text-[#D3D7E5] hover:text-[#F7F8FB] hover:bg-[#2E3A6E]'
+                    }`}
+                  >
+                    {isActive && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#E9530E] rounded-r-full" />
+                    )}
+                    <Icon
+                      className={`w-4 h-4 transition-colors shrink-0 ${isActive ? 'text-[#E9530E]' : 'text-[#A8B0C9] group-hover:text-[#F7F8FB]'}`}
+                    />
+                    <span className="flex-1 truncate font-sans text-sm">{item.title}</span>
+                    {item.badge && (
+                      <span
+                        className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.2 rounded border font-sans ${
+                          isActive
+                            ? 'bg-[#E9530E] text-white border-transparent'
+                            : 'bg-[#2E3A6E] text-[#D3D7E5] border-[#4A567E]/60'
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                    {item.countKey === 'alertas' && alertasNovosCount > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#E9530E] text-white min-w-[18px] text-center font-mono shadow-xs">
+                        {alertasNovosCount}
+                      </span>
+                    )}
+                    {item.countKey === 'meudia' && meuDiaCount > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#E9530E] text-white min-w-[18px] text-center font-mono shadow-xs animate-in zoom-in-50">
+                        {meuDiaCount}
+                      </span>
+                    )}
+                    {item.countKey === 'desligamentos' && desligamentosCount > 0 && (
+                      <span
+                        title={`${desligamentosCount} desligamento(s) em andamento`}
+                        className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 min-w-[18px] text-center font-mono shadow-xs animate-in zoom-in-50"
+                      >
+                        {desligamentosCount}
+                      </span>
+                    )}
+                  </NavLink>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* User Footer Card - Superfície elevada em #1A2240 com borda em #2E3A6E sobre o gradiente até #1A2240 */}
@@ -979,7 +1088,7 @@ export default function Layout() {
         {/* Rodapé Institucional com Versão do Sistema */}
         <footer className="border-t border-[#E7EAF0] dark:border-[#2E3A6E] bg-white/60 dark:bg-[#1A2240]/60 py-3 px-4 sm:px-8 text-center text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-1">
           <span>Sistema RH Inteligente — SouYess People Hub</span>
-          <span className="font-mono text-[11px] font-semibold text-[#E9530E]">v0.0.61</span>
+          <span className="font-mono text-[11px] font-semibold text-[#E9530E]">v0.0.75</span>
         </footer>
       </div>
 
