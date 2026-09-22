@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import pb from '@/lib/pocketbase/client'
-import { videoIaService, type AnaliseVideoResponse } from '@/services/videoIaService'
+import {
+  videoIaService,
+  type AnaliseLinguisticaData,
+  type PontosCegosData,
+  type ExpressaoSocioemocionalData,
+} from '@/services/videoIaService'
 import {
   Video,
   Play,
@@ -10,15 +15,17 @@ import {
   AlertTriangle,
   RotateCcw,
   Upload,
-  Link as LinkIcon,
   Plus,
   Loader2,
   MessageSquare,
   ShieldAlert,
   BarChart3,
-  Flame,
-  Award,
-  Zap,
+  UserX,
+  UserCheck,
+  BrainCircuit,
+  Eye,
+  HeartHandshake,
+  Quote,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -54,11 +62,18 @@ export function VideoEPercepcaoSection({
   const [loadingPercepcoes, setLoadingPercepcoes] = useState(true)
   const [loadingAnalise, setLoadingAnalise] = useState(true)
   const [analisando, setAnalisando] = useState(false)
+  const [confirmandoConflito, setConfirmandoConflito] = useState(false)
   const [erroAnalise, setErroAnalise] = useState<string | null>(null)
 
   // Modais
   const [modalPercepcaoOpen, setModalPercepcaoOpen] = useState(false)
   const [modalVideoOpen, setModalVideoOpen] = useState(false)
+  const [modalConflitoBloqueante, setModalConflitoBloqueante] = useState(false)
+  const [dadosConflitoBloqueante, setDadosConflitoBloqueante] = useState<{
+    nomeDetectado: string
+    nomeCadastro: string
+    detalhes: string
+  } | null>(null)
   const [submittingPercepcao, setSubmittingPercepcao] = useState(false)
   const [submittingVideo, setSubmittingVideo] = useState(false)
 
@@ -113,8 +128,8 @@ export function VideoEPercepcaoSection({
     carregarDados()
   }, [candidato.id])
 
-  // Disparar análise de IA
-  const handleDispararAnalise = async () => {
+  // Disparar análise de IA com suporte a conflito de identidade
+  const handleDispararAnalise = async (permitirDivergencia = false) => {
     if (!temVideo) {
       toast({
         title: 'Nenhum vídeo disponível',
@@ -128,11 +143,30 @@ export function VideoEPercepcaoSection({
     setErroAnalise(null)
 
     try {
-      const resultado: AnaliseVideoResponse = await videoIaService.dispararAnalise(candidato.id)
-      toast({
-        title: 'Análise de vídeo concluída!',
-        description: `Score IA: ${resultado.score_geral}/100 · ${resultado.recomendacao_geral}`,
-      })
+      const resp = await videoIaService.dispararAnalise(candidato.id, permitirDivergencia)
+
+      if (resp.conflito_bloqueante && !permitirDivergencia) {
+        setDadosConflitoBloqueante({
+          nomeDetectado: resp.nome_detectado_no_video || 'Não identificado',
+          nomeCadastro: resp.nome_cadastro || candidato.nome || 'Candidato',
+          detalhes:
+            resp.detalhes_conflito_identidade ||
+            'O nome que o candidato se apresenta no vídeo diverge do nome cadastrado neste perfil.',
+        })
+        setModalConflitoBloqueante(true)
+        toast({
+          title: 'Alerta de Conflito de Identidade!',
+          description: `Nome no vídeo (${resp.nome_detectado_no_video || 'X'}) diverge do cadastro (${resp.nome_cadastro || candidato.nome}).`,
+          variant: 'destructive',
+        })
+      } else {
+        setModalConflitoBloqueante(false)
+        toast({
+          title: 'Análise de vídeo concluída!',
+          description: `Score IA: ${resp.data.score_geral}/100 · ${resp.data.recomendacao_geral} · Autenticidade: ${resp.data.veredito_naturalidade || 'Avaliada'}`,
+        })
+      }
+
       await carregarDados()
       if (onUpdate) onUpdate()
       if (onCandidatoUpdated) onCandidatoUpdated()
@@ -146,6 +180,33 @@ export function VideoEPercepcaoSection({
       })
     } finally {
       setAnalisando(false)
+    }
+  }
+
+  // Confirmar conflito de identidade manualmente pelo RH
+  const handleConfirmarDivergenciaManual = async () => {
+    setConfirmandoConflito(true)
+    try {
+      await videoIaService.confirmarConflitoIdentidade(
+        candidato.id,
+        'Confirmado manualmente pelo RH após validação de áudio/vídeo',
+      )
+      toast({
+        title: 'Vínculo confirmado pelo RH',
+        description: 'A análise foi mantida e o alerta de conflito foi registrado como aceito.',
+      })
+      setModalConflitoBloqueante(false)
+      await carregarDados()
+      if (onUpdate) onUpdate()
+      if (onCandidatoUpdated) onCandidatoUpdated()
+    } catch (err) {
+      toast({
+        title: 'Erro ao confirmar',
+        description: err instanceof Error ? err.message : 'Falha ao validar conflito.',
+        variant: 'destructive',
+      })
+    } finally {
+      setConfirmandoConflito(false)
     }
   }
 
@@ -301,8 +362,113 @@ export function VideoEPercepcaoSection({
 
   const scoreGeral = candidato.video_score_geral || analiseIa?.score_geral || 0
 
+  // Dados das novas camadas (com fallback seguro para não quebrar análises existentes como Rodrigo nota 6.8)
+  const temConflitoIdentidade = Boolean(
+    analiseIa?.conflito_identidade && !analiseIa?.conflito_confirmado_rh,
+  )
+  const conflitoConfirmadoRh = Boolean(analiseIa?.conflito_confirmado_rh)
+  const nomeDetectadoVideo = analiseIa?.nome_detectado_no_video || null
+
+  const indiceNaturalidade =
+    analiseIa?.indice_naturalidade !== undefined && analiseIa?.indice_naturalidade !== null
+      ? Number(analiseIa.indice_naturalidade)
+      : null
+
+  const vereditoNaturalidade = analiseIa?.veredito_naturalidade || null
+
+  const analiseLinguistica: AnaliseLinguisticaData | null =
+    analiseIa?.analise_linguistica && typeof analiseIa.analise_linguistica === 'object'
+      ? analiseIa.analise_linguistica
+      : null
+
+  const pontosCegos: PontosCegosData | null =
+    analiseIa?.pontos_cegos && typeof analiseIa.pontos_cegos === 'object'
+      ? analiseIa.pontos_cegos
+      : null
+
+  const expressaoSocioemocional: ExpressaoSocioemocionalData | null =
+    analiseIa?.expressao_socioemocional && typeof analiseIa.expressao_socioemocional === 'object'
+      ? analiseIa.expressao_socioemocional
+      : null
+
+  const analisePossuiNovasCamadas =
+    indiceNaturalidade !== null ||
+    vereditoNaturalidade !== null ||
+    analiseLinguistica !== null ||
+    pontosCegos !== null ||
+    expressaoSocioemocional !== null
+
   return (
     <div className="space-y-6">
+      {/* ALERTA DE CONFLITO DE IDENTIDADE (SE HOUVER DIVERGÊNCIA NÃO CONFIRMADA) */}
+      {temConflitoIdentidade && (
+        <div className="p-4 rounded-xl border-2 border-red-500 bg-red-50/90 dark:bg-red-950/70 text-red-900 dark:text-red-100 shadow-sm animate-pulse-subtle">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-red-500 text-white shrink-0">
+              <UserX className="w-5 h-5" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className="bg-red-600 text-white font-bold text-xs uppercase tracking-wide">
+                  Alerta Crítico: Conflito de Identidade no Vídeo
+                </Badge>
+                <span className="text-xs font-mono font-bold text-red-700 dark:text-red-300">
+                  Ação do RH necessária
+                </span>
+              </div>
+              <p className="text-xs font-semibold leading-relaxed">
+                O nome identificado no vídeo{' '}
+                <strong className="underline decoration-red-600 font-black">
+                  "{nomeDetectadoVideo || 'Não identificado / Outra pessoa'}"
+                </strong>{' '}
+                diverge do cadastro deste candidato{' '}
+                <strong className="font-black">"{candidato.nome || 'Cadastro Atual'}"</strong>.
+              </p>
+              <p className="text-[11px] text-red-800 dark:text-red-300 leading-snug">
+                {analiseIa?.detalhes_conflito_identidade ||
+                  'Possível equívoco de anexo: verifique se o arquivo ou link pertence a outro profissional antes de compartilhar esta avaliação com a liderança.'}
+              </p>
+              <div className="pt-2 flex items-center gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  onClick={handleConfirmarDivergenciaManual}
+                  disabled={confirmandoConflito}
+                  className="bg-red-700 hover:bg-red-800 text-white text-xs font-bold h-7 shadow-xs"
+                >
+                  <UserCheck className="w-3.5 h-3.5 mr-1" />
+                  {confirmandoConflito ? 'Confirmando...' : 'Confirmar que é o mesmo candidato'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setModalVideoOpen(true)}
+                  className="text-xs h-7 border-red-300 text-red-800 dark:text-red-200 bg-white dark:bg-red-900"
+                >
+                  Substituir Vídeo Errado
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMAÇÃO DO RH REGISTRADA (QUANDO CONFLITO FOI ACEITO) */}
+      {conflitoConfirmadoRh && (
+        <div className="p-3 rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-100 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>
+              <strong>Identidade Validada:</strong> O RH confirmou que o vídeo pertence a{' '}
+              <strong>{candidato.nome}</strong>{' '}
+              {nomeDetectadoVideo && `(áudio indicou "${nomeDetectadoVideo}")`}.
+            </span>
+          </div>
+          <Badge className="bg-emerald-200 text-emerald-900 text-[10px] font-bold">
+            Validado Manualmente
+          </Badge>
+        </div>
+      )}
+
       {/* CARD PRINCIPAL DO VÍDEO & ANÁLISE IA */}
       <Card className="border-slate-200 dark:border-[#2E3A6E] bg-white dark:bg-[#1A2240] shadow-xs">
         <CardContent className="p-5">
@@ -314,7 +480,7 @@ export function VideoEPercepcaoSection({
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-display text-base font-bold text-[#212B55] dark:text-[#F7F8FB]">
-                    Vídeo de Apresentação & Avaliação IA
+                    Vídeo de Apresentação &amp; Avaliação IA
                   </h3>
                   {analiseIa ? (
                     <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 text-[11px] font-bold">
@@ -337,9 +503,18 @@ export function VideoEPercepcaoSection({
                       Sem vídeo enviado
                     </Badge>
                   )}
+                  {nomeDetectadoVideo && (
+                    <Badge
+                      variant="outline"
+                      className="text-[11px] font-mono border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+                    >
+                      Vídeo: {nomeDetectadoVideo}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Apresentação gravada pelo candidato e relatório dimensional estruturado via IA
+                  Apresentação gravada pelo candidato, verificação de identidade, autenticidade e
+                  expressão sócio-emocional via IA
                 </p>
               </div>
             </div>
@@ -358,7 +533,7 @@ export function VideoEPercepcaoSection({
               {temVideo && (
                 <Button
                   size="sm"
-                  onClick={handleDispararAnalise}
+                  onClick={() => handleDispararAnalise(false)}
                   disabled={analisando}
                   className="bg-[#E9530E] hover:bg-[#C5430A] text-white text-xs font-bold h-8 shadow-xs"
                 >
@@ -464,7 +639,7 @@ export function VideoEPercepcaoSection({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={handleDispararAnalise}
+                      onClick={() => handleDispararAnalise(false)}
                       className="text-xs h-7 border-rose-300 dark:border-rose-700 bg-white dark:bg-rose-900"
                     >
                       Tentar Novamente
@@ -522,6 +697,270 @@ export function VideoEPercepcaoSection({
                       </div>
                     )}
 
+                    {/* CAMADA 2: BLOCO DE AUTENTICIDADE DA FALA (NATURAL vs FORÇADO/DECORADO) */}
+                    <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-950/20 space-y-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <BrainCircuit className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                          <h5 className="font-display text-xs font-bold text-[#212B55] dark:text-[#F7F8FB] uppercase tracking-wider">
+                            Autenticidade &amp; Estrutura Linguística da Fala
+                          </h5>
+                        </div>
+                        {vereditoNaturalidade ? (
+                          <Badge
+                            className={`text-xs font-bold ${
+                              vereditoNaturalidade.toLowerCase().includes('natural')
+                                ? 'bg-emerald-600 text-white'
+                                : vereditoNaturalidade.toLowerCase().includes('ensaia')
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-rose-600 text-white'
+                            }`}
+                          >
+                            {vereditoNaturalidade}
+                            {indiceNaturalidade !== null && indiceNaturalidade !== undefined
+                              ? ` (${indiceNaturalidade}/100)`
+                              : ''}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-slate-400">
+                            não avaliado nesta análise — rode novamente
+                          </Badge>
+                        )}
+                      </div>
+
+                      {indiceNaturalidade !== null && indiceNaturalidade !== undefined && (
+                        <div>
+                          <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                            <span>Índice de Naturalidade vs. Discurso Ensaiado / Memorizado</span>
+                            <span className="font-bold font-mono">{indiceNaturalidade}%</span>
+                          </div>
+                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-all duration-500 rounded-full ${
+                                indiceNaturalidade >= 75
+                                  ? 'bg-emerald-500'
+                                  : indiceNaturalidade >= 50
+                                    ? 'bg-amber-500'
+                                    : 'bg-rose-500'
+                              }`}
+                              style={{ width: `${indiceNaturalidade}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {analiseLinguistica &&
+                      (analiseLinguistica.estrutura_fala ||
+                        analiseLinguistica.uso_exemplos_vs_cliches ||
+                        analiseLinguistica.justificativa) ? (
+                        <div className="space-y-2 text-xs text-slate-700 dark:text-slate-300">
+                          {analiseLinguistica.estrutura_fala && (
+                            <div>
+                              <strong className="text-slate-900 dark:text-slate-100 block text-[11px]">
+                                Fluência e Cadência:
+                              </strong>
+                              <p className="text-slate-600 dark:text-slate-300">
+                                {analiseLinguistica.estrutura_fala}
+                              </p>
+                            </div>
+                          )}
+                          {analiseLinguistica.uso_exemplos_vs_cliches && (
+                            <div>
+                              <strong className="text-slate-900 dark:text-slate-100 block text-[11px]">
+                                Exemplos Concretos vs. Clichês de Entrevista:
+                              </strong>
+                              <p className="text-slate-600 dark:text-slate-300">
+                                {analiseLinguistica.uso_exemplos_vs_cliches}
+                              </p>
+                            </div>
+                          )}
+                          {analiseLinguistica.justificativa && (
+                            <p className="italic text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
+                              {analiseLinguistica.justificativa}
+                            </p>
+                          )}
+                          {Array.isArray(analiseLinguistica.trechos_evidencia) &&
+                            analiseLinguistica.trechos_evidencia.length > 0 && (
+                              <div className="p-2.5 rounded-lg bg-white dark:bg-[#11162B] border border-indigo-100 dark:border-indigo-900 space-y-1">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 flex items-center gap-1">
+                                  <Quote className="w-3 h-3" />
+                                  Trechos / Evidências da Fala
+                                </span>
+                                <ul className="text-[11px] list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-300">
+                                  {analiseLinguistica.trechos_evidencia.map((tr, i) => (
+                                    <li key={i}>{tr}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+                          não avaliado nesta análise — rode novamente
+                        </p>
+                      )}
+                    </div>
+
+                    {/* CAMADA 3: PONTOS CEGOS & EXPRESSÃO SÓCIO-EMOCIONAL */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {/* Bloco Pontos Cegos */}
+                      <div className="p-3.5 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/40 dark:bg-amber-950/20 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                            <Eye className="w-3.5 h-3.5 text-amber-600" />
+                            Pontos Cegos da Fala
+                          </span>
+                          {(!pontosCegos ||
+                            (!pontosCegos.sintese_inconsciente &&
+                              !pontosCegos.evasivas_ou_insegurancas &&
+                              !pontosCegos.sinais_estresse_tensao)) && (
+                            <Badge variant="outline" className="text-[9px] text-slate-400">
+                              não avaliado nesta análise — rode novamente
+                            </Badge>
+                          )}
+                        </div>
+                        {pontosCegos &&
+                        (pontosCegos.sintese_inconsciente ||
+                          pontosCegos.evasivas_ou_insegurancas ||
+                          pontosCegos.sinais_estresse_tensao) ? (
+                          <div className="text-xs space-y-2 text-slate-700 dark:text-slate-300">
+                            {pontosCegos.sintese_inconsciente && (
+                              <div>
+                                <strong className="text-amber-950 dark:text-amber-100 block text-[11px]">
+                                  O que transmite sem perceber:
+                                </strong>
+                                <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                                  {pontosCegos.sintese_inconsciente}
+                                </p>
+                              </div>
+                            )}
+                            {pontosCegos.evasivas_ou_insegurancas && (
+                              <div>
+                                <strong className="text-amber-950 dark:text-amber-100 block text-[11px]">
+                                  Evasivas ou Inseguranças:
+                                </strong>
+                                <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                                  {pontosCegos.evasivas_ou_insegurancas}
+                                </p>
+                              </div>
+                            )}
+                            {pontosCegos.sinais_estresse_tensao && (
+                              <div>
+                                <strong className="text-amber-950 dark:text-amber-100 block text-[11px]">
+                                  Sinais de Tensão Não-Verbal:
+                                </strong>
+                                <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                                  {pontosCegos.sinais_estresse_tensao}
+                                </p>
+                              </div>
+                            )}
+                            {Array.isArray(pontosCegos.sugestoes_investigacao_entrevista) &&
+                              pontosCegos.sugestoes_investigacao_entrevista.length > 0 && (
+                                <div className="pt-1 border-t border-amber-200 dark:border-amber-900">
+                                  <strong className="text-[10px] uppercase font-bold text-amber-800 dark:text-amber-300 block mb-0.5">
+                                    Para investigar na entrevista:
+                                  </strong>
+                                  <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+                                    {pontosCegos.sugestoes_investigacao_entrevista.map((s, idx) => (
+                                      <li key={idx}>{s}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+                            não avaliado nesta análise — rode novamente
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Bloco Expressão Sócio-Emocional */}
+                      <div className="p-3.5 rounded-xl border border-teal-200 dark:border-teal-900 bg-teal-50/40 dark:bg-teal-950/20 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-teal-900 dark:text-teal-200 flex items-center gap-1.5">
+                            <HeartHandshake className="w-3.5 h-3.5 text-teal-600" />
+                            Expressão Sócio-Emocional
+                          </span>
+                          {(!expressaoSocioemocional ||
+                            (!expressaoSocioemocional.regulacao_emocional &&
+                              !expressaoSocioemocional.maturidade_autocritica &&
+                              !expressaoSocioemocional.congruencia_verbal_nao_verbal)) && (
+                            <Badge variant="outline" className="text-[9px] text-slate-400">
+                              não avaliado nesta análise — rode novamente
+                            </Badge>
+                          )}
+                        </div>
+                        {expressaoSocioemocional &&
+                        (expressaoSocioemocional.regulacao_emocional ||
+                          expressaoSocioemocional.maturidade_autocritica ||
+                          expressaoSocioemocional.congruencia_verbal_nao_verbal ||
+                          expressaoSocioemocional.empatia_conexao) ? (
+                          <div className="text-xs space-y-2 text-slate-700 dark:text-slate-300">
+                            {expressaoSocioemocional.regulacao_emocional && (
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-[11px]">
+                                  Regulação Emocional:
+                                </span>
+                                <Badge className="bg-teal-600 text-white text-[10px]">
+                                  {expressaoSocioemocional.regulacao_emocional}
+                                </Badge>
+                              </div>
+                            )}
+                            {expressaoSocioemocional.maturidade_autocritica && (
+                              <div>
+                                <strong className="text-teal-950 dark:text-teal-100 block text-[11px]">
+                                  Maturidade &amp; Autocrítica:
+                                </strong>
+                                <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                                  {expressaoSocioemocional.maturidade_autocritica}
+                                </p>
+                              </div>
+                            )}
+                            {expressaoSocioemocional.congruencia_verbal_nao_verbal && (
+                              <div>
+                                <strong className="text-teal-950 dark:text-teal-100 block text-[11px]">
+                                  Congruência Verbal / Não-Verbal:
+                                </strong>
+                                <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                                  {expressaoSocioemocional.congruencia_verbal_nao_verbal}
+                                </p>
+                              </div>
+                            )}
+                            {expressaoSocioemocional.empatia_conexao && (
+                              <div>
+                                <strong className="text-teal-950 dark:text-teal-100 block text-[11px]">
+                                  Empatia &amp; Conexão:
+                                </strong>
+                                <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                                  {expressaoSocioemocional.empatia_conexao}
+                                </p>
+                              </div>
+                            )}
+                            {Array.isArray(expressaoSocioemocional.evidencias_observadas) &&
+                              expressaoSocioemocional.evidencias_observadas.length > 0 && (
+                                <div className="pt-1 border-t border-teal-200 dark:border-teal-900">
+                                  <strong className="text-[10px] uppercase font-bold text-teal-800 dark:text-teal-300 block mb-0.5">
+                                    Evidências Observadas:
+                                  </strong>
+                                  <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+                                    {expressaoSocioemocional.evidencias_observadas.map(
+                                      (ev, idx) => (
+                                        <li key={idx}>{ev}</li>
+                                      ),
+                                    )}
+                                  </ul>
+                                </div>
+                              )}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+                            não avaliado nesta análise — rode novamente
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
                     {/* Avaliações Qualitativas Estruturadas (Comunicação, Postura, Domínio, Fit Cultural) */}
                     {(analiseIa.comunicacao_oratoria ||
                       analiseIa.postura_presenca ||
@@ -531,7 +970,7 @@ export function VideoEPercepcaoSection({
                         {analiseIa.comunicacao_oratoria && (
                           <div className="p-3 rounded-lg border border-slate-200 dark:border-[#2E3A6E] bg-slate-50/80 dark:bg-[#141B34]/60 text-xs space-y-1">
                             <span className="font-bold text-[#212B55] dark:text-[#F7F8FB] block">
-                              Comunicação & Oratória
+                              Comunicação &amp; Oratória
                             </span>
                             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                               {analiseIa.comunicacao_oratoria}
@@ -541,7 +980,7 @@ export function VideoEPercepcaoSection({
                         {analiseIa.postura_presenca && (
                           <div className="p-3 rounded-lg border border-slate-200 dark:border-[#2E3A6E] bg-slate-50/80 dark:bg-[#141B34]/60 text-xs space-y-1">
                             <span className="font-bold text-[#212B55] dark:text-[#F7F8FB] block">
-                              Postura & Presença
+                              Postura &amp; Presença
                             </span>
                             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                               {analiseIa.postura_presenca}
@@ -561,7 +1000,7 @@ export function VideoEPercepcaoSection({
                         {analiseIa.fit_cultural && (
                           <div className="p-3 rounded-lg border border-slate-200 dark:border-[#2E3A6E] bg-slate-50/80 dark:bg-[#141B34]/60 text-xs space-y-1">
                             <span className="font-bold text-[#212B55] dark:text-[#F7F8FB] block">
-                              Fit Cultural & Valores
+                              Fit Cultural &amp; Valores
                             </span>
                             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                               {analiseIa.fit_cultural}
@@ -586,7 +1025,7 @@ export function VideoEPercepcaoSection({
                           {dimensoes.clareza_comunicacao > 0 && (
                             <div>
                               <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                <span>Clareza de Comunicação & Dicção</span>
+                                <span>Clareza de Comunicação &amp; Dicção</span>
                                 <span className="font-bold font-mono">
                                   {dimensoes.clareza_comunicacao}%
                                 </span>
@@ -603,7 +1042,7 @@ export function VideoEPercepcaoSection({
                           {dimensoes.estrutura_narrativa > 0 && (
                             <div>
                               <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                <span>Estrutura da Narrativa & Síntese</span>
+                                <span>Estrutura da Narrativa &amp; Síntese</span>
                                 <span className="font-bold font-mono">
                                   {dimensoes.estrutura_narrativa}%
                                 </span>
@@ -620,7 +1059,7 @@ export function VideoEPercepcaoSection({
                           {dimensoes.energia_postura > 0 && (
                             <div>
                               <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                <span>Energia, Firmeza & Postura</span>
+                                <span>Energia, Firmeza &amp; Postura</span>
                                 <span className="font-bold font-mono">
                                   {dimensoes.energia_postura}%
                                 </span>
@@ -637,7 +1076,7 @@ export function VideoEPercepcaoSection({
                           {dimensoes.aderencia_vaga > 0 && (
                             <div>
                               <div className="flex justify-between text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                <span>Aderência à Vaga & Domínio Técnico</span>
+                                <span>Aderência à Vaga &amp; Domínio Técnico</span>
                                 <span className="font-bold font-mono">
                                   {dimensoes.aderencia_vaga}%
                                 </span>
@@ -713,8 +1152,8 @@ export function VideoEPercepcaoSection({
                       Vídeo pronto para análise inteligente
                     </h5>
                     <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                      Clique em "Iniciar Análise IA" acima para processar a comunicação, postura,
-                      aderência e gerar o relatório para a diretoria.
+                      Clique em "Iniciar Análise IA" acima para processar a verificação de
+                      identidade, autenticidade da fala, pontos cegos e perfil sócio-emocional.
                     </p>
                   </div>
                 )}
@@ -781,6 +1220,76 @@ export function VideoEPercepcaoSection({
           </div>
         </CardContent>
       </Card>
+
+      {/* MODAL DE CONFLITO DE IDENTIDADE BLOQUEANTE (EXIBE ANTES DE SEGUIR COM AVALIAÇÃO) */}
+      <Dialog open={modalConflitoBloqueante} onOpenChange={setModalConflitoBloqueante}>
+        <DialogContent className="max-w-md border-red-300 dark:border-red-900">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+              <UserX className="w-5 h-5" />
+              <DialogTitle className="font-display text-base font-bold">
+                Atenção: Conflito de Identidade Detectado
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-600 dark:text-slate-300 pt-1">
+              A IA analisou a introdução do vídeo e detectou divergência de nome com o cadastro do
+              candidato.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3.5 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-xs space-y-2">
+            <div className="grid grid-cols-2 gap-2 pb-2 border-b border-red-200 dark:border-red-800/80">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                  Nome no Cadastro:
+                </span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">
+                  {dadosConflitoBloqueante?.nomeCadastro}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-red-700 dark:text-red-400 block">
+                  Identificado no Vídeo:
+                </span>
+                <span className="font-bold text-red-800 dark:text-red-200">
+                  {dadosConflitoBloqueante?.nomeDetectado}
+                </span>
+              </div>
+            </div>
+            <p className="text-[11px] text-red-900 dark:text-red-200 leading-relaxed">
+              {dadosConflitoBloqueante?.detalhes}
+            </p>
+            <div className="p-2 rounded bg-white dark:bg-black/30 border border-red-100 text-[11px] text-slate-600 dark:text-slate-300">
+              <strong>Objetivo da Proteção:</strong> Evitar vincular o vídeo de um candidato a outro
+              perfil de cadastro sem a devida confirmação pelo time de RH.
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2 gap-2 flex-col sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setModalConflitoBloqueante(false)
+                setModalVideoOpen(true)
+              }}
+              className="text-xs"
+            >
+              Corrigir Vídeo Anexado
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={confirmandoConflito}
+              onClick={() => handleDispararAnalise(true)}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs"
+            >
+              {confirmandoConflito ? 'Confirmando...' : 'Confirmar & Manter Vínculo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* MODAL ENVIAR / ALTERAR VÍDEO */}
       <Dialog open={modalVideoOpen} onOpenChange={setModalVideoOpen}>

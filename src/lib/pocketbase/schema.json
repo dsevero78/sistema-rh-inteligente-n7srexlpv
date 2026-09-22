@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T22:55:16.340Z",
+  "generatedAt": "2026-09-22T23:11:04.097Z",
   "collections": [
     {
       "name": "users",
@@ -468,6 +468,18 @@
         {
           "name": "data_contratacao",
           "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "video_conflito_identidade",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "video_nome_detectado",
+          "type": "text",
           "required": false,
           "system": false
         }
@@ -1602,6 +1614,60 @@
         {
           "name": "data_geracao",
           "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nome_detectado_no_video",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conflito_identidade",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "detalhes_conflito_identidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conflito_confirmado_rh",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "indice_naturalidade",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "veredito_naturalidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "analise_linguistica",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pontos_cegos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "expressao_socioemocional",
+          "type": "json",
           "required": false,
           "system": false
         }

@@ -1,10 +1,34 @@
 import pb from '@/lib/pocketbase/client'
 
+export interface AnaliseLinguisticaData {
+  estrutura_fala?: string
+  uso_exemplos_vs_cliches?: string
+  justificativa?: string
+  trechos_evidencia?: string[]
+}
+
+export interface PontosCegosData {
+  sintese_inconsciente?: string
+  evasivas_ou_insegurancas?: string
+  sinais_estresse_tensao?: string
+  sugestoes_investigacao_entrevista?: string[]
+}
+
+export interface ExpressaoSocioemocionalData {
+  regulacao_emocional?: string
+  maturidade_autocritica?: string
+  empatia_conexao?: string
+  congruencia_verbal_nao_verbal?: string
+  evidencias_observadas?: string[]
+}
+
 export interface VideoAnaliseDimensoes {
   clareza_comunicacao: number
   estrutura_narrativa: number
   energia_postura: number
   aderencia_vaga: number
+  indice_naturalidade?: number
+  veredito_naturalidade?: string
   red_flags?: string[]
 }
 
@@ -16,12 +40,36 @@ export interface AnaliseVideoResponse {
   energia_postura: number
   aderencia_vaga: number
   resumo_executivo: string
+  comunicacao_oratoria?: string
+  postura_presenca?: string
+  dominio_experiencia?: string
+  fit_cultural?: string
   pontos_fortes: string[]
   pontos_atencao: string[]
   red_flags: string[]
   recomendacao_geral: string
   versao: number
   analisado_em: string
+  // Camadas aprimoradas
+  nome_detectado_no_video?: string
+  conflito_identidade?: boolean
+  detalhes_conflito_identidade?: string
+  conflito_confirmado_rh?: boolean
+  indice_naturalidade?: number
+  veredito_naturalidade?: string
+  analise_linguistica?: AnaliseLinguisticaData
+  pontos_cegos?: PontosCegosData
+  expressao_socioemocional?: ExpressaoSocioemocionalData
+}
+
+export interface RespostaAnaliseVideoApi {
+  success: boolean
+  conflito_bloqueante?: boolean
+  conflito_identidade?: boolean
+  nome_detectado_no_video?: string
+  nome_cadastro?: string
+  detalhes_conflito_identidade?: string
+  data: AnaliseVideoResponse
 }
 
 export type VideoStatus =
@@ -35,24 +83,42 @@ export const videoIaService = {
   /**
    * Aciona a análise de IA para o vídeo do candidato (link ou arquivo).
    * Rota customizada protegida por auth: POST /backend/v1/analisar-video-ia
+   * Se permitirDivergencia = true, força a continuidade mesmo se houver divergência de nome detectada.
    */
-  async dispararAnalise(candidatoId: string): Promise<AnaliseVideoResponse> {
-    const res = await pb.send<{ success: boolean; data: AnaliseVideoResponse }>(
-      '/backend/v1/analisar-video-ia',
-      {
-        method: 'POST',
-        body: JSON.stringify({ candidatoId }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+  async dispararAnalise(
+    candidatoId: string,
+    permitirDivergencia = false,
+  ): Promise<RespostaAnaliseVideoApi> {
+    const res = await pb.send<RespostaAnaliseVideoApi>('/backend/v1/analisar-video-ia', {
+      method: 'POST',
+      body: JSON.stringify({ candidatoId, permitirDivergencia }),
+      headers: {
+        'Content-Type': 'application/json',
       },
-    )
+    })
 
     if (!res?.data) {
       throw new Error('Resposta inválida do serviço de análise de vídeo.')
     }
 
-    return res.data
+    return res
+  },
+
+  /**
+   * Confirma explicitamente a vinculação do vídeo ao candidato caso tenha ocorrido
+   * alerta de divergência de nome (evita upload acidental em cadastro errado sem perder a análise).
+   */
+  async confirmarConflitoIdentidade(candidatoId: string, justificativa?: string) {
+    return await pb.send<{ success: boolean; message: string }>(
+      '/backend/v1/confirmar-conflito-video',
+      {
+        method: 'POST',
+        body: JSON.stringify({ candidatoId, justificativa }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    )
   },
 
   /**

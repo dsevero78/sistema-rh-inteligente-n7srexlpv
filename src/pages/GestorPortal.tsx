@@ -922,6 +922,22 @@ export default function GestorPortal() {
                     )}
                   </div>
 
+                  {/* Alerta de Conflito de Identidade para o Gestor se houver */}
+                  {analiseIaCand.conflito_identidade && !analiseIaCand.conflito_confirmado_rh && (
+                    <div className="p-3 rounded-lg border border-red-300 bg-red-50 text-red-900 text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-red-700">
+                        <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                        <span>Atenção: Conflito de Identidade Detectado no Vídeo</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed">
+                        O nome identificado no vídeo ("
+                        {analiseIaCand.nome_detectado_no_video || 'Não identificado'}") diverge do
+                        cadastro deste candidato ("{candEmVisualizacao?.nome}"). O RH foi notificado
+                        para validar o anexo.
+                      </p>
+                    </div>
+                  )}
+
                   {/* Resumo Executivo */}
                   {analiseIaCand.resumo_executivo && (
                     <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1">
@@ -933,6 +949,133 @@ export default function GestorPortal() {
                       </p>
                     </div>
                   )}
+
+                  {/* Camada 2: Autenticidade da Fala (Natural vs Ensaiado/Decorado) */}
+                  <div className="p-3 bg-indigo-50/60 rounded-lg border border-indigo-200 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                        Autenticidade & Estrutura da Fala
+                      </span>
+                      {analiseIaCand.veredito_naturalidade ? (
+                        <Badge
+                          className={`text-[10px] font-bold ${
+                            String(analiseIaCand.veredito_naturalidade)
+                              .toLowerCase()
+                              .includes('natural')
+                              ? 'bg-emerald-600 text-white'
+                              : String(analiseIaCand.veredito_naturalidade)
+                                    .toLowerCase()
+                                    .includes('ensaia')
+                                ? 'bg-amber-600 text-white'
+                                : 'bg-rose-600 text-white'
+                          }`}
+                        >
+                          {analiseIaCand.veredito_naturalidade}
+                          {analiseIaCand.indice_naturalidade !== undefined &&
+                          analiseIaCand.indice_naturalidade !== null
+                            ? ` (${analiseIaCand.indice_naturalidade}%)`
+                            : ''}
+                        </Badge>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 italic">
+                          não avaliado nesta análise — rode novamente
+                        </span>
+                      )}
+                    </div>
+                    {analiseIaCand.analise_linguistica &&
+                      typeof analiseIaCand.analise_linguistica === 'object' && (
+                        <div className="space-y-1 text-[11px] text-slate-700">
+                          {analiseIaCand.analise_linguistica.estrutura_fala && (
+                            <p>
+                              <strong>Estrutura:</strong>{' '}
+                              {analiseIaCand.analise_linguistica.estrutura_fala}
+                            </p>
+                          )}
+                          {analiseIaCand.analise_linguistica.uso_exemplos_vs_cliches && (
+                            <p>
+                              <strong>Exemplos vs Clichês:</strong>{' '}
+                              {analiseIaCand.analise_linguistica.uso_exemplos_vs_cliches}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                  </div>
+
+                  {/* Camada 3: Pontos Cegos & Expressão Sócio-Emocional */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                    {/* Pontos Cegos */}
+                    <div className="p-2.5 bg-amber-50/60 rounded-md border border-amber-200 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <strong className="text-amber-950 block text-[11px]">
+                          Pontos Cegos da Fala:
+                        </strong>
+                        {!analiseIaCand.pontos_cegos && (
+                          <span className="text-[9px] text-slate-400 italic">não avaliado</span>
+                        )}
+                      </div>
+                      {analiseIaCand.pontos_cegos &&
+                      typeof analiseIaCand.pontos_cegos === 'object' ? (
+                        <div className="text-[11px] text-slate-700 space-y-1">
+                          {analiseIaCand.pontos_cegos.sintese_inconsciente && (
+                            <p>
+                              <strong>Transmite sem perceber:</strong>{' '}
+                              {analiseIaCand.pontos_cegos.sintese_inconsciente}
+                            </p>
+                          )}
+                          {analiseIaCand.pontos_cegos.evasivas_ou_insegurancas && (
+                            <p>
+                              <strong>Evasivas/Hesitações:</strong>{' '}
+                              {analiseIaCand.pontos_cegos.evasivas_ou_insegurancas}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-400 italic">
+                          Dimensão disponível ao reanalisar o vídeo.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Expressão Sócio-Emocional */}
+                    <div className="p-2.5 bg-teal-50/60 rounded-md border border-teal-200 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <strong className="text-teal-950 block text-[11px]">
+                          Expressão Sócio-Emocional:
+                        </strong>
+                        {!analiseIaCand.expressao_socioemocional && (
+                          <span className="text-[9px] text-slate-400 italic">não avaliado</span>
+                        )}
+                      </div>
+                      {analiseIaCand.expressao_socioemocional &&
+                      typeof analiseIaCand.expressao_socioemocional === 'object' ? (
+                        <div className="text-[11px] text-slate-700 space-y-1">
+                          {analiseIaCand.expressao_socioemocional.regulacao_emocional && (
+                            <p>
+                              <strong>Regulação:</strong>{' '}
+                              {analiseIaCand.expressao_socioemocional.regulacao_emocional}
+                            </p>
+                          )}
+                          {analiseIaCand.expressao_socioemocional.congruencia_verbal_nao_verbal && (
+                            <p>
+                              <strong>Congruência:</strong>{' '}
+                              {analiseIaCand.expressao_socioemocional.congruencia_verbal_nao_verbal}
+                            </p>
+                          )}
+                          {analiseIaCand.expressao_socioemocional.maturidade_autocritica && (
+                            <p>
+                              <strong>Autocrítica:</strong>{' '}
+                              {analiseIaCand.expressao_socioemocional.maturidade_autocritica}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-400 italic">
+                          Dimensão disponível ao reanalisar o vídeo.
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Dimensões Qualitativas */}
                   {(analiseIaCand.comunicacao_oratoria ||
