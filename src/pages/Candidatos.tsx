@@ -671,12 +671,12 @@ export default function Candidatos() {
                           </Badge>
                         )}
 
-                        {cand.video_status === 'analise_concluida' ? (
+                        {(cand as any).video_score_geral || (cand as any).video_analisado_em ? (
                           <Badge
                             variant="outline"
                             className="font-display text-xs bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 font-bold px-2 py-0.5 rounded-full"
                           >
-                            Vídeo IA: {cand.video_score_geral || 90}/100
+                            Vídeo IA: {(cand as any).video_score_geral || 90}/100
                           </Badge>
                         ) : cand.video_link || cand.video_apresentacao ? (
                           <Badge

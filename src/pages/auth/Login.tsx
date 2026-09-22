@@ -1,13 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import pb from '@/lib/pocketbase/client'
-import {
-  loadSessionBackup,
-  restorePbAuthStoreFromBackup,
-  isJwtTokenExpired,
-  singleFlightSafeAuthRefresh,
-} from '@/lib/pocketbase/sessionBackup'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,7 +18,7 @@ import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, Loader2 } from 'lucid
 import { useToast } from '@/hooks/use-toast'
 
 export default function Login() {
-  const { login, isAuthenticated, syncAuthNow } = useAuth()
+  const { login, syncAuthNow } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { toast } = useToast()
@@ -36,87 +30,8 @@ export default function Login() {
   const [email, setEmail] = useState('severo.douglas2@gmail.com')
   const [password, setPassword] = useState('Skip@Pass')
   const [isLoading, setIsLoading] = useState(false)
-  const [isAutoRecovering, setIsAutoRecovering] = useState(false)
   const [generalError, setGeneralError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Helper para redirecionar incondicionalmente com fallback de segurança
-  const executeGuaranteedRedirect = (dest: string) => {
-    console.info(`[Login] Executando redirecionamento garantido para ${dest}`)
-    try {
-      navigate(dest, { replace: true })
-    } catch (e) {
-      console.warn('[Login] navigate() erro, usando window.location', e)
-    }
-
-    // Rede de segurança: se após ~500ms o usuário ainda estiver em /login, força redirecionamento nativo
-    if (redirectTimeoutRef.current) {
-      clearTimeout(redirectTimeoutRef.current)
-    }
-    redirectTimeoutRef.current = setTimeout(() => {
-      if (
-        typeof window !== 'undefined' &&
-        (window.location.pathname.startsWith('/login') || window.location.pathname === '/')
-      ) {
-        console.warn(
-          `[Login] Fallback de segurança acionado. Forçando window.location.replace('${dest}')...`,
-        )
-        window.location.replace(dest)
-      }
-    }, 500)
-  }
-
-  // Fallback e auto-recuperação na rota /login:
-  // Se houver backup no localStorage ou token em memória, auto-restaura, consolida e redireciona
-  useEffect(() => {
-    const backup = loadSessionBackup()
-    const hasValidBackup = Boolean(
-      backup?.token && backup.token.length > 10 && !isJwtTokenExpired(backup.token),
-    )
-    const hasAnyBackup = Boolean(backup?.token && backup.token.length > 10)
-    const hasMemToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
-
-    if (!isAuthenticated && !hasValidBackup && !hasAnyBackup && !hasMemToken) {
-      return
-    }
-
-    setIsAutoRecovering(true)
-    let isSubscribed = true
-
-    const doLoginRedirect = async () => {
-      const restored = restorePbAuthStoreFromBackup()
-      const tokenToUse = restored?.token || pb.authStore.token
-      const modelToUse = restored?.model || pb.authStore.record
-
-      if (tokenToUse) {
-        syncAuthNow(tokenToUse, modelToUse)
-      }
-
-      // Aguarda o refresh para consolidar o estado antes de redirecionar
-      try {
-        await singleFlightSafeAuthRefresh()
-        if (pb.authStore.token && isSubscribed) {
-          syncAuthNow(pb.authStore.token, pb.authStore.record)
-        }
-      } catch (err: unknown) {
-        console.warn('[Login] authRefresh completado com aviso:', err)
-      }
-
-      if (isSubscribed) {
-        executeGuaranteedRedirect(targetPath)
-      }
-    }
-
-    doLoginRedirect()
-
-    return () => {
-      isSubscribed = false
-      if (redirectTimeoutRef.current) {
-        clearTimeout(redirectTimeoutRef.current)
-      }
-    }
-  }, [isAuthenticated, targetPath, syncAuthNow])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -145,7 +60,7 @@ export default function Login() {
         title: 'Bem-vindo(a) ao Sistema RH Inteligente',
         description: 'Sessão iniciada com sucesso.',
       })
-      executeGuaranteedRedirect(targetPath)
+      navigate(targetPath, { replace: true })
     } catch (err: unknown) {
       const extracted = extractFieldErrors(err)
       if (Object.keys(extracted).length > 0) {
@@ -156,21 +71,6 @@ export default function Login() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  // Se estiver auto-recuperando, exibe loader limpo em vez do formulário
-  if (isAutoRecovering) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] dark:bg-[#11162B]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-[#E9530E] animate-spin" />
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Sessão ativa identificada
-          </p>
-          <span className="text-xs text-slate-500">Redirecionando para o painel principal...</span>
-        </div>
-      </div>
-    )
   }
 
   return (

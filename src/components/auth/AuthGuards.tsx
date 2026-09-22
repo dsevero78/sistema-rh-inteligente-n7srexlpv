@@ -19,41 +19,40 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   const { isAuthenticated, isLoading, syncAuthNow } = useAuth()
   const location = useLocation()
 
-  // Checagem síncrona profunda de credencial existente
+  // Checagem síncrona de credencial existente
   const backup = loadSessionBackup()
-  const hasValidBackup = Boolean(
-    backup?.token && backup.token.length > 10 && !isJwtTokenExpired(backup.token),
-  )
   const hasAnyBackup = Boolean(backup?.token && backup.token.length > 10)
   const hasPbToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
-  const hasAnyCred = hasValidBackup || hasAnyBackup || hasPbToken
+  const hasAnyCred = hasAnyBackup || hasPbToken
 
-  // Se o contexto ainda não registrou isAuthenticated mas há backup íntegro, auto-restaura imediatamente
+  // Se o contexto ainda não registrou isAuthenticated mas há credencial em localStorage/SDK, auto-restaura
   useEffect(() => {
     if (!isAuthenticated && hasAnyCred) {
       const restored = restorePbAuthStoreFromBackup()
-      if (restored?.token) {
-        syncAuthNow(restored.token, restored.model)
+      const effectiveToken = restored?.token || pb.authStore.token
+      const effectiveModel = restored?.model || pb.authStore.record
+      if (effectiveToken) {
+        syncAuthNow(effectiveToken, effectiveModel)
       }
     }
   }, [isAuthenticated, hasAnyCred, syncAuthNow])
 
-  // Se estiver em carregamento inicial OU temos credencial local mas o react state está transitando:
-  // NUNCA ejeta para /login durante essa transição!
+  // Se estiver em carregamento inicial OU há credencial em localStorage mas o estado do React está sincronizando:
+  // NUNCA ejeta para /login enquanto existir qualquer credencial em localStorage (souyess.session.backup)!
   if (isLoading || (hasAnyCred && !isAuthenticated)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] dark:bg-[#11162B]">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-[#E9530E] animate-spin" />
           <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-            Validando acesso seguro...
+            Verificando sessão ativa...
           </p>
         </div>
       </div>
     )
   }
 
-  // Apenas se realmente NENHUMA credencial existe no app nem no backend:
+  // Apenas navega para /login se expressamente NÃO existir credencial alguma em localStorage nem em memória:
   if (!isAuthenticated && !hasAnyCred) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
@@ -77,12 +76,9 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Checagem direta de credencial
   const backup = loadSessionBackup()
-  const hasValidBackup = Boolean(
-    backup?.token && backup.token.length > 10 && !isJwtTokenExpired(backup.token),
-  )
   const hasAnyBackup = Boolean(backup?.token && backup.token.length > 10)
   const hasPbToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
-  const hasCredential = isAuthenticated || hasValidBackup || hasAnyBackup || hasPbToken
+  const hasCredential = isAuthenticated || hasAnyBackup || hasPbToken
 
   useEffect(() => {
     if (!hasCredential) return

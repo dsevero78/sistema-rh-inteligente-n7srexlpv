@@ -33,22 +33,12 @@ routerAdd(
 
     // Validação: precisa ter link ou arquivo de vídeo cadastrado
     if (!videoLink && !videoFile) {
-      try {
-        candidato.set('video_status', 'sem_video')
-        $app.save(candidato)
-      } catch (_) {}
       return e.json(422, {
         error:
           'Nenhum vídeo disponível para este candidato. Anexe um arquivo de vídeo ou insira um link (YouTube, Loom, Drive).',
         code: 'NO_VIDEO_AVAILABLE',
       })
     }
-
-    // Marcar status como analisando
-    try {
-      candidato.set('video_status', 'analisando')
-      $app.save(candidato)
-    } catch (_) {}
 
     // Obter vaga associada se houver
     let vaga = null
@@ -212,19 +202,22 @@ Avalie criteriosamente a capacidade de comunicação, a coerência da narrativa 
 
       $app.save(analiseRecord)
 
-      // Atualizar candidato
-      candidato.set('video_status', 'analise_concluida')
-      candidato.set('video_score_geral', scoreGeral)
-      candidato.set('video_analise_dimensoes', {
-        clareza_comunicacao: clareza,
-        estrutura_narrativa: estrutura,
-        energia_postura: energia,
-        aderencia_vaga: aderencia,
-        red_flags: redFlags,
-      })
-      candidato.set('video_analisado_em', new Date().toISOString())
-      candidato.set('video_versao', versaoAtual)
-      $app.save(candidato)
+      // Atualizar candidato se os campos opcionais existirem
+      try {
+        candidato.set('video_score_geral', scoreGeral)
+        candidato.set('video_analise_dimensoes', {
+          clareza_comunicacao: clareza,
+          estrutura_narrativa: estrutura,
+          energia_postura: energia,
+          aderencia_vaga: aderencia,
+          red_flags: redFlags,
+        })
+        candidato.set('video_analisado_em', new Date().toISOString())
+        candidato.set('video_versao', versaoAtual)
+        $app.save(candidato)
+      } catch (errCand) {
+        console.log('Aviso ao persistir campos de vídeo no candidato:', errCand.message)
+      }
 
       // Registrar evento na timeline de candidatos
       try {
@@ -267,11 +260,7 @@ Avalie criteriosamente a capacidade de comunicação, a coerência da narrativa 
     } catch (err) {
       console.log('Erro ao analisar vídeo via IA:', err.message)
 
-      // Marcar erro no candidato
-      try {
-        candidato.set('video_status', 'erro_processamento')
-        $app.save(candidato)
-      } catch (_) {}
+      // Falha registrada
 
       return e.json(500, {
         error:

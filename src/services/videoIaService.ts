@@ -73,15 +73,19 @@ export const videoIaService = {
   },
 
   /**
-   * Atualiza ou remove vídeo do candidato diretamente pelo dossiê.
+   * Atualiza ou remove link de vídeo do candidato diretamente pelo dossiê.
+   * Não envia `video_status` (campo não existe na coleção candidatos).
    */
   async salvarLinkVideo(candidatoId: string, videoLink: string) {
     return await pb.collection('candidatos').update(candidatoId, {
       video_link: videoLink,
-      video_status: videoLink.trim() ? 'enviado_aguardando' : 'sem_video',
     })
   },
 
+  /**
+   * Envia o arquivo de vídeo do candidato via FormData.
+   * Não envia `video_status` (campo não existe na coleção candidatos; status é derivado no front).
+   */
   async uploadArquivoVideo(candidatoId: string, file: File) {
     const formatos = [
       'video/mp4',
@@ -108,7 +112,6 @@ export const videoIaService = {
 
     const formData = new FormData()
     formData.append('video_apresentacao', file)
-    formData.append('video_status', 'enviado_aguardando')
     return await pb.collection('candidatos').update(candidatoId, formData)
   },
 }

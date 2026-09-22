@@ -187,9 +187,43 @@ export function VideoEPercepcaoSection({
       if (onUpdate) onUpdate()
       if (onCandidatoUpdated) onCandidatoUpdated()
     } catch (err: unknown) {
+      const errObj = err as {
+        message?: string
+        status?: number
+        isAbort?: boolean
+        data?: any
+        response?: any
+      }
+      const rawMessage = (errObj?.message || '').toLowerCase()
+      const isGatewayOrSizeError =
+        (arquivoVideo && arquivoVideo.size > 25 * 1024 * 1024) ||
+        rawMessage.includes('something went wrong') ||
+        rawMessage.includes('failed to fetch') ||
+        rawMessage.includes('networkerror') ||
+        rawMessage.includes('payload too large') ||
+        rawMessage.includes('entity too large') ||
+        errObj?.status === 413 ||
+        errObj?.status === 0 ||
+        errObj?.status === 502 ||
+        errObj?.status === 504
+
+      let userFriendlyDescription =
+        'Não foi possível concluir o envio do vídeo. Tente novamente ou use a Opção 2.'
+
+      if (isGatewayOrSizeError) {
+        userFriendlyDescription =
+          'O arquivo é grande demais para envio direto (limite prático do gateway de ~30 MB). Use a Opção 2 (link YouTube/Loom/Drive) ou comprima o vídeo antes do envio.'
+      } else if (
+        err instanceof Error &&
+        err.message &&
+        !rawMessage.includes('something went wrong')
+      ) {
+        userFriendlyDescription = err.message
+      }
+
       toast({
         title: 'Erro ao atualizar vídeo',
-        description: err instanceof Error ? err.message : 'Tente novamente.',
+        description: userFriendlyDescription,
         variant: 'destructive',
       })
     } finally {
@@ -711,6 +745,27 @@ export function VideoEPercepcaoSection({
                     controls
                     className="w-full rounded-md max-h-36 bg-black object-contain"
                   />
+                </div>
+              )}
+
+              {/* Orientação preventiva visível para arquivos > 30 MB */}
+              {arquivoVideo && arquivoVideo.size > 30 * 1024 * 1024 && (
+                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span>
+                      Atenção: Arquivo acima de 30 MB (
+                      {(arquivoVideo.size / (1024 * 1024)).toFixed(1)} MB)
+                    </span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                    O gateway de nuvem possui limite prático de ~30 MB para upload direto.
+                    Recomendamos{' '}
+                    <strong>
+                      usar a Opção 2 abaixo com link de streaming (YouTube, Loom, Google Drive)
+                    </strong>{' '}
+                    ou comprimir o arquivo antes de salvar para evitar falha no envio.
+                  </p>
                 </div>
               )}
             </div>

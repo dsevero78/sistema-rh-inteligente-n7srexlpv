@@ -98,26 +98,49 @@ export const notificacoesRhService = {
         lida: false,
       })
 
-      // Registro complementar no log de e-mails transacionais (para rastreabilidade do RH)
-      try {
-        await pb.collection('logs_emails_status').create({
-          destinatario_email: 'severo.douglas2@gmail.com',
-          destinatario_nome: 'Douglas Severo (RH SouYess)',
-          assunto: `[SouYess RH] ${input.titulo}`,
-          conteudo_html: `<div style="font-family: sans-serif; padding: 20px; line-height: 1.6;">
-            <h2 style="color: #212B55;">SouYess People Hub — Notificação de Contrato & Vínculo</h2>
-            <p style="font-size: 15px; color: #333;"><strong>${input.titulo}</strong></p>
-            <p style="font-size: 14px; color: #555;">${input.mensagem}</p>
-            ${input.link ? `<p><a href="${input.link}" style="background-color: #E9530E; color: #fff; padding: 10px 18px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Acessar no SouYess</a></p>` : ''}
-            <hr style="border: none; border-top: 1px solid #eee; margin-top: 24px;" />
-            <p style="font-size: 11px; color: #999;">Notificação automática de governança contratual gerada pelo SouYess.</p>
-          </div>`,
-          status_envio: 'Enviado',
-          data_envio: new Date().toISOString(),
-          estagio: input.referencia_tipo || 'contratos',
-        })
-      } catch (_) {
-        // Falha no log de e-mail não impede a notificação in-app
+      // A coleção logs_emails_status exige obrigatoriamente relações válidas:
+      // - candidato (relation -> candidatos)
+      // - vaga (relation -> vagas)
+      // - estagio (select com valores de funil de recrutamento)
+      // Se não houver contexto válido de recrutamento (ex.: notificações de contratos, fechamento de horas, sistema),
+      // a notificação in-app em notificacoes_rh já cumpre todo o papel e NÃO tentamos gravar em logs_emails_status (evita erro 400).
+      const candidatoId = input.metadata?.candidato || input.metadata?.candidato_id
+      const vagaId = input.metadata?.vaga || input.metadata?.vaga_id
+
+      const ESTAGIOS_VALIDOS_LOG = [
+        'Candidatura Recebida',
+        'Triagem',
+        'Entrevista com RH',
+        'Entrevista técnica',
+        'Match técnico/comportamental (IA)',
+        'Proposta',
+        'Aprovado',
+        'Recusado',
+      ] as const
+
+      const estagioCandidatura = input.metadata?.estagio || input.referencia_tipo
+      const estagioValido = ESTAGIOS_VALIDOS_LOG.find(
+        (e) => e.toLowerCase() === String(estagioCandidatura || '').toLowerCase(),
+      )
+
+      if (candidatoId && vagaId && estagioValido) {
+        try {
+          await pb.collection('logs_emails_status').create({
+            candidato: candidatoId,
+            vaga: vagaId,
+            estagio: estagioValido,
+            candidato_nome: input.metadata?.candidato_nome || 'Candidato',
+            candidato_email: input.metadata?.candidato_email || 'severo.douglas2@gmail.com',
+            vaga_titulo: input.metadata?.vaga_titulo || 'Processo Seletivo',
+            assunto: `[SouYess RH] ${input.titulo}`,
+            status_envio: 'Enviado',
+            mensagem_resumo: input.mensagem,
+            data_envio: new Date().toISOString(),
+          })
+        } catch (logErr) {
+          // Log de e-mail é secundário e nunca bloqueia a notificação in-app
+          console.warn('[notificacoesRh] Falha ao registrar log de email secundário:', logErr)
+        }
       }
 
       return rec

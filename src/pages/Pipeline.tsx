@@ -512,7 +512,8 @@ export default function Pipeline() {
                                     🎁 Indicação
                                   </span>
                                 )}
-                                {(cand as any).video_status === 'analise_concluida' ? (
+                                {(cand as any).video_score_geral ||
+                                (cand as any).video_analisado_em ? (
                                   <span className="inline-block font-display text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                                     Vídeo IA {(cand as any).video_score_geral || 90}%
                                   </span>
