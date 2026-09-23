@@ -1,5 +1,16 @@
 import { useState } from 'react'
-import { Target, Plus, Pencil, Trash2, AlertTriangle, Building2, ShieldAlert } from 'lucide-react'
+import {
+  Target,
+  Plus,
+  Pencil,
+  Trash2,
+  AlertTriangle,
+  Building2,
+  ShieldAlert,
+  AlertCircle,
+  RefreshCw,
+  CheckCircle2,
+} from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -48,6 +59,10 @@ export function SecaoMetasOrcamento({
   const [salvando, setSalvando] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
   const [checandoAlertas, setChecandoAlertas] = useState(false)
+  const [erroConsultaAlertas, setErroConsultaAlertas] = useState<string | null>(null)
+  const [ultimoResultadoAlertas, setUltimoResultadoAlertas] = useState(() =>
+    metasOrcamentoService.getUltimoResultadoAlertas(),
+  )
 
   // Estado do formulário
   const [metaEmEdicaoId, setMetaEmEdicaoId] = useState<string | null>(null)
@@ -178,8 +193,10 @@ export function SecaoMetasOrcamento({
 
   const handleVerificarAlertasSino = async () => {
     setChecandoAlertas(true)
+    setErroConsultaAlertas(null)
     try {
       const res = await metasOrcamentoService.checarAlertas()
+      setUltimoResultadoAlertas(res)
       if (res.alertas_gerados > 0) {
         toast({
           title: `${res.alertas_gerados} novo(s) alerta(s) emitido(s)`,
@@ -193,13 +210,35 @@ export function SecaoMetasOrcamento({
       }
       await onAtualizar()
     } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'Serviço de verificação de alertas temporariamente indisponível.'
+      setErroConsultaAlertas(msg)
       toast({
-        title: 'Falha na checagem',
-        description: err instanceof Error ? err.message : 'Tente novamente.',
+        title: 'Falha na checagem de alertas',
+        description: msg,
         variant: 'destructive',
       })
     } finally {
       setChecandoAlertas(false)
+    }
+  }
+
+  // Formatação amigável da data da última verificação válida
+  const formatarDataChecagem = (iso?: string) => {
+    if (!iso) return ''
+    try {
+      const d = new Date(iso)
+      return d.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } catch (_) {
+      return iso
     }
   }
 
@@ -208,6 +247,67 @@ export function SecaoMetasOrcamento({
 
   return (
     <div className="space-y-4">
+      {/* Banner de Erro: Consulta de Alertas Indisponível */}
+      {erroConsultaAlertas && (
+        <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-4 shadow-xs">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-amber-100 text-amber-800 shrink-0">
+                <AlertCircle className="w-4 h-4" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                  Consulta de Alertas Indisponível
+                </h4>
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  Não foi possível checar os alertas orçamentários em tempo real no servidor (
+                  {erroConsultaAlertas}).
+                  {ultimoResultadoAlertas?.verificado_em && (
+                    <span className="block mt-1 text-[11px] text-amber-900/80 font-medium">
+                      Exibindo último resultado verificado em:{' '}
+                      <strong className="underline">
+                        {formatarDataChecagem(ultimoResultadoAlertas.verificado_em)}
+                      </strong>{' '}
+                      (dados desatualizados mantidos com sua data original).
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleVerificarAlertasSino}
+              disabled={checandoAlertas}
+              className="h-8 gap-1.5 text-xs text-amber-900 border-amber-300 hover:bg-amber-100 shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${checandoAlertas ? 'animate-spin' : ''}`} />
+              Tentar novamente
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Banner de Status Válido Anterior caso não haja erro atual */}
+      {!erroConsultaAlertas && ultimoResultadoAlertas?.verificado_em && (
+        <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 flex items-center justify-between text-xs text-slate-600">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            <span>
+              Última checagem de metas executada em:{' '}
+              <strong className="text-slate-800">
+                {formatarDataChecagem(ultimoResultadoAlertas.verificado_em)}
+              </strong>
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-400">
+            {ultimoResultadoAlertas.alertas_gerados > 0
+              ? `${ultimoResultadoAlertas.alertas_gerados} alerta(s) emitido(s)`
+              : 'Sem alertas pendentes no momento da checagem'}
+          </span>
+        </div>
+      )}
+
       {/* Banner de Destaque se houver departamentos estourados */}
       {estourados.length > 0 && (
         <div className="bg-red-50/90 border border-red-200 rounded-xl p-4 shadow-xs">

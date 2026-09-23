@@ -110,23 +110,44 @@ export const metasOrcamentoService = {
     alertas_gerados: number
     departamentos_estourados: string[]
     departamentos_atencao: string[]
+    verificado_em: string
   }> {
-    try {
-      const res = await pb.send('/backend/v1/financeiro/metas/checar-alertas', {
-        method: 'POST',
-      })
-      return res
-    } catch (err) {
-      console.warn(
-        'Endpoint /backend/v1/financeiro/metas/checar-alertas indisponível, simulado:',
-        err,
-      )
-      return {
-        success: true,
-        alertas_gerados: 0,
-        departamentos_estourados: [],
-        departamentos_atencao: [],
-      }
+    const res = (await pb.send('/backend/v1/financeiro/metas/checar-alertas', {
+      method: 'POST',
+    })) as {
+      success: boolean
+      alertas_gerados: number
+      departamentos_estourados: string[]
+      departamentos_atencao: string[]
     }
+    const agoraIso = new Date().toISOString()
+    const resultado = {
+      ...res,
+      verificado_em: agoraIso,
+    }
+    try {
+      localStorage.setItem('rh_ultimo_resultado_alertas_metas', JSON.stringify(resultado))
+    } catch {
+      /* intentionally ignored */
+    }
+    return resultado
+  },
+
+  getUltimoResultadoAlertas(): {
+    success: boolean
+    alertas_gerados: number
+    departamentos_estourados: string[]
+    departamentos_atencao: string[]
+    verificado_em: string
+  } | null {
+    try {
+      const salvo = localStorage.getItem('rh_ultimo_resultado_alertas_metas')
+      if (salvo) {
+        return JSON.parse(salvo)
+      }
+    } catch {
+      /* intentionally ignored */
+    }
+    return null
   },
 }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T00:41:30.541Z",
+  "generatedAt": "2026-09-23T00:59:30.670Z",
   "collections": [
     {
       "name": "users",
@@ -7,9 +7,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "",
-        "update": "@request.auth.id != ''",
-        "delete": "id = @request.auth.id"
+        "create": null,
+        "update": "@request.auth.id != '' && (id = @request.auth.id || @request.auth.cargo_funcao = 'RH / Recrutador')",
+        "delete": null
       },
       "fields": [
         {
@@ -69,11 +69,11 @@
       "name": "vagas",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante')",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante')",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante')",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && gestor_responsavel = @request.auth.id)",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -218,11 +218,11 @@
       "name": "candidatos",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (vaga.gestor_responsavel = @request.auth.id || vaga = null))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (vaga.gestor_responsavel = @request.auth.id || vaga = null))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -520,11 +520,11 @@
       "name": "pipeline",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -751,11 +751,11 @@
       "name": "entrevistas",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (vaga.gestor_responsavel = @request.auth.id || responsavel_usuario = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (vaga.gestor_responsavel = @request.auth.id || responsavel_usuario = @request.auth.id))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (vaga.gestor_responsavel = @request.auth.id || responsavel_usuario = @request.auth.id))",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -1013,11 +1013,11 @@
       "name": "ofertas",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -1181,11 +1181,11 @@
       "name": "feedbacks_gestor",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (gestor = @request.auth.id || vaga.gestor_responsavel = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (gestor = @request.auth.id || vaga.gestor_responsavel = @request.auth.id))",
+        "create": "@request.auth.id != '' && (gestor = @request.auth.id || @request.auth.cargo_funcao = 'RH / Recrutador')",
+        "update": "@request.auth.id != '' && (gestor = @request.auth.id || @request.auth.cargo_funcao = 'RH / Recrutador')",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -1261,9 +1261,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -1318,11 +1318,11 @@
       "name": "respostas_triagem",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -1400,11 +1400,11 @@
       "name": "percepcoes_rh",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (visibilidade = 'Compartilhada com o gestor' || autor = @request.auth.id)",
-        "view": "@request.auth.id != '' && (visibilidade = 'Compartilhada com o gestor' || autor = @request.auth.id)",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != '' && autor = @request.auth.id",
-        "delete": "@request.auth.id != '' && autor = @request.auth.id"
+        "list": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && visibilidade = 'Compartilhada com o gestor' && vaga.gestor_responsavel = @request.auth.id)",
+        "view": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && visibilidade = 'Compartilhada com o gestor' && vaga.gestor_responsavel = @request.auth.id)",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' && autor = @request.auth.id",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' && autor = @request.auth.id"
       },
       "fields": [
         {
@@ -1535,11 +1535,11 @@
       "name": "analises_video_ia",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && vaga.gestor_responsavel = @request.auth.id)",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -2353,9 +2353,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -2500,11 +2500,11 @@
       "name": "contratos_pj",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && gestor_responsavel = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && gestor_responsavel = @request.auth.id)",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && gestor_responsavel = @request.auth.id)",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -2616,9 +2616,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -2705,11 +2705,11 @@
       "name": "notas_fiscais_pj",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && contrato.gestor_responsavel = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && contrato.gestor_responsavel = @request.auth.id)",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -2820,11 +2820,11 @@
       "name": "avaliacoes_prestador_pj",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (avaliador = @request.auth.id || contrato.gestor_responsavel = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (avaliador = @request.auth.id || contrato.gestor_responsavel = @request.auth.id))",
+        "create": "@request.auth.id != '' && (avaliador = @request.auth.id || @request.auth.cargo_funcao = 'RH / Recrutador')",
+        "update": "@request.auth.id != '' && (avaliador = @request.auth.id || @request.auth.cargo_funcao = 'RH / Recrutador')",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -2941,9 +2941,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante')",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -3035,11 +3035,11 @@
       "name": "aditivos_pj",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && contrato.gestor_responsavel = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && contrato.gestor_responsavel = @request.auth.id)",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && contrato.gestor_responsavel = @request.auth.id)",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && contrato.gestor_responsavel = @request.auth.id)",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -3173,8 +3173,8 @@
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
         "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -3260,11 +3260,11 @@
       "name": "eventos_timeline_candidato",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (candidato.vaga.gestor_responsavel = @request.auth.id || candidato.vaga = null))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (candidato.vaga.gestor_responsavel = @request.auth.id || candidato.vaga = null))",
         "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -3352,9 +3352,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -3415,7 +3415,7 @@
         "view": "@request.auth.id != ''",
         "create": "@request.auth.id != ''",
         "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -3615,11 +3615,11 @@
       "name": "rotinas_integracao",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && gestor_responsavel = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && gestor_responsavel = @request.auth.id)",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante')",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && gestor_responsavel = @request.auth.id)",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -3825,11 +3825,11 @@
       "name": "pessoas",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && empresa = @request.auth.empresa || gestor_responsavel = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && empresa = @request.auth.empresa || gestor_responsavel = @request.auth.id))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && empresa = @request.auth.empresa || gestor_responsavel = @request.auth.id))",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && empresa = @request.auth.empresa || gestor_responsavel = @request.auth.id))",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -4031,11 +4031,11 @@
       "name": "documentos_pessoa",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -4134,11 +4134,11 @@
       "name": "apontamentos_horas",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -4232,11 +4232,11 @@
       "name": "fechamentos_competencia",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id || gestor_validador = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id || gestor_validador = @request.auth.id))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id || gestor_validador = @request.auth.id))",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -4381,11 +4381,11 @@
       "name": "notas_fiscais",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -4503,11 +4503,11 @@
       "name": "contratos",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && empresa = @request.auth.empresa || gestor_responsavel = @request.auth.id || pessoa.empresa = @request.auth.empresa))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && empresa = @request.auth.empresa || gestor_responsavel = @request.auth.id || pessoa.empresa = @request.auth.empresa))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && empresa = @request.auth.empresa || gestor_responsavel = @request.auth.id))",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -4742,11 +4742,11 @@
       "name": "contrato_versoes",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && contrato.empresa = @request.auth.empresa || contrato.gestor_responsavel = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && contrato.empresa = @request.auth.empresa || contrato.gestor_responsavel = @request.auth.id))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -4842,11 +4842,11 @@
       "name": "contrato_assinaturas",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && contrato.empresa = @request.auth.empresa || contrato.gestor_responsavel = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && contrato.empresa = @request.auth.empresa || contrato.gestor_responsavel = @request.auth.id))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && contrato.gestor_responsavel = @request.auth.id)",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -4976,9 +4976,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -5096,9 +5096,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -5215,9 +5215,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -5275,11 +5275,11 @@
       "name": "beneficios_vinculo",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -5373,11 +5373,11 @@
       "name": "programacoes_descanso",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
@@ -5499,11 +5499,11 @@
       "name": "offboardings",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && empresa = @request.auth.empresa || responsavel_rh = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && empresa = @request.auth.empresa || responsavel_rh = @request.auth.id))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
       },
       "fields": [
         {
