@@ -161,7 +161,8 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
       )
     }
 
-    return <Navigate to="/login" state={{ from: location }} replace />
+    const stateMessage = backup && isJwtTokenExpired(backup.token) ? 'Sessão expirada' : undefined
+    return <Navigate to="/login" state={{ from: location, message: stateMessage }} replace />
   }
 
   return <>{children}</>
@@ -181,68 +182,57 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
     (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
   const destination = rawTarget.startsWith('/login') ? '/dashboard' : rawTarget
 
-  // Checagem direta de credencial
+  // Checagem segura considerando expiração real do token
   const backup = loadSessionBackup()
-  let directStorageHasToken = false
-  if (typeof window !== 'undefined') {
-    try {
-      const rawApp = localStorage.getItem('souyess.session.backup')
-      if (rawApp) {
-        const parsedApp = JSON.parse(rawApp)
-        if (
-          parsedApp?.token &&
-          typeof parsedApp.token === 'string' &&
-          parsedApp.token.length > 10
-        ) {
-          directStorageHasToken = true
-        }
-      }
-      const rawPb = localStorage.getItem('pocketbase_auth')
-      if (rawPb) {
-        const parsedPb = JSON.parse(rawPb)
-        if (parsedPb?.token && typeof parsedPb.token === 'string' && parsedPb.token.length > 10) {
-          directStorageHasToken = true
-        }
-      }
-    } catch {
-      /* intentionally ignored */
-    }
-  }
+  const rawToken = backup?.token || pb.authStore.token || ''
+  const isTokenExpired = rawToken ? isJwtTokenExpired(rawToken) : false
+  const hasUnexpiredToken = Boolean(rawToken && rawToken.length > 10 && !isTokenExpired)
 
-  const hasAnyBackup = Boolean(backup?.token && backup.token.length > 10)
-  const hasPbToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
-  const hasCredential = isAuthenticated || hasAnyBackup || hasPbToken || directStorageHasToken
+  // O redirecionamento e a permissão de visualização dependem estritamente do estado de autenticação RESOLVIDO:
+  // ou isAuthenticated é confirmado pelo contexto (ou pb.authStore.isValid), ou há token íntegro não-expirado em verificação
+  const isResolvedAuth = isAuthenticated && (pb.authStore.isValid || hasUnexpiredToken)
+  const isVerifying = isLoading || isRenewingSession || (hasUnexpiredToken && !isAuthenticated)
 
   useEffect(() => {
-    if (!hasCredential) return
+    // Se o token estiver manifestamente expirado e pb.authStore inválido, NÃO redirecionar em loop para dashboard
+    if (isTokenExpired && !pb.authStore.isValid && !isAuthenticated) {
+      return
+    }
+
+    if (!isResolvedAuth && !hasUnexpiredToken) return
 
     let isSubscribed = true
 
     const runRedirectFlow = async () => {
-      // 1. Restaura síncrono e consolida estado do contexto
+      // 1. Restaura síncrono e consolida estado do contexto se token válido
       const restored = restorePbAuthStoreFromBackup()
       const effectiveToken = restored?.token || pb.authStore.token
       const effectiveModel = restored?.model || pb.authStore.record
-      if (effectiveToken && !isAuthenticated) {
+      if (effectiveToken && !isJwtTokenExpired(effectiveToken) && !isAuthenticated) {
         syncAuthNow(effectiveToken, effectiveModel)
       }
 
       // 2. Aguarda a validação do token com o backend de forma resolvida (Promise/await real)
-      // NENHUM timer arbitrário (ex: 150ms). Apenas segue adiante quando a Promise for resolvida.
-      try {
-        await singleFlightSafeAuthRefresh()
-        if (pb.authStore.token && isSubscribed) {
-          syncAuthNow(pb.authStore.token, pb.authStore.record)
+      if (effectiveToken && isJwtTokenExpired(effectiveToken)) {
+        try {
+          const refreshed = await singleFlightSafeAuthRefresh()
+          if (refreshed && pb.authStore.token && isSubscribed) {
+            syncAuthNow(pb.authStore.token, pb.authStore.record)
+          }
+        } catch (err) {
+          console.warn('[PublicRoute] Revalidação authRefresh finalizada com erro:', err)
         }
-      } catch (err) {
-        console.warn('[PublicRoute] Revalidação authRefresh finalizada:', err)
       }
 
       if (!isSubscribed) return
 
       // 3. Com o estado de autenticação plenamente resolvido, navega para o destino
-      console.info(`[PublicRoute] Redirecionando sessão autenticada resolvida para ${destination}`)
-      navigate(destination, { replace: true })
+      if (pb.authStore.isValid || (pb.authStore.token && !isJwtTokenExpired(pb.authStore.token))) {
+        console.info(
+          `[PublicRoute] Redirecionando sessão autenticada resolvida para ${destination}`,
+        )
+        navigate(destination, { replace: true })
+      }
     }
 
     runRedirectFlow()
@@ -250,10 +240,18 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       isSubscribed = false
     }
-  }, [hasCredential, destination, navigate, syncAuthNow, isAuthenticated])
+  }, [
+    isResolvedAuth,
+    hasUnexpiredToken,
+    isTokenExpired,
+    destination,
+    navigate,
+    syncAuthNow,
+    isAuthenticated,
+  ])
 
-  // Se tem credencial ou está carregando, JAMAIS mostra o formulário de login
-  if (hasCredential || isLoading) {
+  // Se está autenticado resolvido ou em verificação ativa legítima:
+  if (isResolvedAuth || isVerifying) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] dark:bg-[#11162B]">
         <div className="flex flex-col items-center gap-3">

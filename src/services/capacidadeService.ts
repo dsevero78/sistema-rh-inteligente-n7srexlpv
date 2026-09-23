@@ -126,6 +126,35 @@ export interface OcupacaoPosicao {
   }
 }
 
+export type SituacaoReserva =
+  | 'aprovada'
+  | 'explicitamente_zero'
+  | 'nao_definida'
+  | 'premissa_simulacao'
+
+export interface ReservaOperacionalRegistro {
+  id: string
+  codigo: string
+  nome: string
+  empresa: string
+  area?: string
+  centro_custo?: string
+  unidade: 'percentual' | 'horas_mes'
+  valor?: number
+  base_calculo: 'capacidade_liquida' | 'capacidade_bruta' | 'horas_disponiveis'
+  situacao_aprovacao: SituacaoReserva
+  vigencia_inicio: string
+  vigencia_fim?: string
+  justificativa: string
+  responsavel: string
+  responsavel_nome?: string
+  aprovado_por?: string
+  data_aprovacao?: string
+  is_demonstracao?: boolean
+  created?: string
+  updated?: string
+}
+
 export interface MemoriaCalculoCapacidade {
   pessoaId: string
   pessoaNome: string
@@ -140,8 +169,15 @@ export interface MemoriaCalculoCapacidade {
   indisponibilidadesHoras: number
   detalheIndisponibilidades: string[]
   capacidadeLiquidaHoras: number
+  // Saldo antes da reserva (regra explícita: sem reserva definida, não tratar ausência como zero aprovado)
+  saldoAntesReservaHoras: number
+  saldoAntesReservaPercentual: number
+  reservaEstado: SituacaoReserva
+  reservaValorDeclarado?: number
+  reservaUnidade?: 'percentual' | 'horas_mes'
   reservaOperacionalPercentual: number
   reservaOperacionalHoras: number
+  reservaMensagemGovernanca?: string
   alocacoesConfirmadasHoras: number
   alocacoesConfirmadasPercentual: number
   alocacoesPropostasHoras: number
@@ -191,8 +227,28 @@ export interface ConsolidadoCustosPeriodo {
   periodo: string
   custoPlanejadoSnapshot: number
   custoEstimadoAtual: number
+  custoRealizadoCompetencia: number // mês da prestação do serviço
+  pagamentosRealizadosLiquidacao: number // conciliação/caixa (não define competência)
   custoRealizadoOficial: number
+  statusConsolidacao:
+    | 'CONSOLIDADO_OFICIAL'
+    | 'CONSOLIDAÇÃO PENDENTE DE DEFINIÇÃO CONTÁBIL'
+    | 'PARCIAL'
   isParcial: boolean
+  divergenciasDetectadas: {
+    tipo:
+      | 'divergencia_competencia_vs_liquidacao'
+      | 'nf_sem_fechamento_vinculado'
+      | 'multiplas_nfs_fechamento'
+      | 'fechamento_sem_nf'
+    descricao: string
+    pessoa?: string
+    pessoaNome?: string
+    valorFechamento?: number
+    valorNf?: number
+    diferenca?: number
+    rotulo: string
+  }[]
   detalhesFontes: {
     categoria: 'contrato' | 'fechamento' | 'nota_fiscal' | 'beneficio' | 'estimativa_plano'
     descricao: string
@@ -202,6 +258,10 @@ export interface ConsolidadoCustosPeriodo {
     dataAtualizacao: string
     natureza: 'recorrente' | 'pontual'
     origemEscopo: 'direto' | 'compartilhado'
+    vinculoComprovadoId?: string
+    competenciaServico?: string
+    dataLiquidacaoPagamento?: string
+    pendenteDefinicaoContabil?: boolean
   }[]
   semCriterioRateioPendente: number
 }
@@ -353,9 +413,50 @@ class CapacidadeService {
    *  - Realizado separado de planejado (apontamentos não descontam compromissos futuros)
    *  - Nunca rotular capacidade disponível como ociosidade
    */
+  /**
+   * Busca a reserva operacional cadastrada e vigente para o escopo organizacional da pessoa/BU.
+   * Diferencia 4 estados:
+   *  1. aprovada: formalmente aprovada por autoridade de governança
+   *  2. explicitamente_zero: governança deliberou que a margem é 0%
+   *  3. nao_definida: ausência de decisão (não tratar como zero aprovado!)
+   *  4. premissa_simulacao: premissa de cenário, sem efeito na operação real
+   */
+  async obterReservaOperacionalVigente(
+    empresaId: string,
+    mesReferencia: string,
+    areaId?: string,
+  ): Promise<ReservaOperacionalRegistro | null> {
+    try {
+      const dtRef = `${mesReferencia}-01`
+      const filters = [
+        `empresa = '${empresaId}'`,
+        `vigencia_inicio <= '${dtRef}'`,
+        `(vigencia_fim = null || vigencia_fim = '' || vigencia_fim >= '${dtRef}')`,
+      ]
+      const registros = await pb
+        .collection('reservas_operacionais')
+        .getFullList<ReservaOperacionalRegistro>({
+          filter: filters.join(' && '),
+          sort: '-created',
+        })
+
+      if (!registros.length) return null
+
+      // Se houver área específica, prioriza
+      if (areaId) {
+        const porArea = registros.find((r) => r.area === areaId)
+        if (porArea) return porArea
+      }
+      return registros[0]
+    } catch {
+      return null
+    }
+  }
+
   async calcularCapacidadePessoaPeriodo(
     pessoaId: string,
     mesReferencia: string, // 'YYYY-MM'
+    reservaPremissaSimulacao?: { valor: number; unidade: 'percentual' | 'horas_mes' },
   ): Promise<MemoriaCalculoCapacidade> {
     const pessoa = await pb.collection('pessoas').getOne<RecordModel>(pessoaId, {
       expand: 'empresa,area',
@@ -380,6 +481,9 @@ class CapacidadeService {
         indisponibilidadesHoras: 0,
         detalheIndisponibilidades: [],
         capacidadeLiquidaHoras: 0,
+        saldoAntesReservaHoras: 0,
+        saldoAntesReservaPercentual: 0,
+        reservaEstado: 'nao_definida',
         reservaOperacionalPercentual: 0,
         reservaOperacionalHoras: 0,
         alocacoesConfirmadasHoras: 0,
@@ -417,6 +521,9 @@ class CapacidadeService {
           indisponibilidadesHoras: 0,
           detalheIndisponibilidades: [],
           capacidadeLiquidaHoras: 0,
+          saldoAntesReservaHoras: 0,
+          saldoAntesReservaPercentual: 0,
+          reservaEstado: 'nao_definida',
           reservaOperacionalPercentual: 0,
           reservaOperacionalHoras: 0,
           alocacoesConfirmadasHoras: 0,
@@ -447,6 +554,9 @@ class CapacidadeService {
           indisponibilidadesHoras: 0,
           detalheIndisponibilidades: [],
           capacidadeLiquidaHoras: 0,
+          saldoAntesReservaHoras: 0,
+          saldoAntesReservaPercentual: 0,
+          reservaEstado: 'nao_definida',
           reservaOperacionalPercentual: 0,
           reservaOperacionalHoras: 0,
           alocacoesConfirmadasHoras: 0,
@@ -470,7 +580,6 @@ class CapacidadeService {
       filter: `pessoa = '${pessoaId}' && status != 'Canceladas'`,
     })
 
-    const diasNoMes = dtFimMes.getDate()
     const diasIndisponiveisSet = new Set<number>()
     const detalheIndisponibilidades: string[] = []
 
@@ -502,11 +611,7 @@ class CapacidadeService {
     // 3. Capacidade Líquida
     const capacidadeLiquidaHoras = Math.max(0, capacidadeBrutaHoras - indisponibilidadesHoras)
 
-    // 4. Reserva Operacional explícita (padrão de segurança: 10% para imprevistos/atendimentos)
-    const reservaOperacionalPercentual = 10
-    const reservaOperacionalHoras = (capacidadeLiquidaHoras * reservaOperacionalPercentual) / 100
-
-    // 5. Alocações no período
+    // 4. Alocações no período
     const alocacoes = await pb.collection('alocacoes').getFullList<Alocacao>({
       filter: `pessoa = '${pessoaId}' && situacao != 'cancelada' && situacao != 'encerrada'`,
     })
@@ -519,7 +624,6 @@ class CapacidadeService {
       const aIni = new Date(aloc.periodo_inicio)
       const aFim = new Date(aloc.periodo_fim)
 
-      // Verifica se sobrepõe ao mês
       if (aIni <= dtFimMes && aFim >= dtInicioMes) {
         if (aloc.modalidade_capacidade === 'escopo') {
           alocacoesEscopoContagem += 1
@@ -546,10 +650,99 @@ class CapacidadeService {
         ? Math.round((alocacoesConfirmadasHoras / capacidadeLiquidaHoras) * 1000) / 10
         : 0
 
-    // 6. Capacidade disponível para novas alocações
+    // 5. Saldo ANTES da Reserva Operacional (sempre mensurado de forma determinística)
+    const saldoAntesReservaHoras = Math.max(0, capacidadeLiquidaHoras - alocacoesConfirmadasHoras)
+    const saldoAntesReservaPercentual =
+      capacidadeLiquidaHoras > 0
+        ? Math.round((saldoAntesReservaHoras / capacidadeLiquidaHoras) * 1000) / 10
+        : 0
+
+    // 6. Resolução da Reserva Operacional (removido o 10% fixo indiscriminado!)
+    // Modelagem explícita de 4 estados:
+    let reservaEstado: SituacaoReserva = 'nao_definida'
+    let reservaOperacionalPercentual = 0
+    let reservaOperacionalHoras = 0
+    let reservaValorDeclarado: number | undefined = undefined
+    let reservaUnidade: 'percentual' | 'horas_mes' = 'percentual'
+    let reservaMensagemGovernanca: string | undefined = undefined
+
+    if (reservaPremissaSimulacao) {
+      reservaEstado = 'premissa_simulacao'
+      reservaValorDeclarado = reservaPremissaSimulacao.valor
+      reservaUnidade = reservaPremissaSimulacao.unidade
+      if (reservaUnidade === 'percentual') {
+        reservaOperacionalPercentual = reservaPremissaSimulacao.valor
+        reservaOperacionalHoras = (capacidadeLiquidaHoras * reservaOperacionalPercentual) / 100
+      } else {
+        reservaOperacionalHoras = Math.min(capacidadeLiquidaHoras, reservaPremissaSimulacao.valor)
+        reservaOperacionalPercentual =
+          capacidadeLiquidaHoras > 0
+            ? Math.round((reservaOperacionalHoras / capacidadeLiquidaHoras) * 1000) / 10
+            : 0
+      }
+      reservaMensagemGovernanca = 'Premissa de simulação (sem efeito na operação real)'
+    } else {
+      const regReserva = await this.obterReservaOperacionalVigente(
+        pessoa.empresa,
+        mesReferencia,
+        pessoa.area,
+      )
+
+      if (regReserva) {
+        reservaEstado = regReserva.situacao_aprovacao
+        reservaValorDeclarado = regReserva.valor
+        reservaUnidade = regReserva.unidade
+
+        if (regReserva.situacao_aprovacao === 'aprovada') {
+          if (regReserva.unidade === 'percentual') {
+            reservaOperacionalPercentual = Number(regReserva.valor) || 0
+            reservaOperacionalHoras = (capacidadeLiquidaHoras * reservaOperacionalPercentual) / 100
+          } else {
+            reservaOperacionalHoras = Math.min(
+              capacidadeLiquidaHoras,
+              Number(regReserva.valor) || 0,
+            )
+            reservaOperacionalPercentual =
+              capacidadeLiquidaHoras > 0
+                ? Math.round((reservaOperacionalHoras / capacidadeLiquidaHoras) * 1000) / 10
+                : 0
+          }
+          reservaMensagemGovernanca = `Reserva aprovada (${regReserva.codigo}) de ${regReserva.valor}${regReserva.unidade === 'percentual' ? '%' : 'h'}`
+        } else if (regReserva.situacao_aprovacao === 'explicitamente_zero') {
+          reservaOperacionalPercentual = 0
+          reservaOperacionalHoras = 0
+          reservaMensagemGovernanca = 'Reserva deliberada explicitamente como ZERO pela governança'
+        } else if (regReserva.situacao_aprovacao === 'premissa_simulacao') {
+          reservaOperacionalPercentual = 0
+          reservaOperacionalHoras = 0
+          reservaMensagemGovernanca = 'Registro em estudo (não deduz capacidade operacional)'
+        } else {
+          reservaEstado = 'nao_definida'
+          reservaOperacionalPercentual = 0
+          reservaOperacionalHoras = 0
+          reservaMensagemGovernanca =
+            'Reserva não definida formalmente: disponibilidade final depende de decisão de governança'
+        }
+      } else {
+        // NENHUMA RESERVA CADASTRADA:
+        // Apresentar SALDO ANTES DA RESERVA + sinalização de que a disponibilidade final depende de governança.
+        // NUNCA tratar ausência como zero aprovado!
+        reservaEstado = 'nao_definida'
+        reservaOperacionalPercentual = 0
+        reservaOperacionalHoras = 0
+        reservaMensagemGovernanca =
+          'Reserva não definida: exibindo Saldo antes da Reserva. Disponibilidade final depende de decisão de governança.'
+      }
+    }
+
+    // 7. Capacidade disponível para novas alocações após reserva
+    const deducaoReserva =
+      reservaEstado === 'aprovada' || reservaEstado === 'premissa_simulacao'
+        ? reservaOperacionalHoras
+        : 0
     const capacidadeDisponivelNovasAlocacoesHoras = Math.max(
       0,
-      capacidadeLiquidaHoras - reservaOperacionalHoras - alocacoesConfirmadasHoras,
+      saldoAntesReservaHoras - deducaoReserva,
     )
     const capacidadeDisponivelNovasAlocacoesPercentual =
       capacidadeLiquidaHoras > 0
@@ -558,7 +751,7 @@ class CapacidadeService {
 
     const sobrecarga = alocacoesConfirmadasHoras > capacidadeLiquidaHoras
 
-    // 7. Horas Realizadas no mês (separadas dos compromissos futuros)
+    // 8. Horas Realizadas no mês (separadas dos compromissos futuros)
     let saldoRealizadoHoras = 0
     try {
       const apontamentos = await pb.collection('apontamentos_horas').getFullList<RecordModel>({
@@ -589,8 +782,14 @@ class CapacidadeService {
       indisponibilidadesHoras,
       detalheIndisponibilidades,
       capacidadeLiquidaHoras,
+      saldoAntesReservaHoras,
+      saldoAntesReservaPercentual,
+      reservaEstado,
+      reservaValorDeclarado,
+      reservaUnidade,
       reservaOperacionalPercentual,
       reservaOperacionalHoras,
+      reservaMensagemGovernanca,
       alocacoesConfirmadasHoras,
       alocacoesConfirmadasPercentual,
       alocacoesPropostasHoras,
@@ -766,19 +965,18 @@ class CapacidadeService {
   }
 
   // =========================================================================
-  // 6. CUSTOS CONSOLIDADOS COM PREVALÊNCIA DE FONTES CONFIÁVEIS
+  // 6. CUSTOS CONSOLIDADOS COM VÍNCULO COMPROVADO (Rastreabilidade Contábil)
   // =========================================================================
   /**
-   * Consolida os custos em três colunas:
-   *  1. Custo Planejado (snapshot do plano aprovado)
-   *  2. Custo Estimado Atual
-   *  3. Custo Realizado Oficial
-   *
-   * Hierarquia anti-duplicação:
-   *  - Nota Fiscal paga/conciliada prevalece sobre Fechamento e Contrato para despesas de prestação
-   *  - Fechamento validado prevalece sobre Contrato se não houver NF
-   *  - Contrato vigente entra como custo compromissado fixo
-   *  - Sem rateio automático: custo fica na origem se não houver critério aprovado
+   * Consolidação do Realizado por VÍNCULO COMPROVADO com a mesma despesa.
+   * Regras estritas:
+   *  1. Não deduplica por mera coincidência de pessoa/mês/valor.
+   *  2. Vinculação comprovada: nf.fechamento === fechamento.id.
+   *  3. Diferenciação rigorosa:
+   *     - Custo por COMPETÊNCIA: mês em que o serviço foi prestado (base fechamento e competência da NF)
+   *     - PAGAMENTO REALIZADO (Liquidação): data em que o desembolso financeiro ocorreu (caixa)
+   *  4. Múltiplas NFs, valores parciais ou divergências: segregados e rotulados como
+   *     "Consolidação pendente de definição contábil" sem inventar regra financeira não documentada.
    */
   async consolidarCustos(
     periodoReferencia: string,
@@ -808,58 +1006,17 @@ class CapacidadeService {
 
     // 2. Busca fontes do período
     const detalhesFontes: ConsolidadoCustosPeriodo['detalhesFontes'] = []
+    const divergenciasDetectadas: ConsolidadoCustosPeriodo['divergenciasDetectadas'] = []
     let custoEstimadoAtual = 0
-    let custoRealizadoOficial = 0
+    let custoRealizadoCompetencia = 0
+    let pagamentosRealizadosLiquidacao = 0
 
-    // Pessoas e vínculos contratuais vigentes
+    // Pessoas e contratos vigentes
     const pessoas = await pb.collection('pessoas').getFullList<RecordModel>({
       filter: "situacao_contrato = 'Vigente'",
       expand: 'empresa',
     })
 
-    const nfsMes = await pb.collection('notas_fiscais').getFullList<RecordModel>({
-      filter: `competencia = '${periodoReferencia}' && (status = 'Paga' || status = 'Conciliada')`,
-    })
-
-    const fechamentosMes = await pb.collection('fechamentos_competencia').getFullList<RecordModel>({
-      filter: `competencia = '${periodoReferencia}' && status_ciclo = 'Validado'`,
-    })
-
-    const pessoasComNf = new Set<string>()
-    for (const nf of nfsMes) {
-      if (nf.pessoa) pessoasComNf.add(nf.pessoa)
-      custoRealizadoOficial += Number(nf.valor) || 0
-      detalhesFontes.push({
-        categoria: 'nota_fiscal',
-        descricao: `NF ${nf.numero_nf || 'S/N'} (${periodoReferencia})`,
-        valor: Number(nf.valor) || 0,
-        confianca: 'conhecido',
-        fonteEspecifica: 'notas_fiscais (NF conciliada/paga)',
-        dataAtualizacao: nf.updated || nf.created,
-        natureza: 'recorrente',
-        origemEscopo: 'direto',
-      })
-    }
-
-    for (const fc of fechamentosMes) {
-      // Se já foi contabilizada a NF desta pessoa, NÃO soma o fechamento de novo (anti-duplicação)
-      if (fc.pessoa && pessoasComNf.has(fc.pessoa)) {
-        continue
-      }
-      custoRealizadoOficial += Number(fc.valor_total_calculado) || 0
-      detalhesFontes.push({
-        categoria: 'fechamento',
-        descricao: `Fechamento validado (${periodoReferencia})`,
-        valor: Number(fc.valor_total_calculado) || 0,
-        confianca: 'conhecido',
-        fonteEspecifica: 'fechamentos_competencia',
-        dataAtualizacao: fc.updated || fc.created,
-        natureza: 'recorrente',
-        origemEscopo: 'direto',
-      })
-    }
-
-    // Custo estimado atual a partir dos contratos vigentes
     for (const pes of pessoas) {
       const v = Number(pes.valor_contratado) || 0
       custoEstimadoAtual += v
@@ -868,21 +1025,201 @@ class CapacidadeService {
         descricao: `Contrato vigente: ${pes.nome} (${pes.modalidade})`,
         valor: v,
         confianca: v > 0 ? 'conhecido' : 'nao_informado',
-        fonteEspecifica: 'pessoas / contratos',
+        fonteEspecifica: 'pessoas / contratos vigentes',
         dataAtualizacao: pes.updated || pes.created,
         natureza: 'recorrente',
         origemEscopo: 'direto',
       })
     }
 
+    // NFs com competência informada
+    const nfsMes = await pb.collection('notas_fiscais').getFullList<RecordModel>({
+      filter: `competencia = '${periodoReferencia}'`,
+      expand: 'fechamento,pessoa',
+    })
+
+    // Fechamentos da competência
+    const fechamentosMes = await pb.collection('fechamentos_competencia').getFullList<RecordModel>({
+      filter: `competencia = '${periodoReferencia}' && status_ciclo = 'Validado'`,
+      expand: 'pessoa',
+    })
+
+    // Agrupa NFs pelo fechamento_id comprovado (vínculo formal)
+    const nfsPorFechamento = new Map<string, RecordModel[]>()
+    const nfsSemFechamento: RecordModel[] = []
+
+    for (const nf of nfsMes) {
+      const v = Number(nf.valor) || 0
+      if (nf.status === 'Conciliada') {
+        pagamentosRealizadosLiquidacao += v
+      }
+
+      if (nf.fechamento) {
+        const lista = nfsPorFechamento.get(nf.fechamento) || []
+        lista.push(nf)
+        nfsPorFechamento.set(nf.fechamento, lista)
+      } else {
+        nfsSemFechamento.push(nf)
+      }
+    }
+
+    let pendenciaContabilEncontrada = false
+
+    // Processa fechamentos validados
+    for (const fc of fechamentosMes) {
+      const valorFc = Number(fc.valor_total_calculado) || 0
+      const nfsVinculadas = nfsPorFechamento.get(fc.id) || []
+      const pessoaNome = fc.expand?.pessoa?.nome || 'Prestador'
+
+      if (nfsVinculadas.length === 0) {
+        // Fechamento validado sem NF emitida: entra no custo de competência, mas sem liquidação
+        custoRealizadoCompetencia += valorFc
+        detalhesFontes.push({
+          categoria: 'fechamento',
+          descricao: `Fechamento validado sem NF emitida: ${pessoaNome} (${periodoReferencia})`,
+          valor: valorFc,
+          confianca: 'conhecido',
+          fonteEspecifica: 'fechamentos_competencia',
+          dataAtualizacao: fc.updated || fc.created,
+          natureza: 'recorrente',
+          origemEscopo: 'direto',
+          competenciaServico: periodoReferencia,
+          vinculoComprovadoId: fc.id,
+        })
+        divergenciasDetectadas.push({
+          tipo: 'fechamento_sem_nf',
+          descricao: `Fechamento validado (${fc.id}) de R$ ${valorFc.toFixed(2)} aguarda emissão de nota fiscal correspondente.`,
+          pessoa: fc.pessoa,
+          pessoaNome,
+          valorFechamento: valorFc,
+          rotulo: 'Fechamento sem NF vinculada',
+        })
+      } else {
+        // Possui NF(s) com VÍNCULO COMPROVADO
+        const somaNfs = nfsVinculadas.reduce((acc, n) => acc + (Number(n.valor) || 0), 0)
+        const diferenca = Math.round((somaNfs - valorFc) * 100) / 100
+
+        if (nfsVinculadas.length > 1) {
+          // Múltiplas notas para o mesmo fechamento (faturamento fracionado / parcial)
+          pendenciaContabilEncontrada = true
+          divergenciasDetectadas.push({
+            tipo: 'multiplas_nfs_fechamento',
+            descricao: `Fechamento (${fc.id}) possui ${nfsVinculadas.length} notas parciais totalizando R$ ${somaNfs.toFixed(2)} vs R$ ${valorFc.toFixed(2)} aprovado.`,
+            pessoa: fc.pessoa,
+            pessoaNome,
+            valorFechamento: valorFc,
+            valorNf: somaNfs,
+            diferenca,
+            rotulo: 'Consolidação pendente de definição contábil (Faturamento Fracionado)',
+          })
+
+          // Mantém as fontes segregadas para transparência
+          for (const nf of nfsVinculadas) {
+            detalhesFontes.push({
+              categoria: 'nota_fiscal',
+              descricao: `NF Parcial ${nf.numero_nf || 'S/N'} vinculada ao fechamento ${fc.id}`,
+              valor: Number(nf.valor) || 0,
+              confianca: 'conhecido',
+              fonteEspecifica: 'notas_fiscais (parcela de fechamento)',
+              dataAtualizacao: nf.updated || nf.created,
+              natureza: 'recorrente',
+              origemEscopo: 'direto',
+              vinculoComprovadoId: fc.id,
+              competenciaServico: periodoReferencia,
+              dataLiquidacaoPagamento: nf.data_conciliacao || undefined,
+              pendenteDefinicaoContabil: true,
+            })
+          }
+          // Soma o valor do serviço executado (competência pelo fechamento)
+          custoRealizadoCompetencia += valorFc
+        } else {
+          // Exatamente 1 NF vinculada
+          const nfUnica = nfsVinculadas[0]
+          const valorNf = Number(nfUnica.valor) || 0
+
+          if (Math.abs(diferenca) > 0.05) {
+            // Divergência de valores entre fechamento aprovado e NF emitida
+            pendenciaContabilEncontrada = true
+            divergenciasDetectadas.push({
+              tipo: 'divergencia_competencia_vs_liquidacao',
+              descricao: `Divergência de valores: Fechamento aprovado R$ ${valorFc.toFixed(2)} vs NF ${nfUnica.numero_nf || 'S/N'} emitida em R$ ${valorNf.toFixed(2)} (Diferença: R$ ${diferenca.toFixed(2)}).`,
+              pessoa: fc.pessoa,
+              pessoaNome,
+              valorFechamento: valorFc,
+              valorNf,
+              diferenca,
+              rotulo: 'Consolidação pendente de definição contábil (Divergência de Valor)',
+            })
+          }
+
+          // NF com vínculo comprovado prevalece sobre o fechamento para fins de despesa faturada
+          custoRealizadoCompetencia += valorNf
+          detalhesFontes.push({
+            categoria: 'nota_fiscal',
+            descricao: `NF ${nfUnica.numero_nf || 'S/N'} (Vínculo formal fechamento ${fc.id}) - ${pessoaNome}`,
+            valor: valorNf,
+            confianca: 'conhecido',
+            fonteEspecifica: 'notas_fiscais (comprovada por fechamento_id)',
+            dataAtualizacao: nfUnica.updated || nfUnica.created,
+            natureza: 'recorrente',
+            origemEscopo: 'direto',
+            vinculoComprovadoId: fc.id,
+            competenciaServico: periodoReferencia,
+            dataLiquidacaoPagamento: nfUnica.data_conciliacao || undefined,
+          })
+        }
+      }
+    }
+
+    // Processa NFs que não possuem fechamento vinculado
+    for (const nf of nfsSemFechamento) {
+      const v = Number(nf.valor) || 0
+      pendenciaContabilEncontrada = true
+      divergenciasDetectadas.push({
+        tipo: 'nf_sem_fechamento_vinculado',
+        descricao: `NF ${nf.numero_nf || 'S/N'} (R$ ${v.toFixed(2)}) não possui vínculo comprovado com fechamento de medição no sistema.`,
+        pessoa: nf.pessoa,
+        pessoaNome: nf.expand?.pessoa?.nome || 'Prestador',
+        valorNf: v,
+        rotulo: 'Consolidação pendente de definição contábil (NF sem medição vinculada)',
+      })
+
+      detalhesFontes.push({
+        categoria: 'nota_fiscal',
+        descricao: `NF Avulsa ${nf.numero_nf || 'S/N'} sem fechamento vinculado - ${nf.expand?.pessoa?.nome || 'Prestador'}`,
+        valor: v,
+        confianca: 'conhecido',
+        fonteEspecifica: 'notas_fiscais (avulsa)',
+        dataAtualizacao: nf.updated || nf.created,
+        natureza: 'pontual',
+        origemEscopo: 'direto',
+        competenciaServico: periodoReferencia,
+        dataLiquidacaoPagamento: nf.data_conciliacao || undefined,
+        pendenteDefinicaoContabil: true,
+      })
+      custoRealizadoCompetencia += v
+    }
+
+    const custoRealizadoOficial = custoRealizadoCompetencia
+    const statusConsolidacao: ConsolidadoCustosPeriodo['statusConsolidacao'] =
+      pendenciaContabilEncontrada
+        ? 'CONSOLIDAÇÃO PENDENTE DE DEFINIÇÃO CONTÁBIL'
+        : isParcial
+          ? 'PARCIAL'
+          : 'CONSOLIDADO_OFICIAL'
+
     return {
       periodo: periodoReferencia,
       custoPlanejadoSnapshot: custoPlanejado,
       custoEstimadoAtual,
+      custoRealizadoCompetencia,
+      pagamentosRealizadosLiquidacao,
       custoRealizadoOficial,
-      isParcial,
+      statusConsolidacao,
+      isParcial: isParcial || pendenciaContabilEncontrada,
+      divergenciasDetectadas,
       detalhesFontes,
-      semCriterioRateioPendente: 0, // Sem distribuição de rateio não autorizado
+      semCriterioRateioPendente: 0,
     }
   }
 }

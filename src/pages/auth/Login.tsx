@@ -24,13 +24,15 @@ export default function Login() {
   const { toast } = useToast()
 
   const rawTarget =
-    (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
+    (location.state as { from?: { pathname: string }; message?: string })?.from?.pathname ||
+    '/dashboard'
   const targetPath = rawTarget.startsWith('/login') ? '/dashboard' : rawTarget
+  const sessionMsg = (location.state as { message?: string })?.message
 
   const [email, setEmail] = useState('severo.douglas2@gmail.com')
   const [password, setPassword] = useState('Skip@Pass')
   const [isLoading, setIsLoading] = useState(false)
-  const [generalError, setGeneralError] = useState<string | null>(null)
+  const [generalError, setGeneralError] = useState<string | null>(sessionMsg || null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T01:36:40.317Z",
+  "generatedAt": "2026-09-23T01:56:19.793Z",
   "collections": [
     {
       "name": "users",
@@ -7176,6 +7176,412 @@
         "CREATE INDEX idx_ocupacoes_posicao ON ocupacoes_posicao (posicao)",
         "CREATE INDEX idx_ocupacoes_pessoa ON ocupacoes_posicao (pessoa)",
         "CREATE INDEX idx_ocupacoes_situacao ON ocupacoes_posicao (situacao)"
+      ]
+    },
+    {
+      "name": "reservas_operacionais",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa = @request.auth.empresa)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa = @request.auth.empresa)",
+        "create": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || @request.body.empresa = @request.auth.empresa)",
+        "update": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa = @request.auth.empresa)",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
+      },
+      "fields": [
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "empresa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "area",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "areas"
+        },
+        {
+          "name": "centro_custo",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "centros_custo"
+        },
+        {
+          "name": "unidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["percentual", "horas_mes"]
+        },
+        {
+          "name": "valor",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "base_calculo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["capacidade_liquida", "capacidade_bruta", "horas_disponiveis"]
+        },
+        {
+          "name": "situacao_aprovacao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["aprovada", "explicitamente_zero", "nao_definida", "premissa_simulacao"]
+        },
+        {
+          "name": "vigencia_inicio",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "vigencia_fim",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "justificativa",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "responsavel",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "responsavel_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aprovado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "data_aprovacao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_demonstracao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_reservas_codigo ON reservas_operacionais (codigo)",
+        "CREATE INDEX idx_reservas_empresa ON reservas_operacionais (empresa)",
+        "CREATE INDEX idx_reservas_situacao ON reservas_operacionais (situacao_aprovacao)",
+        "CREATE INDEX idx_reservas_vigencia ON reservas_operacionais (vigencia_inicio, vigencia_fim)"
+      ]
+    },
+    {
+      "name": "cenarios_capacidade",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa = @request.auth.empresa)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa = @request.auth.empresa)",
+        "create": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || @request.body.empresa = @request.auth.empresa)",
+        "update": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa = @request.auth.empresa)",
+        "delete": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa = @request.auth.empresa)"
+      },
+      "fields": [
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "objetivo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "versao_base_plano",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "planos_capacidade"
+        },
+        {
+          "name": "empresa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "area",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "areas"
+        },
+        {
+          "name": "data_referencia",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "horizonte_temporal",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "autor",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "autor_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "situacao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["em_estudo", "proposta_submetida", "reprovado", "adotado_como_revisao"]
+        },
+        {
+          "name": "premissas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "alteracoes_propostas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "alternativas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fontes_dados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "qualidade_dados_declarada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resumo_comparativo",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_demonstracao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_cenarios_codigo ON cenarios_capacidade (codigo)",
+        "CREATE INDEX idx_cenarios_plano ON cenarios_capacidade (versao_base_plano)",
+        "CREATE INDEX idx_cenarios_empresa ON cenarios_capacidade (empresa)",
+        "CREATE INDEX idx_cenarios_situacao ON cenarios_capacidade (situacao)"
+      ]
+    },
+    {
+      "name": "propostas_revisao_plano",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa = @request.auth.empresa)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa = @request.auth.empresa)",
+        "create": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || @request.body.empresa = @request.auth.empresa)",
+        "update": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa = @request.auth.empresa)",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
+      },
+      "fields": [
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cenario_origem",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "cenarios_capacidade"
+        },
+        {
+          "name": "plano_alvo",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "planos_capacidade"
+        },
+        {
+          "name": "empresa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "justificativa_adocao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "impactos_previstos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "situacao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["em_analise_rh", "aprovada_para_revisao", "rejeitada", "cancelada"]
+        },
+        {
+          "name": "proposto_por",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "proposto_por_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "decidido_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "data_decisao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parecer_decisao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_demonstracao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_propostas_codigo ON propostas_revisao_plano (codigo)",
+        "CREATE INDEX idx_propostas_cenario ON propostas_revisao_plano (cenario_origem)",
+        "CREATE INDEX idx_propostas_plano ON propostas_revisao_plano (plano_alvo)",
+        "CREATE INDEX idx_propostas_empresa ON propostas_revisao_plano (empresa)"
       ]
     }
   ]

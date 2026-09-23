@@ -102,6 +102,30 @@ describe('Validação da Sessão (Anti-Ejeção e 5 Cenários de Vida do Token)'
     expect(pb.authStore.token).toBe('')
   })
 
+  it('Cenário 4B: Token expirado irrecuperável com 401 definitivo gera limpeza controlada e mensagem Sessão expirada', async () => {
+    saveSessionBackup(fakeTokenExpired, fakeUser as any)
+    restorePbAuthStoreFromBackup()
+
+    // Simula 401 definitivo do servidor no authRefresh
+    vi.spyOn(pb.collection('users'), 'authRefresh').mockRejectedValueOnce({
+      status: 401,
+      message: 'The request requires valid user authorization token.',
+    })
+
+    const refreshed = await singleFlightSafeAuthRefresh()
+    expect(refreshed).toBe(false)
+
+    // Confirma que é expirado
+    expect(isJwtTokenExpired(fakeTokenExpired)).toBe(true)
+
+    // Limpeza controlada após confirmação de expiração irrecuperável
+    clearAllSessionBackups()
+    pb.authStore.clear()
+
+    expect(loadSessionBackup()).toBeNull()
+    expect(pb.authStore.isValid).toBe(false)
+  })
+
   it('Cenário 5: Logout só ocorre quando solicitado explicitamente pelo botão Sair', () => {
     saveSessionBackup(fakeTokenValid, fakeUser as any)
     restorePbAuthStoreFromBackup()

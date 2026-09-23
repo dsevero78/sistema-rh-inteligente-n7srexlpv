@@ -23,6 +23,8 @@ import {
   Lock,
 } from 'lucide-react'
 import { AbaCapacidadeAlocacoes } from '@/components/planejamento/AbaCapacidadeAlocacoes'
+import { AbaCenariosComparador } from '@/components/planejamento/AbaCenariosComparador'
+import { AbaIndicadoresForca } from '@/components/planejamento/AbaIndicadoresForca'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   planejamentoForcaService,
@@ -851,25 +853,53 @@ export const PlanejamentoForcaPage: React.FC = () => {
                 </CardContent>
               </Card>
 
-              {/* Abas: Demandas, Posições, Rastreabilidade de Contratações e Etapa 4 (Capacidade/Alocações) */}
+              {/* Abas: Demandas, Posições, Rastreabilidade de Contratações, Etapa 4 e Etapa 5 (Cenários & Indicadores) */}
               <Tabs defaultValue="capacidade_alocacoes" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-6">
                   <TabsTrigger
                     value="capacidade_alocacoes"
                     className="text-xs font-semibold text-primary"
                   >
-                    Capacidade &amp; Alocações (Etapa 4)
+                    Capacidade &amp; Alocações
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="cenarios"
+                    className="text-xs font-semibold text-indigo-600 dark:text-indigo-400"
+                  >
+                    Cenários &amp; IA (Etapa 5)
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="indicadores"
+                    className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                  >
+                    Indicadores (Auditáveis)
                   </TabsTrigger>
                   <TabsTrigger value="posicoes" className="text-xs">
-                    Posições Planejadas ({posicoes.length})
+                    Posições ({posicoes.length})
                   </TabsTrigger>
                   <TabsTrigger value="demandas" className="text-xs">
-                    Demandas Qualificadas ({demandas.length})
+                    Demandas ({demandas.length})
                   </TabsTrigger>
                   <TabsTrigger value="solicitacoes" className="text-xs">
-                    Acompanhamento de Vagas ({solicitacoes.length})
+                    Vagas ({solicitacoes.length})
                   </TabsTrigger>
                 </TabsList>
+
+                {/* ABA ETAPA 5: CENÁRIOS COMPARATIVOS, PREMISSAS E APOIO DE IA */}
+                <TabsContent value="cenarios" className="space-y-4 pt-3">
+                  <AbaCenariosComparador
+                    empresaId={planoSelecionado.empresa}
+                    planoBaseId={planoSelecionado.id}
+                  />
+                </TabsContent>
+
+                {/* ABA ETAPA 5: INDICADORES DETERMINÍSTICOS E VERIFICÁVEIS */}
+                <TabsContent value="indicadores" className="space-y-4 pt-3">
+                  <AbaIndicadoresForca
+                    empresaId={planoSelecionado.empresa}
+                    periodoReferencia="2026-11"
+                  />
+                </TabsContent>
 
                 {/* ABA ETAPA 4: CAPACIDADE, ALOCAÇÕES, OCUPAÇÕES, COMPETÊNCIAS E CUSTOS */}
                 <TabsContent value="capacidade_alocacoes" className="space-y-4 pt-3">
