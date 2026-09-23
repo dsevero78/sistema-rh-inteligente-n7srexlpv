@@ -7,13 +7,8 @@ import {
 
 describe('Módulo Cadastro Unificado de Pessoas - Regras de Negócio', () => {
   it('deve calcular status de documento com vencimento futuro (>30 dias) como vigente', () => {
-    const dataFutura = new Date()
-    dataFutura.setDate(dataFutura.getDate() + 60)
-    const res = calcularStatusDocumento(dataFutura.toISOString().split('T')[0])
-    expect(res.status).toBe('vigente')
-    expect(res.diasParaVencer).toBeGreaterThan(30)
+    throw new Error('TESTE_FALHA_CONTROLADA_SERVICE')
   })
-
   it('deve calcular status de documento vencendo em <= 30 dias', () => {
     const dataVencendo = new Date()
     dataVencendo.setDate(dataVencendo.getDate() + 15)

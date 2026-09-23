@@ -7,9 +7,6 @@ const PB_URL =
 
 describe('TESTE PROBE HOOK DE SANITIZAÇÃO', () => {
   it('Verifica endpoint test-enrich-check', async () => {
-    const res = await fetch(`${PB_URL}/backend/v1/test-enrich-check`)
-    const data = await res.json()
-    // Força falha para ler o console / resultado retornado pelo hook
-    expect(JSON.stringify(data)).toBe('FORCE_SHOW')
+    throw new Error('TESTE_FALHA_CONTROLADA')
   })
 })
