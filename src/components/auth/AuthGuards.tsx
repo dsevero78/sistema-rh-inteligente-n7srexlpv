@@ -209,10 +209,11 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }
 
+  // Se estiver em rota de login e o usuário estiver na URL /login com comando de logout ou sem token,
+  // verifica se existe token.
   const hasAnyBackup = Boolean(backup?.token && backup.token.length > 10)
   const hasPbToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
   const hasCredential = isAuthenticated || hasAnyBackup || hasPbToken || directStorageHasToken
-
   useEffect(() => {
     if (!hasCredential) return
 
@@ -240,7 +241,7 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (!isSubscribed) return
 
-      // 3. Navega para o destino
+      // 3. Navega para o destino imediatamente
       console.info(`[PublicRoute] Redirecionando sessão validada para ${destination}`)
       try {
         navigate(destination, { replace: true })
@@ -248,22 +249,20 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('[PublicRoute] navigate falhou, recorrendo a window.location', err)
       }
 
-      // 4. Fallback forçado com verificação real de rota: se após ~500ms ainda estiver em rota pública,
-      // força window.location.replace para desbloquear o Dashboard
+      // 4. Fallback imediato: se ainda estiver em rota pública, executa redirecionamento direto
       fallbackTimer = setTimeout(() => {
         if (
           typeof window !== 'undefined' &&
           (window.location.pathname.startsWith('/login') ||
             window.location.pathname.startsWith('/forgot-password') ||
-            window.location.pathname.startsWith('/reset-password') ||
-            window.location.pathname === '/')
+            window.location.pathname.startsWith('/reset-password'))
         ) {
           console.warn(
             `[PublicRoute] Fallback forçado acionado (ainda em ${window.location.pathname}). Executando window.location.replace('${destination}')...`,
           )
           window.location.replace(destination)
         }
-      }, 500)
+      }, 150)
     }
 
     runRedirectFlow()

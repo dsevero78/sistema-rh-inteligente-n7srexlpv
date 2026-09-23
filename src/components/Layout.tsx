@@ -209,6 +209,7 @@ export default function Layout() {
   const getPageTitle = () => {
     const path = location.pathname
     if (path.startsWith('/meu-dia')) return 'Meu Dia — Rotina & Pendências'
+    if (path.startsWith('/planejamento-forca')) return 'Planejamento da Força de Trabalho'
     if (path.startsWith('/empresas')) return 'Gestão Multi-Empresa & Unidades (Holding + BUs)'
     if (path.startsWith('/gestor')) return 'Portal do Gestor Contratante (Minhas Vagas)'
     if (path.startsWith('/dashboard')) return 'Painel Geral de Recrutamento'
@@ -327,6 +328,12 @@ export default function Layout() {
                     badge: 'Apontar',
                   },
                   {
+                    title: 'Planejamento da Força',
+                    href: '/planejamento-forca',
+                    icon: BarChart3,
+                    badge: 'Etapa 3',
+                  },
+                  {
                     title: 'Catálogos & Padrões',
                     href: '/catalogos',
                     icon: Award,
@@ -435,6 +442,12 @@ export default function Layout() {
                     href: '/empresas',
                     icon: Building2,
                     badge: 'Holding',
+                  },
+                  {
+                    title: 'Planejamento da Força',
+                    href: '/planejamento-forca',
+                    icon: BarChart3,
+                    badge: 'Etapa 3',
                   },
                   {
                     title: 'Catálogos & Normalização',

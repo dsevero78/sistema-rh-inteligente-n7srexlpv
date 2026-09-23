@@ -50,6 +50,7 @@ import HorasCompetenciasPage from '@/pages/HorasCompetenciasPage'
 import ContratosDashboardPage from '@/pages/ContratosDashboardPage'
 import { EmpresasUnidadesPage } from '@/pages/EmpresasUnidadesPage'
 import CatalogosNormalizacaoPage from '@/pages/CatalogosNormalizacaoPage'
+import PlanejamentoForcaPage from '@/pages/PlanejamentoForcaPage'
 import NotFound from '@/pages/NotFound'
 
 import { Toaster } from '@/components/ui/toaster'
@@ -115,6 +116,7 @@ export default function App() {
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="meu-dia" element={<MeuDia />} />
+                <Route path="planejamento-forca" element={<PlanejamentoForcaPage />} />
                 <Route path="empresas" element={<EmpresasUnidadesPage />} />
                 <Route path="catalogos" element={<CatalogosNormalizacaoPage />} />
                 <Route path="normalizacao" element={<CatalogosNormalizacaoPage />} />
