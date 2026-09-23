@@ -42,6 +42,7 @@ import {
   Sun,
   Moon,
   UserMinus,
+  Award,
 } from 'lucide-react'
 import { carregarMeuDia } from '@/services/meuDia'
 import type { RecordModel } from 'pocketbase'
@@ -325,6 +326,12 @@ export default function Layout() {
                     icon: Clock,
                     badge: 'Apontar',
                   },
+                  {
+                    title: 'Catálogos & Padrões',
+                    href: '/catalogos',
+                    icon: Award,
+                    badge: 'Catálogo',
+                  },
                 ],
               },
               {
@@ -428,6 +435,12 @@ export default function Layout() {
                     href: '/empresas',
                     icon: Building2,
                     badge: 'Holding',
+                  },
+                  {
+                    title: 'Catálogos & Normalização',
+                    href: '/catalogos',
+                    icon: Award,
+                    badge: 'Etapa 2',
                   },
                   {
                     title: 'Contratos',
@@ -1088,7 +1101,9 @@ export default function Layout() {
         {/* Rodapé Institucional com Versão do Sistema */}
         <footer className="border-t border-[#E7EAF0] dark:border-[#2E3A6E] bg-white/60 dark:bg-[#1A2240]/60 py-3 px-4 sm:px-8 text-center text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-1">
           <span>Sistema RH Inteligente — SouYess People Hub</span>
-          <span className="font-mono text-[11px] font-semibold text-[#E9530E]">v0.0.77</span>
+          <span className="font-mono text-[11px] font-semibold text-[#E9530E]">
+            v0.0.85 (Homologação)
+          </span>
         </footer>
       </div>
 

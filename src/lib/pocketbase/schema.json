@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T00:59:30.670Z",
+  "generatedAt": "2026-09-23T01:13:02.828Z",
   "collections": [
     {
       "name": "users",
@@ -207,6 +207,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "cargo_catalogo",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "cargos"
         }
       ],
       "indexes": [
@@ -4023,6 +4030,20 @@
           "required": false,
           "system": false,
           "collectionRef": "areas"
+        },
+        {
+          "name": "cargo_catalogo",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "cargos"
+        },
+        {
+          "name": "centro_custo_catalogo",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "centros_custo"
         }
       ],
       "indexes": []
@@ -5662,6 +5683,469 @@
         "CREATE INDEX idx_offboarding_status ON offboardings (status)",
         "CREATE INDEX idx_offboarding_empresa ON offboardings (empresa)",
         "CREATE INDEX idx_offboarding_data ON offboardings (data_desligamento DESC)"
+      ]
+    },
+    {
+      "name": "competencias",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "categoria",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Técnica", "Comportamental", "Liderança", "Gestão & Negócios"]
+        },
+        {
+          "name": "criterios_proficiencia",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_competencias_nome ON competencias (nome)",
+        "CREATE INDEX idx_competencias_categoria ON competencias (categoria)",
+        "CREATE INDEX idx_competencias_ativo ON competencias (ativo)"
+      ]
+    },
+    {
+      "name": "cargos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
+      },
+      "fields": [
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "competencias_referencia",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "competencias"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_cargos_codigo ON cargos (codigo)",
+        "CREATE INDEX idx_cargos_nome ON cargos (nome)",
+        "CREATE INDEX idx_cargos_ativo ON cargos (ativo)"
+      ]
+    },
+    {
+      "name": "centros_custo",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
+      },
+      "fields": [
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "empresa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "vigencia_inicio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vigencia_fim",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Ativo", "Inativo"]
+        },
+        {
+          "name": "identificador_externo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_centros_custo_empresa_codigo ON centros_custo (empresa, codigo)",
+        "CREATE INDEX idx_centros_custo_status ON centros_custo (status)"
+      ]
+    },
+    {
+      "name": "competencias_pessoas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao = 'RH / Recrutador' || @request.auth.cargo_funcao = 'Diretoria / Executivo') || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador' || (@request.auth.cargo_funcao = 'Gestor Contratante' && (@request.auth.empresa != '' && pessoa.empresa = @request.auth.empresa || pessoa.gestor_responsavel = @request.auth.id))",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
+      },
+      "fields": [
+        {
+          "name": "pessoa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pessoas"
+        },
+        {
+          "name": "competencia",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "competencias"
+        },
+        {
+          "name": "proficiencia",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Nao_avaliada",
+            "Nivel_1_Basico",
+            "Nivel_2_Intermediario",
+            "Nivel_3_Avancado",
+            "Nivel_4_Especialista",
+            "Nivel_5_Referencia"
+          ]
+        },
+        {
+          "name": "fonte",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["autodeclarada", "gestor", "certificado", "curriculo_extraido"]
+        },
+        {
+          "name": "status_validacao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["pendente", "validada", "rejeitada"]
+        },
+        {
+          "name": "evidencia_documento",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "documentos_pessoa"
+        },
+        {
+          "name": "responsavel_validacao",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "data_validacao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "validade",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_comp_pes_pessoa ON competencias_pessoas (pessoa)",
+        "CREATE INDEX idx_comp_pes_competencia ON competencias_pessoas (competencia)",
+        "CREATE INDEX idx_comp_pes_validacao ON competencias_pessoas (status_validacao)"
+      ]
+    },
+    {
+      "name": "mapeamento_normalizacao",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "update": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
+      },
+      "fields": [
+        {
+          "name": "registro_origem_colecao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["pessoas", "vagas"]
+        },
+        {
+          "name": "registro_origem_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "campo_origem",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "texto_original",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "empresa_contexto",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "area_contexto",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "areas"
+        },
+        {
+          "name": "tipo_destino",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["cargo", "centro_custo", "area"]
+        },
+        {
+          "name": "cargo_destino",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "cargos"
+        },
+        {
+          "name": "centro_custo_destino",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "centros_custo"
+        },
+        {
+          "name": "area_destino",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "areas"
+        },
+        {
+          "name": "justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["pendente", "aprovada", "aplicada", "rejeitada"]
+        },
+        {
+          "name": "confianca_metodo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["deterministico_exato", "revisao_manual", "sugerido"]
+        },
+        {
+          "name": "responsavel_decisao",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "data_decisao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aplicado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aplicado_por_migracao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "hash_recuperacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_map_origem ON mapeamento_normalizacao (registro_origem_colecao, registro_origem_id)",
+        "CREATE INDEX idx_map_status ON mapeamento_normalizacao (status)",
+        "CREATE INDEX idx_map_tipo_destino ON mapeamento_normalizacao (tipo_destino)"
       ]
     }
   ]

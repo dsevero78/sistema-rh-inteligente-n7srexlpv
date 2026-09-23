@@ -49,6 +49,7 @@ import RedirecionamentoPrestadorParaPessoa from '@/pages/RedirecionamentoPrestad
 import HorasCompetenciasPage from '@/pages/HorasCompetenciasPage'
 import ContratosDashboardPage from '@/pages/ContratosDashboardPage'
 import { EmpresasUnidadesPage } from '@/pages/EmpresasUnidadesPage'
+import CatalogosNormalizacaoPage from '@/pages/CatalogosNormalizacaoPage'
 import NotFound from '@/pages/NotFound'
 
 import { Toaster } from '@/components/ui/toaster'
@@ -115,6 +116,8 @@ export default function App() {
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="meu-dia" element={<MeuDia />} />
                 <Route path="empresas" element={<EmpresasUnidadesPage />} />
+                <Route path="catalogos" element={<CatalogosNormalizacaoPage />} />
+                <Route path="normalizacao" element={<CatalogosNormalizacaoPage />} />
                 <Route path="contratos" element={<ContratosDashboardPage />} />
                 <Route path="horas-competencias" element={<HorasCompetenciasPage />} />
                 <Route path="pessoas" element={<PessoasListaPage />} />{' '}
