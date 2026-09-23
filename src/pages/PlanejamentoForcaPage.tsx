@@ -22,6 +22,7 @@ import {
   Eye,
   Lock,
 } from 'lucide-react'
+import { AbaCapacidadeAlocacoes } from '@/components/planejamento/AbaCapacidadeAlocacoes'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   planejamentoForcaService,
@@ -850,9 +851,15 @@ export const PlanejamentoForcaPage: React.FC = () => {
                 </CardContent>
               </Card>
 
-              {/* Abas: Demandas, Posições e Rastreabilidade de Contratações */}
-              <Tabs defaultValue="posicoes" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+              {/* Abas: Demandas, Posições, Rastreabilidade de Contratações e Etapa 4 (Capacidade/Alocações) */}
+              <Tabs defaultValue="capacidade_alocacoes" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger
+                    value="capacidade_alocacoes"
+                    className="text-xs font-semibold text-primary"
+                  >
+                    Capacidade &amp; Alocações (Etapa 4)
+                  </TabsTrigger>
                   <TabsTrigger value="posicoes" className="text-xs">
                     Posições Planejadas ({posicoes.length})
                   </TabsTrigger>
@@ -863,6 +870,15 @@ export const PlanejamentoForcaPage: React.FC = () => {
                     Acompanhamento de Vagas ({solicitacoes.length})
                   </TabsTrigger>
                 </TabsList>
+
+                {/* ABA ETAPA 4: CAPACIDADE, ALOCAÇÕES, OCUPAÇÕES, COMPETÊNCIAS E CUSTOS */}
+                <TabsContent value="capacidade_alocacoes" className="space-y-4 pt-3">
+                  <AbaCapacidadeAlocacoes
+                    plano={planoSelecionado}
+                    posicoesPlano={posicoes}
+                    filtroEmpresa={filtroEmpresa}
+                  />
+                </TabsContent>
 
                 {/* ABA POSIÇÕES */}
                 <TabsContent value="posicoes" className="space-y-4 pt-3">

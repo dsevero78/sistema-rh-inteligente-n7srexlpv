@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T01:24:17.459Z",
+  "generatedAt": "2026-09-23T01:36:40.317Z",
   "collections": [
     {
       "name": "users",
@@ -6783,6 +6783,399 @@
         "CREATE UNIQUE INDEX idx_solic_posicao_ativa ON solicitacoes_contratacao_plano (idempotency_key)",
         "CREATE INDEX idx_solic_plano ON solicitacoes_contratacao_plano (plano)",
         "CREATE INDEX idx_solic_posicao ON solicitacoes_contratacao_plano (posicao)"
+      ]
+    },
+    {
+      "name": "projetos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa_responsavel = @request.auth.empresa || bu_relacionada = @request.auth.empresa || responsavel = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa_responsavel = @request.auth.empresa || bu_relacionada = @request.auth.empresa || responsavel = @request.auth.id)",
+        "create": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || @request.body.empresa_responsavel = @request.auth.empresa)",
+        "update": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || empresa_responsavel = @request.auth.empresa || responsavel = @request.auth.id)",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
+      },
+      "fields": [
+        {
+          "name": "identificador",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "empresa_responsavel",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "bu_relacionada",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "empresas"
+        },
+        {
+          "name": "area_relacionada",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "areas"
+        },
+        {
+          "name": "responsavel",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "responsavel_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "inicio_previsto",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "termino_previsto",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "situacao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Planejado", "Em andamento", "Pausado", "Concluido", "Cancelado"]
+        },
+        {
+          "name": "referencia_externa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contrato_comercial_ref",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "relacionamento_validado",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_demonstracao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_projetos_identificador ON projetos (identificador)",
+        "CREATE INDEX idx_projetos_empresa ON projetos (empresa_responsavel)",
+        "CREATE INDEX idx_projetos_situacao ON projetos (situacao)"
+      ]
+    },
+    {
+      "name": "alocacoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || pessoa.empresa = @request.auth.empresa || (projeto != null && projeto.empresa_responsavel = @request.auth.empresa))",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || pessoa.empresa = @request.auth.empresa || (projeto != null && projeto.empresa_responsavel = @request.auth.empresa))",
+        "create": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || pessoa.empresa = @request.auth.empresa)",
+        "update": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || pessoa.empresa = @request.auth.empresa)",
+        "delete": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || pessoa.empresa = @request.auth.empresa)"
+      },
+      "fields": [
+        {
+          "name": "pessoa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pessoas"
+        },
+        {
+          "name": "projeto",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "projetos"
+        },
+        {
+          "name": "destino_organizacional",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "periodo_inicio",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "periodo_fim",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "modalidade_capacidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["disponibilidade", "escopo"]
+        },
+        {
+          "name": "unidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["percentual", "horas_mes", "entregavel_escopo"]
+        },
+        {
+          "name": "quantidade",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "papel_desempenhado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "competencia_requerida",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "competencias"
+        },
+        {
+          "name": "situacao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["proposta", "confirmada", "encerrada", "cancelada"]
+        },
+        {
+          "name": "responsavel",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "responsavel_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "demanda",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "demandas_planejadas"
+        },
+        {
+          "name": "posicao",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "posicoes_planejadas"
+        },
+        {
+          "name": "excecao_autorizada",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "excecao_justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_demonstracao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_alocacoes_pessoa ON alocacoes (pessoa)",
+        "CREATE INDEX idx_alocacoes_projeto ON alocacoes (projeto)",
+        "CREATE INDEX idx_alocacoes_situacao ON alocacoes (situacao)",
+        "CREATE INDEX idx_alocacoes_periodo ON alocacoes (periodo_inicio, periodo_fim)"
+      ]
+    },
+    {
+      "name": "ocupacoes_posicao",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || posicao.empresa = @request.auth.empresa || pessoa.empresa = @request.auth.empresa)",
+        "view": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || posicao.empresa = @request.auth.empresa || pessoa.empresa = @request.auth.empresa)",
+        "create": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || posicao.empresa = @request.auth.empresa)",
+        "update": "@request.auth.id != '' && (@request.auth.cargo_funcao != 'Gestor Contratante' || posicao.empresa = @request.auth.empresa)",
+        "delete": "@request.auth.id != '' && @request.auth.cargo_funcao = 'RH / Recrutador'"
+      },
+      "fields": [
+        {
+          "name": "posicao",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "posicoes_planejadas"
+        },
+        {
+          "name": "pessoa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pessoas"
+        },
+        {
+          "name": "data_inicio",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_termino",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "situacao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["ativa", "encerrada", "substituida"]
+        },
+        {
+          "name": "origem_vinculacao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "promocao_interna",
+            "transferencia",
+            "contratacao_externa",
+            "alocacao_temporaria",
+            "enquadramento_inicial"
+          ]
+        },
+        {
+          "name": "ocupante_anterior",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "pessoas"
+        },
+        {
+          "name": "motivo_substituicao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "registrado_por",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_demonstracao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_ocupacoes_posicao ON ocupacoes_posicao (posicao)",
+        "CREATE INDEX idx_ocupacoes_pessoa ON ocupacoes_posicao (pessoa)",
+        "CREATE INDEX idx_ocupacoes_situacao ON ocupacoes_posicao (situacao)"
       ]
     }
   ]

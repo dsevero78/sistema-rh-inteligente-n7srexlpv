@@ -173,7 +173,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
  * Exibe tela de "Verificando sessão ativa..." e força redirecionamento para o Dashboard com garantia dupla.
  */
 export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, syncAuthNow } = useAuth()
+  const { isAuthenticated, isLoading, isRenewingSession, syncAuthNow } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -181,7 +181,7 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
     (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
   const destination = rawTarget.startsWith('/login') ? '/dashboard' : rawTarget
 
-  // Checagem direta de credencial (qualquer token presente no backup ou pb.authStore é suficiente para barrar o form de login)
+  // Checagem direta de credencial
   const backup = loadSessionBackup()
   let directStorageHasToken = false
   if (typeof window !== 'undefined') {
@@ -209,71 +209,48 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }
 
-  // Se estiver em rota de login e o usuário estiver na URL /login com comando de logout ou sem token,
-  // verifica se existe token.
   const hasAnyBackup = Boolean(backup?.token && backup.token.length > 10)
   const hasPbToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
   const hasCredential = isAuthenticated || hasAnyBackup || hasPbToken || directStorageHasToken
+
   useEffect(() => {
     if (!hasCredential) return
 
     let isSubscribed = true
-    let fallbackTimer: ReturnType<typeof setTimeout> | null = null
 
     const runRedirectFlow = async () => {
       // 1. Restaura síncrono e consolida estado do contexto
       const restored = restorePbAuthStoreFromBackup()
       const effectiveToken = restored?.token || pb.authStore.token
       const effectiveModel = restored?.model || pb.authStore.record
-      if (effectiveToken) {
+      if (effectiveToken && !isAuthenticated) {
         syncAuthNow(effectiveToken, effectiveModel)
       }
 
-      // 2. Aguarda a validação do token com o backend de forma síncrona/esperada
+      // 2. Aguarda a validação do token com o backend de forma resolvida (Promise/await real)
+      // NENHUM timer arbitrário (ex: 150ms). Apenas segue adiante quando a Promise for resolvida.
       try {
         await singleFlightSafeAuthRefresh()
         if (pb.authStore.token && isSubscribed) {
           syncAuthNow(pb.authStore.token, pb.authStore.record)
         }
       } catch (err) {
-        console.warn('[PublicRoute] Revalidação authRefresh falhou de forma não-fatal:', err)
+        console.warn('[PublicRoute] Revalidação authRefresh finalizada:', err)
       }
 
       if (!isSubscribed) return
 
-      // 3. Navega para o destino imediatamente
-      console.info(`[PublicRoute] Redirecionando sessão validada para ${destination}`)
-      try {
-        navigate(destination, { replace: true })
-      } catch (err) {
-        console.warn('[PublicRoute] navigate falhou, recorrendo a window.location', err)
-      }
-
-      // 4. Fallback imediato: se ainda estiver em rota pública, executa redirecionamento direto
-      fallbackTimer = setTimeout(() => {
-        if (
-          typeof window !== 'undefined' &&
-          (window.location.pathname.startsWith('/login') ||
-            window.location.pathname.startsWith('/forgot-password') ||
-            window.location.pathname.startsWith('/reset-password'))
-        ) {
-          console.warn(
-            `[PublicRoute] Fallback forçado acionado (ainda em ${window.location.pathname}). Executando window.location.replace('${destination}')...`,
-          )
-          window.location.replace(destination)
-        }
-      }, 150)
+      // 3. Com o estado de autenticação plenamente resolvido, navega para o destino
+      console.info(`[PublicRoute] Redirecionando sessão autenticada resolvida para ${destination}`)
+      navigate(destination, { replace: true })
     }
 
     runRedirectFlow()
 
     return () => {
       isSubscribed = false
-      if (fallbackTimer) {
-        clearTimeout(fallbackTimer)
-      }
     }
-  }, [hasCredential, destination, navigate, syncAuthNow])
+  }, [hasCredential, destination, navigate, syncAuthNow, isAuthenticated])
 
   // Se tem credencial ou está carregando, JAMAIS mostra o formulário de login
   if (hasCredential || isLoading) {
