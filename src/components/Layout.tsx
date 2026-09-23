@@ -1131,7 +1131,7 @@ export default function Layout() {
             className="font-mono text-[11px] font-semibold text-[#E9530E]"
             title="Versão da aplicação"
           >
-            v0.0.90 (Homologação)
+            v0.0.92 (Homologação)
           </span>
         </footer>
       </div>
