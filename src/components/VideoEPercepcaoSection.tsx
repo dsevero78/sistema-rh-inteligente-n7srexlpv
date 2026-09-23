@@ -147,11 +147,19 @@ export function VideoEPercepcaoSection({
 
       if (resp.status_analise === 'erro_acesso' || !resp.data) {
         // Falha no acesso ao vídeo (o candidato não é penalizado)
+        const linkStr = String(candidato.video_link || '').toLowerCase()
+        const isYtToast = linkStr.includes('youtu.be') || linkStr.includes('youtube.com')
+        const isDriveToast = linkStr.includes('drive.google.com')
+
+        const toastDescPadrao = isYtToast
+          ? 'Não foi possível acessar o vídeo no YouTube pelo link fornecido. Verifique se o vídeo está configurado como público ou não listado e se a URL está correta (atenção a restrições de idade).'
+          : isDriveToast
+            ? 'Não foi possível acessar o vídeo pelo link fornecido. Verifique se o arquivo está compartilhado como "Qualquer pessoa com o link" (Visualizador) no Google Drive e tente novamente.'
+            : 'Não foi possível acessar o vídeo pelo link ou arquivo fornecido. Verifique se o arquivo ou URL está público e acessível sem autenticação externa.'
+
         toast({
           title: 'Aviso: Falha no Acesso ao Vídeo',
-          description:
-            resp.error ||
-            'Não foi possível acessar o vídeo pelo link fornecido. Verifique se o arquivo está público no Google Drive.',
+          description: resp.error || toastDescPadrao,
           variant: 'destructive',
         })
       } else if (resp.conflito_bloqueante && !permitirDivergencia) {
@@ -380,6 +388,24 @@ export function VideoEPercepcaoSection({
       : analiseIa?.red_flags) || []
 
   const scoreGeral = candidato.video_score_geral || analiseIa?.score_geral || 0
+
+  // Identificação da plataforma do link de vídeo
+  const linkAtual = String(candidato.video_link || '').trim()
+  const ehYouTube =
+    Boolean(linkAtual) &&
+    (/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/|shorts\/))/i.test(linkAtual) ||
+      String(analiseIa?.base_utilizada || '')
+        .toLowerCase()
+        .includes('youtube'))
+  const ehDrive =
+    Boolean(linkAtual) &&
+    (/drive\.google\.com/i.test(linkAtual) ||
+      String(analiseIa?.base_utilizada || '')
+        .toLowerCase()
+        .includes('google drive') ||
+      String(analiseIa?.erro_detalhes || '')
+        .toLowerCase()
+        .includes('google drive'))
 
   // Identificação de falha de acesso ou análise com erro
   const resumoTexto = String(analiseIa?.resumo_executivo || '').toLowerCase()
@@ -709,13 +735,22 @@ export function VideoEPercepcaoSection({
                             </span>
                           </div>
                           <p className="text-xs font-semibold leading-relaxed pt-1">
-                            Não foi possível acessar o vídeo pelo link fornecido. Verifique se o
-                            arquivo está compartilhado como "Qualquer pessoa com o link"
-                            (Visualizador) no Google Drive e tente novamente.
+                            {ehYouTube
+                              ? 'Não foi possível acessar o vídeo no YouTube pelo link fornecido. Verifique se o vídeo está configurado como público ou não listado e se a URL está correta.'
+                              : ehDrive
+                                ? 'Não foi possível acessar o vídeo pelo link fornecido. Verifique se o arquivo está compartilhado como "Qualquer pessoa com o link" (Visualizador) no Google Drive e tente novamente.'
+                                : 'Não foi possível acessar o vídeo pelo link ou arquivo fornecido. Verifique se o link ou arquivo de mídia está público e acessível externamente sem login.'}
                           </p>
                           {analiseIa.resumo_executivo && (
                             <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 italic pt-0.5">
                               Retorno do modelo: "{analiseIa.resumo_executivo}"
+                            </p>
+                          )}
+                          {ehYouTube && (
+                            <p className="text-[11px] text-amber-900/90 dark:text-amber-200/90 font-medium">
+                              Dica para YouTube: certifique-se de que o vídeo não possui restrição
+                              de idade (Classificação Indicativa 18+), pois isso bloqueia o acesso
+                              externo automatizado à mídia e às legendas.
                             </p>
                           )}
                         </div>
@@ -723,8 +758,11 @@ export function VideoEPercepcaoSection({
 
                       <div className="pt-2 border-t border-amber-200 dark:border-amber-800 flex items-center justify-between flex-wrap gap-2">
                         <span className="text-[11px] text-amber-800 dark:text-amber-300">
-                          Dica: Links do Google Drive precisam estar públicos para visualização
-                          externa sem login.
+                          {ehYouTube
+                            ? 'Dica: Vídeos do YouTube precisam estar públicos ou não listados, sem restrição de idade e com legendas/áudio habilitados.'
+                            : ehDrive
+                              ? 'Dica: Links do Google Drive precisam estar públicos como "Qualquer pessoa com o link" para visualização externa sem login.'
+                              : 'Dica: Mídias externas precisam estar publicamente acessíveis na web sem tela de login ou permissão restrita.'}
                         </span>
                         <div className="flex items-center gap-2">
                           <Button

@@ -116,21 +116,39 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Apenas navega para /login se expressamente NÃO existir credencial alguma em localStorage nem em memória:
   if (!isAuthenticated && !hasAnyCred) {
-    // Última checagem hiper-estrita de qualquer token em localStorage antes de permitir ejetar para /login
+    // Barreira ativa hiper-estrita: se houver QUALQUER resquício de token no localStorage,
+    // JAMAIS navega para /login. Restaura a sessão e mantém a visualização.
     let storageHasToken = false
     if (typeof window !== 'undefined') {
       try {
         const rawApp = localStorage.getItem('souyess.session.backup')
-        if (rawApp && rawApp.includes('"token"')) storageHasToken = true
+        if (rawApp) {
+          const parsedApp = JSON.parse(rawApp)
+          if (
+            parsedApp?.token &&
+            typeof parsedApp.token === 'string' &&
+            parsedApp.token.length > 10
+          ) {
+            storageHasToken = true
+          }
+        }
         const rawPb = localStorage.getItem('pocketbase_auth')
-        if (rawPb && rawPb.includes('"token"')) storageHasToken = true
+        if (rawPb) {
+          const parsedPb = JSON.parse(rawPb)
+          if (parsedPb?.token && typeof parsedPb.token === 'string' && parsedPb.token.length > 10) {
+            storageHasToken = true
+          }
+        }
       } catch {
         /* noop */
       }
     }
 
     if (storageHasToken) {
-      restorePbAuthStoreFromBackup()
+      const restored = restorePbAuthStoreFromBackup()
+      if (restored?.token && !isAuthenticated) {
+        syncAuthNow(restored.token, restored.model)
+      }
       return (
         <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] dark:bg-[#11162B]">
           <div className="flex flex-col items-center gap-3">
