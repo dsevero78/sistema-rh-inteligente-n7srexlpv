@@ -8,6 +8,12 @@
 
 ---
 
+## Registro de Validação Visual (Mandato v0.0.93)
+
+> **"Implementação visual realizada; validação renderizada pendente."**
+
+*Declaração expressa:* A inspeção anterior e a auditoria técnica constituíram análise estática de código-fonte, tipagem TypeScript e validação de regras de API, não inspeção em tempo de execução de telas renderizadas por navegador visual. O ambiente de sandbox de desenvolvimento da plataforma Skip opera em container minimalista sem display server (X11/Wayland), sem navegadores instalados (Chromium, Puppeteer ou Playwright) e sem GPU. Portanto, a limitação técnica é real e declarada. Em cumprimento estrito ao mandato, **não foram fabricados mockups ou capturas simuladas**.
+
 ## 1. Inventário das Capturas Obrigatórias
 
 Conforme as diretrizes da rodada de fechamento do Módulo 1 (pós-v0.0.91), as capturas de tela solicitadas para o módulo foram mapeadas com os seguintes viewports e contextos:

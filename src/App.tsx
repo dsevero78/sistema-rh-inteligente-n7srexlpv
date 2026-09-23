@@ -49,6 +49,7 @@ import RedirecionamentoPrestadorParaPessoa from '@/pages/RedirecionamentoPrestad
 import HorasCompetenciasPage from '@/pages/HorasCompetenciasPage'
 import ContratosDashboardPage from '@/pages/ContratosDashboardPage'
 import { EmpresasUnidadesPage } from '@/pages/EmpresasUnidadesPage'
+import { OrganogramaPage } from '@/pages/OrganogramaPage'
 import CatalogosNormalizacaoPage from '@/pages/CatalogosNormalizacaoPage'
 import PlanejamentoForcaPage from '@/pages/PlanejamentoForcaPage'
 import NotFound from '@/pages/NotFound'
@@ -117,6 +118,7 @@ export default function App() {
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="meu-dia" element={<MeuDia />} />
                 <Route path="planejamento-forca" element={<PlanejamentoForcaPage />} />
+                <Route path="organograma" element={<OrganogramaPage />} />
                 <Route path="empresas" element={<EmpresasUnidadesPage />} />
                 <Route path="catalogos" element={<CatalogosNormalizacaoPage />} />
                 <Route path="normalizacao" element={<CatalogosNormalizacaoPage />} />

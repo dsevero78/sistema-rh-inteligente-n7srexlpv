@@ -107,7 +107,9 @@ No ciclo pós-Etapa 5 (versões 0.0.90 e 0.0.91), foi realizada uma revisão abr
 - **Remoção de termos técnicos desatualizados:** expurgo de referências obsoletas de desenvolvimento nos textos da interface do usuário (ex.: "Etapa 3", "Etapa 4", "v0.0.87"), padronizando a linguagem para termos de negócio e governança de RH.
 - **Responsividade validada:** interface testada e adaptada para múltiplas resoluções e viewports padrão (1440px desktop largo, 1280px desktop padrão, 1024px tablet landscape, 768px tablet portrait e 390px mobile).
 
-> **Aviso de Governança:** Deixa-se explícito que **revisão visual concluída ≠ conclusão funcional**. Os itens classificados como _Parcial_, _Pendente_ ou _Não Verificado_ na matriz de requisitos permanecem rigorosamente inalterados, assim como as pendências de alçada executiva e integrações de ERP.
+> **Aviso de Governança e Registro de Validação Visual:**  
+> **"Implementação visual realizada; validação renderizada pendente."**  
+> A inspeção realizada em rodadas anteriores foi análise estática de código-fonte e regras de negócio, não telas renderizadas em navegador com display visual. O ambiente de sandbox de desenvolvimento não possui Chromium/Puppeteer/Playwright nem GPU instalada para geração direta de capturas de tela. Declaramos formalmente essa limitação técnica e não foram produzidos mockups ou imagens artificiais.
 
 ---
 

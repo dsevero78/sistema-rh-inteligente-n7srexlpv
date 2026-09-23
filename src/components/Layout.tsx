@@ -12,6 +12,7 @@ import {
   Briefcase,
   Users,
   Building2,
+  Network,
   Clock,
   Users2,
   GitPullRequest,
@@ -211,6 +212,7 @@ export default function Layout() {
     const path = location.pathname
     if (path.startsWith('/meu-dia')) return 'Meu Dia — Rotina & Pendências'
     if (path.startsWith('/planejamento-forca')) return 'Planejamento da Força de Trabalho'
+    if (path.startsWith('/organograma')) return 'Organograma Corporativo & Hierarquia'
     if (path.startsWith('/empresas')) return 'Gestão Multi-Empresa & Unidades (Holding + BUs)'
     if (path.startsWith('/gestor')) return 'Portal do Gestor Contratante (Minhas Vagas)'
     if (path.startsWith('/dashboard')) return 'Painel Geral de Recrutamento'
@@ -436,6 +438,12 @@ export default function Layout() {
                 id: 'gestao_institucional',
                 label: 'Gestão Institucional',
                 items: [
+                  {
+                    title: 'Organograma',
+                    href: '/organograma',
+                    icon: Network,
+                    badge: 'Hierarquia',
+                  },
                   {
                     title: 'Empresas & Unidades',
                     href: '/empresas',
@@ -1131,7 +1139,7 @@ export default function Layout() {
             className="font-mono text-[11px] font-semibold text-[#E9530E]"
             title="Versão da aplicação"
           >
-            v0.0.92 (Homologação)
+            v0.0.93 (Homologação)
           </span>
         </footer>
       </div>
