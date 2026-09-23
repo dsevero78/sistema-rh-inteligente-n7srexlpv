@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { capacidadeService } from '@/services/capacidadeService'
 import { cenariosService, type AlternativaCenario } from '@/services/cenariosService'
 import { indicadoresForcaService } from '@/services/indicadoresForcaService'
-import { pb } from '@/lib/pocketbase/client'
+import pb from '@/lib/pocketbase/client'
 
 describe('ETAPA 5: Testes de Aceite — Cenários, Indicadores, Governança e Apoio de IA', () => {
   beforeEach(() => {

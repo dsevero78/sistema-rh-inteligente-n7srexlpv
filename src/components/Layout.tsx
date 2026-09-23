@@ -47,6 +47,7 @@ import {
 import { carregarMeuDia } from '@/services/meuDia'
 import type { RecordModel } from 'pocketbase'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
