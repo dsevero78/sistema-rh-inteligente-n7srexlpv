@@ -21,6 +21,8 @@ import {
   Send,
   Eye,
   Lock,
+  Search,
+  ArrowLeft,
 } from 'lucide-react'
 import { AbaCapacidadeAlocacoes } from '@/components/planejamento/AbaCapacidadeAlocacoes'
 import { AbaCenariosComparador } from '@/components/planejamento/AbaCenariosComparador'
@@ -64,6 +66,10 @@ export const PlanejamentoForcaPage: React.FC = () => {
   const { user } = useAuth()
   const isRh = user?.cargo_funcao !== 'Gestor Contratante'
 
+  // Controle de Visualização da AI: 'lista' (gerencial) vs 'workspace' (espaço de trabalho focado)
+  const [modoVisualizacao, setModoVisualizacao] = useState<'lista' | 'workspace'>('workspace')
+  const [grupoAbaAtiva, setGrupoAbaAtiva] = useState<string>('visao_geral')
+
   // Estados de dados
   const [planos, setPlanos] = useState<PlanoCapacidade[]>([])
   const [empresas, setEmpresas] = useState<Empresa[]>([])
@@ -77,8 +83,11 @@ export const PlanejamentoForcaPage: React.FC = () => {
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoContratacaoPlano[]>([])
 
   const [loading, setLoading] = useState(true)
+  const [loadingDetalhes, setLoadingDetalhes] = useState(false)
   const [filtroEmpresa, setFiltroEmpresa] = useState<string>('todas')
   const [filtroSituacao, setFiltroSituacao] = useState<string>('todas')
+  const [termoBuscaPlano, setTermoBuscaPlano] = useState<string>('')
+  const [filtroPeriodoPlano, setFiltroPeriodoPlano] = useState<string>('todos')
 
   // Modais
   const [modalNovoPlanoOpen, setModalNovoPlanoOpen] = useState(false)
@@ -176,7 +185,7 @@ export const PlanejamentoForcaPage: React.FC = () => {
     carregarDados()
   }, [filtroEmpresa])
 
-  // Carregar detalhes do plano selecionado
+  // Carregar detalhes do plano selecionado com limpeza explícita para evitar vazar estado anterior
   useEffect(() => {
     if (!planoSelecionado) {
       setDemandas([])
@@ -185,6 +194,13 @@ export const PlanejamentoForcaPage: React.FC = () => {
       return
     }
 
+    // Limpa imediatamente dados dependentes para impedir apresentação temporária do plano anterior
+    setDemandas([])
+    setPosicoes([])
+    setSolicitacoes([])
+    setLoadingDetalhes(true)
+
+    let isMounted = true
     const carregarDetalhes = async () => {
       try {
         const [dems, pos, solics] = await Promise.all([
@@ -192,15 +208,24 @@ export const PlanejamentoForcaPage: React.FC = () => {
           planejamentoForcaService.listarPosicoes(planoSelecionado.id),
           planejamentoForcaService.listarSolicitacoesPlano(planoSelecionado.id),
         ])
-        setDemandas(dems)
-        setPosicoes(pos)
-        setSolicitacoes(solics)
+        if (isMounted) {
+          setDemandas(dems)
+          setPosicoes(pos)
+          setSolicitacoes(solics)
+        }
       } catch (err: any) {
         console.error('Erro ao carregar detalhes do plano:', err)
+      } finally {
+        if (isMounted) {
+          setLoadingDetalhes(false)
+        }
       }
     }
 
     carregarDetalhes()
+    return () => {
+      isMounted = false
+    }
   }, [planoSelecionado?.id])
 
   // Cálculos preliminares de custos
@@ -208,7 +233,40 @@ export const PlanejamentoForcaPage: React.FC = () => {
     return planejamentoForcaService.calcularResumoCustos(posicoes)
   }, [posicoes])
 
-  // Verificação de pendências
+  // Lista de períodos únicos para o filtro
+  const periodosDisponiveis = useMemo(() => {
+    const setP = new Set<string>()
+    planos.forEach((p) => {
+      if (p.periodo_referencia) setP.add(p.periodo_referencia)
+    })
+    return Array.from(setP).sort()
+  }, [planos])
+
+  // Filtragem da lista de planos
+  const planosFiltrados = useMemo(() => {
+    return planos.filter((p) => {
+      // Filtro de BU
+      if (filtroEmpresa !== 'todas' && p.empresa !== filtroEmpresa) return false
+      // Filtro de Situação
+      if (filtroSituacao !== 'todas' && p.situacao !== filtroSituacao) return false
+      // Filtro de Período do Plano
+      if (filtroPeriodoPlano !== 'todos' && p.periodo_referencia !== filtroPeriodoPlano)
+        return false
+      // Busca por texto
+      if (termoBuscaPlano.trim()) {
+        const t = termoBuscaPlano.toLowerCase()
+        const matchNome = p.nome?.toLowerCase().includes(t)
+        const matchCod = p.codigo?.toLowerCase().includes(t)
+        const matchResp =
+          p.responsavel_nome?.toLowerCase().includes(t) ||
+          p.expand?.responsavel?.name?.toLowerCase().includes(t)
+        if (!matchNome && !matchCod && !matchResp) return false
+      }
+      return true
+    })
+  }, [planos, filtroEmpresa, filtroSituacao, filtroPeriodoPlano, termoBuscaPlano])
+
+  // Verificação de pendências para aprovação
   const pendencias = useMemo(() => {
     const lista: string[] = []
     if (!posicoes.length) {
@@ -216,7 +274,7 @@ export const PlanejamentoForcaPage: React.FC = () => {
     }
     if (resumoCustos.custosNaoInformadosCount > 0) {
       lista.push(
-        `${resumoCustos.custosNaoInformadosCount} posição(ões) sem estimativa de custo formal informada (total parcial).`,
+        `${resumoCustos.custosNaoInformadosCount} posição(ões) com estimativa pendente (cálculo financeiro parcial).`,
       )
     }
     if (
@@ -224,7 +282,7 @@ export const PlanejamentoForcaPage: React.FC = () => {
       planoSelecionado?.situacao === 'Em análise'
     ) {
       lista.push(
-        'Alçada executiva do plano não definida formalmente: aprovação restrita pelo sistema de governança.',
+        'Alçada de aprovação não configurada para este escopo: aprovação bloqueada pelas regras de governança.',
       )
     }
     return lista
@@ -513,62 +571,88 @@ export const PlanejamentoForcaPage: React.FC = () => {
         return (
           <Badge
             variant="outline"
-            className="border-amber-500 text-amber-700 bg-amber-50 dark:bg-amber-950/30"
+            className="border-amber-500 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 text-[11px]"
           >
             Rascunho
           </Badge>
         )
       case 'Em análise':
-        return <Badge className="bg-blue-600 hover:bg-blue-700 text-white">Em análise</Badge>
+        return (
+          <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-[11px]">Em análise</Badge>
+        )
       case 'Devolvido para ajuste':
-        return <Badge variant="destructive">Devolvido para ajuste</Badge>
+        return (
+          <Badge variant="destructive" className="text-[11px]">
+            Devolvido para ajuste
+          </Badge>
+        )
       case 'Aprovado':
-        return <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white">Aprovado</Badge>
+        return (
+          <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px]">
+            Aprovado
+          </Badge>
+        )
       case 'Substituído por nova versão':
-        return <Badge variant="secondary">Substituído por nova versão</Badge>
+        return (
+          <Badge variant="secondary" className="text-[11px]">
+            Substituído
+          </Badge>
+        )
       case 'Arquivado':
-        return <Badge variant="outline">Arquivado</Badge>
+        return (
+          <Badge variant="outline" className="text-[11px]">
+            Arquivado
+          </Badge>
+        )
       default:
-        return <Badge>{situacao}</Badge>
+        return <Badge className="text-[11px]">{situacao}</Badge>
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Header Superior */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/40 pb-5">
+      {/* 1. Header Único e Institucional */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/40 pb-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Planejamento da Força de Trabalho
             </h1>
-            <Badge variant="outline" className="text-xs bg-muted/50">
-              Etapa 3 • Homologação
+            <Badge
+              variant="outline"
+              className="text-xs border-amber-300 text-amber-800 dark:text-amber-300 bg-amber-50/70 dark:bg-amber-950/20"
+            >
+              Homologação
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gestão estratégica de planos, versões congeladas, demandas qualificadas e posições
-            dimensionadas.
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            Gestão estratégica de planos, dimensionamento de postos, alocações de capacidade e
+            cenários de força de trabalho.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {isRh && (
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-muted-foreground" />
-              <Select value={filtroEmpresa} onValueChange={setFiltroEmpresa}>
-                <SelectTrigger className="w-[180px] h-9 text-xs">
-                  <SelectValue placeholder="Filtrar por BU" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas as BUs (Grupo)</SelectItem>
-                  {empresas.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.nome_fantasia || e.razao_social}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {/* Alternância de Modo: Lista Geral de Planos vs Espaço de Trabalho do Plano */}
+        <div className="flex flex-wrap items-center gap-2">
+          {planoSelecionado && (
+            <div className="inline-flex rounded-lg border border-border/60 p-0.5 bg-muted/40">
+              <Button
+                variant={modoVisualizacao === 'lista' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setModoVisualizacao('lista')}
+                className={`h-8 text-xs gap-1.5 ${modoVisualizacao === 'lista' ? 'bg-[#E9530E] hover:bg-[#d44808] text-white shadow-none' : 'text-muted-foreground'}`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                Lista de Planos ({planos.length})
+              </Button>
+              <Button
+                variant={modoVisualizacao === 'workspace' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setModoVisualizacao('workspace')}
+                className={`h-8 text-xs gap-1.5 ${modoVisualizacao === 'workspace' ? 'bg-[#E9530E] hover:bg-[#d44808] text-white shadow-none' : 'text-muted-foreground'}`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Espaço de Trabalho ({planoSelecionado.codigo})
+              </Button>
             </div>
           )}
 
@@ -582,7 +666,7 @@ export const PlanejamentoForcaPage: React.FC = () => {
               setNovaEmpresaPlano(empresas[0]?.id || '')
               setModalNovoPlanoOpen(true)
             }}
-            className="gap-1.5"
+            className="gap-1.5 bg-[#E9530E] hover:bg-[#d44808] text-white h-8 text-xs shadow-sm"
           >
             <Plus className="w-4 h-4" />
             Novo Plano
@@ -590,100 +674,309 @@ export const PlanejamentoForcaPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Conteúdo Principal em 2 Colunas */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Painel Esquerdo: Lista de Planos e Versões */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Layers className="w-4 h-4 text-primary" />
-              Planos Registrados ({planos.length})
-            </h2>
-          </div>
-
-          <div className="space-y-3">
-            {planos.map((plano) => {
-              const isSelected = planoSelecionado?.id === plano.id
-              return (
-                <Card
-                  key={plano.id}
-                  onClick={() => setPlanoSelecionado(plano)}
-                  className={`cursor-pointer transition-all border ${
-                    isSelected
-                      ? 'border-primary ring-1 ring-primary shadow-sm bg-primary/5 dark:bg-primary/10'
-                      : 'hover:border-muted-foreground/30'
-                  }`}
-                >
-                  <CardContent className="p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-semibold text-primary">
-                        {plano.codigo}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant="outline" className="text-[10px] font-mono">
-                          {plano.rotulo_versao}
-                        </Badge>
-                        {getBadgeSituacao(plano.situacao)}
-                      </div>
-                    </div>
-
-                    <h3 className="font-medium text-sm text-foreground line-clamp-1">
-                      {plano.nome}
-                    </h3>
-
-                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/40">
-                      <span>{plano.expand?.empresa?.nome_fantasia || 'Empresa'}</span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {plano.periodo_referencia}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-
-            {planos.length === 0 && !loading && (
-              <div className="p-8 text-center border border-dashed rounded-lg text-muted-foreground text-sm">
-                Nenhum plano encontrado para a BU selecionada.
+      {/* 2. SITUAÇÃO A: LISTA GERAL DE PLANOS */}
+      {modoVisualizacao === 'lista' && (
+        <div className="space-y-4">
+          {/* Barra de Filtros e Busca da Lista */}
+          <Card className="border shadow-sm">
+            <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex flex-1 items-center gap-2 max-w-md">
+                <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                <Input
+                  placeholder="Buscar por nome, código ou responsável..."
+                  value={termoBuscaPlano}
+                  onChange={(e) => setTermoBuscaPlano(e.target.value)}
+                  className="h-8 text-xs"
+                />
               </div>
-            )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                {isRh && (
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs text-muted-foreground">BU:</Label>
+                    <Select value={filtroEmpresa} onValueChange={setFiltroEmpresa}>
+                      <SelectTrigger className="w-[150px] h-8 text-xs">
+                        <SelectValue placeholder="Todas as BUs" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas">Todas as BUs</SelectItem>
+                        {empresas.map((e) => (
+                          <SelectItem key={e.id} value={e.id}>
+                            {e.nome_fantasia || e.razao_social}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Situação:</Label>
+                  <Select value={filtroSituacao} onValueChange={setFiltroSituacao}>
+                    <SelectTrigger className="w-[140px] h-8 text-xs">
+                      <SelectValue placeholder="Todas as situações" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todas">Todas as situações</SelectItem>
+                      <SelectItem value="Rascunho">Rascunho</SelectItem>
+                      <SelectItem value="Em análise">Em análise</SelectItem>
+                      <SelectItem value="Aprovado">Aprovado</SelectItem>
+                      <SelectItem value="Devolvido para ajuste">Devolvido para ajuste</SelectItem>
+                      <SelectItem value="Arquivado">Arquivado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Período:</Label>
+                  <Select value={filtroPeriodoPlano} onValueChange={setFiltroPeriodoPlano}>
+                    <SelectTrigger className="w-[130px] h-8 text-xs">
+                      <SelectValue placeholder="Todos os períodos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos os períodos</SelectItem>
+                      {periodosDisponiveis.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {(filtroEmpresa !== 'todas' ||
+                  filtroSituacao !== 'todas' ||
+                  filtroPeriodoPlano !== 'todos' ||
+                  termoBuscaPlano) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFiltroEmpresa('todas')
+                      setFiltroSituacao('todas')
+                      setFiltroPeriodoPlano('todos')
+                      setTermoBuscaPlano('')
+                    }}
+                    className="h-8 text-xs px-2 text-muted-foreground"
+                  >
+                    Limpar
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tabela de Planos com largura total */}
+          <div className="border rounded-lg bg-card overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/40 border-b border-border/60 text-muted-foreground font-semibold">
+                  <tr>
+                    <th className="p-3 pl-4">Código / Nome do Plano</th>
+                    <th className="p-3">Situação</th>
+                    <th className="p-3">Versão</th>
+                    <th className="p-3">Escopo (BU)</th>
+                    <th className="p-3">Período</th>
+                    <th className="p-3">Responsável</th>
+                    <th className="p-3 text-right pr-4">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {planosFiltrados.map((plano) => {
+                    const isAtivo = planoSelecionado?.id === plano.id
+                    return (
+                      <tr
+                        key={plano.id}
+                        onClick={() => {
+                          setPlanoSelecionado(plano)
+                          setModoVisualizacao('workspace')
+                        }}
+                        className={`cursor-pointer transition-colors hover:bg-muted/30 ${isAtivo ? 'bg-[#FEF1EA]/60 dark:bg-[#E9530E]/10' : ''}`}
+                      >
+                        <td className="p-3 pl-4">
+                          <div className="font-semibold text-foreground">{plano.nome}</div>
+                          <div className="font-mono text-[11px] text-[#E9530E] mt-0.5">
+                            {plano.codigo}
+                          </div>
+                        </td>
+                        <td className="p-3">{getBadgeSituacao(plano.situacao)}</td>
+                        <td className="p-3">
+                          <Badge variant="outline" className="font-mono text-[10px]">
+                            {plano.rotulo_versao}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-muted-foreground">
+                          {plano.expand?.empresa?.nome_fantasia || 'Grupo Global'}
+                        </td>
+                        <td className="p-3">
+                          <span className="inline-flex items-center gap-1 font-mono text-[11px]">
+                            <Calendar className="w-3 h-3 text-muted-foreground" />
+                            {plano.periodo_referencia}
+                          </span>
+                        </td>
+                        <td className="p-3 text-muted-foreground">
+                          {plano.responsavel_nome ||
+                            plano.expand?.responsavel?.name ||
+                            'Não informado'}
+                        </td>
+                        <td className="p-3 text-right pr-4">
+                          <Button
+                            size="sm"
+                            variant={isAtivo ? 'default' : 'outline'}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setPlanoSelecionado(plano)
+                              setModoVisualizacao('workspace')
+                            }}
+                            className={`h-7 text-xs px-2.5 ${isAtivo ? 'bg-[#E9530E] hover:bg-[#d44808] text-white' : ''}`}
+                          >
+                            Abrir Plano
+                          </Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+
+                  {planosFiltrados.length === 0 && !loading && (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-muted-foreground text-xs">
+                        Nenhum plano encontrado com os filtros aplicados.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Painel Direito: Detalhes, Demandas, Posições e Integração */}
-        <div className="lg:col-span-8">
-          {planoSelecionado ? (
-            <div className="space-y-6">
-              {/* Barra de Ações e Estado do Plano */}
+      {/* 3. SITUAÇÃO B: ESPAÇO DE TRABALHO DO PLANO SELECIONADO (LARGURA TOTAL) */}
+      {modoVisualizacao === 'workspace' && (
+        <div className="space-y-5">
+          {!planoSelecionado ? (
+            <Card className="border-dashed p-10 text-center space-y-3">
+              <Layers className="w-10 h-10 text-muted-foreground mx-auto" />
+              <div>
+                <h3 className="font-semibold text-foreground">Nenhum plano selecionado</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Selecione um plano na lista ou crie um novo plano para iniciar a análise.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setModoVisualizacao('lista')}
+                className="gap-1.5 text-xs"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Ir para Lista de Planos
+              </Button>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {/* Barra Superior do Workspace: Retorno à lista + Seletor Compacto de Plano + Metadados */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-muted/40 rounded-lg border border-border/60">
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setModoVisualizacao('lista')}
+                    className="h-8 text-xs gap-1.5 shrink-0"
+                    title="Voltar para a lista completa mantendo os filtros"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    Lista de Planos
+                  </Button>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground hidden md:inline">
+                      Trocar plano:
+                    </span>
+                    <Select
+                      value={planoSelecionado.id}
+                      onValueChange={(id) => {
+                        const target = planos.find((p) => p.id === id)
+                        if (target) setPlanoSelecionado(target)
+                      }}
+                    >
+                      <SelectTrigger className="w-[200px] sm:w-[260px] h-8 text-xs bg-background font-medium">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {planos.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.codigo} - {p.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 font-mono">
+                    <Calendar className="w-3 h-3" />
+                    Período: <strong>{planoSelecionado.periodo_referencia}</strong>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    BU:{' '}
+                    <strong>
+                      {planoSelecionado.expand?.empresa?.nome_fantasia || 'Corporativo'}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* Cabeçalho do Plano: Um único título principal, situação, versão e ação principal do estado */}
               <Card className="border shadow-sm">
-                <CardHeader className="p-5 pb-3">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-lg font-bold text-foreground">
+                <CardHeader className="p-4 sm:p-5 pb-3">
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-xl font-bold text-foreground">
                           {planoSelecionado.nome}
                         </h2>
-                        <Badge variant="outline" className="font-mono">
+                        <Badge variant="outline" className="font-mono text-xs font-semibold">
                           {planoSelecionado.rotulo_versao}
                         </Badge>
                         {getBadgeSituacao(planoSelecionado.situacao)}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Ref: {planoSelecionado.codigo} • Responsável:{' '}
-                        {planoSelecionado.responsavel_nome ||
-                          planoSelecionado.expand?.responsavel?.name}{' '}
-                        • BU: {planoSelecionado.expand?.empresa?.nome_fantasia}
+                      <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span>
+                          Código:{' '}
+                          <strong className="font-mono text-foreground">
+                            {planoSelecionado.codigo}
+                          </strong>
+                        </span>
+                        <span>•</span>
+                        <span>
+                          Responsável:{' '}
+                          <strong>
+                            {planoSelecionado.responsavel_nome ||
+                              planoSelecionado.expand?.responsavel?.name ||
+                              'Não informado'}
+                          </strong>
+                        </span>
+                        <span>•</span>
+                        <span>
+                          Última atualização:{' '}
+                          {new Date(
+                            planoSelecionado.updated || planoSelecionado.created,
+                          ).toLocaleDateString('pt-BR')}
+                        </span>
                       </p>
                     </div>
 
-                    {/* Botões de Transição de Estado */}
+                    {/* Ação Principal Contextual por Estado (uma ação prioritária laranja / destacada) */}
                     <div className="flex flex-wrap items-center gap-2">
                       {planoSelecionado.situacao === 'Rascunho' && (
                         <Button
                           size="sm"
                           onClick={handleSubmeter}
-                          className="bg-blue-600 hover:bg-blue-700 text-white gap-1"
+                          className="bg-[#E9530E] hover:bg-[#d44808] text-white gap-1.5 text-xs h-8 shadow-sm"
+                          title="Submeter plano para análise e congelamento de versão"
                         >
                           <Send className="w-3.5 h-3.5" />
                           Submeter para Análise
@@ -694,79 +987,122 @@ export const PlanejamentoForcaPage: React.FC = () => {
                         <Button
                           size="sm"
                           onClick={handleSubmeter}
-                          className="bg-blue-600 hover:bg-blue-700 text-white gap-1"
+                          className="bg-[#E9530E] hover:bg-[#d44808] text-white gap-1.5 text-xs h-8 shadow-sm"
+                          title="Reenviar plano após ajustes solicitados"
                         >
                           <Send className="w-3.5 h-3.5" />
                           Reenviar para Análise
                         </Button>
                       )}
 
-                      {planoSelecionado.situacao === 'Em análise' && isRh && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setModalDevolverOpen(true)}
-                            className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            Devolver com Ajuste
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleAprovar(false)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Aprovar Plano
-                          </Button>
-                        </>
+                      {planoSelecionado.situacao === 'Em análise' && (
+                        <div className="flex items-center gap-2">
+                          {isRh && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setModalDevolverOpen(true)}
+                              className="text-amber-700 dark:text-amber-300 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1.5 text-xs h-8"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              Devolver com Ajuste
+                            </Button>
+                          )}
+
+                          {isRh && planoSelecionado.alcada_aprovacao_definida ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleAprovar(false)}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-xs h-8 shadow-sm"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Aprovar Plano
+                            </Button>
+                          ) : isRh ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled
+                              className="opacity-60 cursor-not-allowed gap-1.5 text-xs h-8"
+                              title="Aprovação indisponível: alçada de governança não definida para este escopo"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Aprovação Bloqueada (Alçada)
+                            </Button>
+                          ) : null}
+                        </div>
                       )}
 
                       {planoSelecionado.situacao === 'Aprovado' && (
-                        <>
+                        <div className="flex items-center gap-2">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => setModalSnapshotOpen(true)}
-                            className="gap-1 text-xs"
+                            className="gap-1.5 text-xs h-8"
                           >
                             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                             Ver Snapshot Histórico
                           </Button>
                           <Button
                             size="sm"
-                            variant="secondary"
                             onClick={handleIniciarRevisao}
-                            className="gap-1 text-xs"
+                            className="bg-[#E9530E] hover:bg-[#d44808] text-white gap-1.5 text-xs h-8 shadow-sm"
+                            title="Clonar este plano aprovado como base para uma nova versão de trabalho"
                           >
                             <Copy className="w-3.5 h-3.5" />
                             Iniciar Nova Revisão
                           </Button>
-                        </>
+                        </div>
                       )}
                     </div>
                   </div>
                 </CardHeader>
 
-                <CardContent className="p-5 pt-0 space-y-4">
+                <CardContent className="p-4 sm:p-5 pt-0 space-y-3">
                   {/* Justificativa de Devolução (se houver) */}
                   {planoSelecionado.justificativa_devolucao && (
-                    <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-xs text-destructive flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-800 rounded-md text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-600 shrink-0" />
                       <div>
-                        <strong>Motivo da Devolução:</strong>{' '}
+                        <strong>Motivo da Devolução pelo RH:</strong>{' '}
                         {planoSelecionado.justificativa_devolucao}
                       </div>
                     </div>
                   )}
 
+                  {/* Alerta de Alçada Bloqueada em Análise */}
+                  {planoSelecionado.situacao === 'Em análise' &&
+                    !planoSelecionado.alcada_aprovacao_definida && (
+                      <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-md text-xs text-slate-700 dark:text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Lock className="w-4 h-4 text-slate-500 shrink-0" />
+                          <span>
+                            <strong>Alçada de Aprovação:</strong> A alçada executiva para este
+                            escopo não foi definida formalmente no sistema de governança. O botão de
+                            aprovação permanece bloqueado por conformidade.
+                          </span>
+                        </div>
+                        {isRh && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleAprovar(true)}
+                            className="text-[11px] h-7 px-2 border-amber-300 text-amber-800 dark:text-amber-300 hover:bg-amber-50 shrink-0"
+                            title="Permite aprovação forçada apenas no ambiente de homologação para testes de regressão"
+                          >
+                            Simular Liberação de Alçada (Homologação)
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
                   {/* Resumo Financeiro Preliminar */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                     <div className="p-3 bg-muted/40 rounded-lg border border-border/40">
                       <div className="text-[11px] font-medium text-muted-foreground flex items-center justify-between">
                         <span>Custo Recorrente Mensal</span>
-                        <DollarSign className="w-3.5 h-3.5 text-primary" />
+                        <DollarSign className="w-3.5 h-3.5 text-[#E9530E]" />
                       </div>
                       <div className="text-lg font-bold mt-1">
                         R${' '}
@@ -776,7 +1112,7 @@ export const PlanejamentoForcaPage: React.FC = () => {
                         <span className="text-xs text-muted-foreground font-normal"> /mês</span>
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
-                        Estimativa preliminar (não gera lançamento contábil)
+                        Estimativa preliminar de folha/recorrência
                       </p>
                     </div>
 
@@ -792,7 +1128,7 @@ export const PlanejamentoForcaPage: React.FC = () => {
                         })}
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
-                        Entregáveis ou contratos fechados temporários
+                        Contratos pontuais ou entregáveis fixos
                       </p>
                     </div>
 
@@ -807,428 +1143,624 @@ export const PlanejamentoForcaPage: React.FC = () => {
                       </div>
                       <div className="text-sm font-semibold mt-1">
                         {resumoCustos.isTotalParcial ? (
-                          <Badge variant="outline" className="border-amber-400 text-amber-600">
-                            CÁLCULO PARCIAL
+                          <Badge
+                            variant="outline"
+                            className="border-amber-400 text-amber-700 bg-amber-50/50"
+                          >
+                            Estimativas incompletas
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="border-emerald-400 text-emerald-600">
-                            COMPLETO
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-400 text-emerald-700 bg-emerald-50/50"
+                          >
+                            Estimativas preenchidas
                           </Badge>
                         )}
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {resumoCustos.custosInformadosCount} informadas •{' '}
+                        {resumoCustos.custosInformadosCount} preenchidas •{' '}
                         {resumoCustos.custosNaoInformadosCount} sem estimativa
                       </p>
                     </div>
                   </div>
 
-                  {/* Pendências de Preenchimento */}
+                  {/* Pendências para Aprovação */}
                   {pendencias.length > 0 && (
-                    <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md text-xs space-y-1">
-                      <div className="font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        Avisos e Pendências do Plano:
+                    <div className="p-3 bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md text-xs space-y-1">
+                      <div className="font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                        Pendências para aprovação:
                       </div>
-                      <ul className="list-disc list-inside text-amber-700 dark:text-amber-400 pl-1">
+                      <ul className="list-disc list-inside text-amber-700 dark:text-amber-400 pl-1 space-y-0.5">
                         {pendencias.map((pend, idx) => (
                           <li key={idx}>{pend}</li>
                         ))}
                       </ul>
-                      {!planoSelecionado.alcada_aprovacao_definida &&
-                        planoSelecionado.situacao === 'Em análise' && (
-                          <div className="pt-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-[10px] h-6 px-2 text-amber-700 border-amber-300 hover:bg-amber-100"
-                              onClick={() => handleAprovar(true)}
-                            >
-                              Autorizar Aprovação em Homologação (Teste Explícito)
-                            </Button>
-                          </div>
-                        )}
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Abas: Demandas, Posições, Rastreabilidade de Contratações, Etapa 4 e Etapa 5 (Cenários & Indicadores) */}
-              <Tabs defaultValue="capacidade_alocacoes" className="w-full">
-                <TabsList className="grid w-full grid-cols-6">
-                  <TabsTrigger
-                    value="capacidade_alocacoes"
-                    className="text-xs font-semibold text-primary"
-                  >
-                    Capacidade &amp; Alocações
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="cenarios"
-                    className="text-xs font-semibold text-indigo-600 dark:text-indigo-400"
-                  >
-                    Cenários &amp; IA (Etapa 5)
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="indicadores"
-                    className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-                  >
-                    Indicadores (Auditáveis)
-                  </TabsTrigger>
-                  <TabsTrigger value="posicoes" className="text-xs">
-                    Posições ({posicoes.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="demandas" className="text-xs">
-                    Demandas ({demandas.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="solicitacoes" className="text-xs">
-                    Vagas ({solicitacoes.length})
-                  </TabsTrigger>
-                </TabsList>
+              {/* 4. ARQUITETURA DE INFORMAÇÃO SIMPLIFICADA EM 6 GRUPOS CLAROS */}
+              <Tabs
+                value={grupoAbaAtiva}
+                onValueChange={setGrupoAbaAtiva}
+                className="w-full space-y-4"
+              >
+                {/* Navegação Principal Adaptável com Rótulos Claros */}
+                <div className="w-full overflow-x-auto pb-1">
+                  <TabsList className="inline-flex w-auto min-w-full justify-start p-1 bg-muted/60 h-auto">
+                    <TabsTrigger
+                      value="visao_geral"
+                      className="text-xs font-medium py-1.5 px-3 data-[state=active]:bg-[#E9530E] data-[state=active]:text-white transition-all whitespace-nowrap"
+                    >
+                      Visão geral
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="demandas_posicoes"
+                      className="text-xs font-medium py-1.5 px-3 data-[state=active]:bg-[#E9530E] data-[state=active]:text-white transition-all whitespace-nowrap"
+                    >
+                      Demandas e posições ({posicoes.length})
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="capacidade_alocacoes"
+                      className="text-xs font-medium py-1.5 px-3 data-[state=active]:bg-[#E9530E] data-[state=active]:text-white transition-all whitespace-nowrap"
+                    >
+                      Capacidade e alocações
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="custos"
+                      className="text-xs font-medium py-1.5 px-3 data-[state=active]:bg-[#E9530E] data-[state=active]:text-white transition-all whitespace-nowrap"
+                    >
+                      Custos
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="cenarios"
+                      className="text-xs font-medium py-1.5 px-3 data-[state=active]:bg-[#E9530E] data-[state=active]:text-white transition-all whitespace-nowrap"
+                    >
+                      Cenários
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="historico_aprovacoes"
+                      className="text-xs font-medium py-1.5 px-3 data-[state=active]:bg-[#E9530E] data-[state=active]:text-white transition-all whitespace-nowrap"
+                    >
+                      Histórico e aprovações
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
 
-                {/* ABA ETAPA 5: CENÁRIOS COMPARATIVOS, PREMISSAS E APOIO DE IA */}
-                <TabsContent value="cenarios" className="space-y-4 pt-3">
+                {/* GRUPO 1: VISÃO GERAL (Indicadores consolidados e resumo executivo) */}
+                <TabsContent value="visao_geral" className="space-y-4 m-0">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <Card className="border shadow-none">
+                      <CardContent className="p-4 space-y-1">
+                        <div className="text-xs text-muted-foreground flex items-center justify-between">
+                          <span>Postos Dimensionados</span>
+                          <Users className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        <div className="text-2xl font-bold">{posicoes.length}</div>
+                        <p className="text-[11px] text-muted-foreground">
+                          {posicoes.filter((p) => p.tipo === 'nova_posicao').length} novos •{' '}
+                          {posicoes.filter((p) => p.tipo === 'substituicao').length} substituições
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border shadow-none">
+                      <CardContent className="p-4 space-y-1">
+                        <div className="text-xs text-muted-foreground flex items-center justify-between">
+                          <span>Demandas Mapeadas</span>
+                          <Layers className="w-3.5 h-3.5 text-blue-600" />
+                        </div>
+                        <div className="text-2xl font-bold">{demandas.length}</div>
+                        <p className="text-[11px] text-muted-foreground">
+                          {demandas.filter((d) => d.grau_confirmacao === 'confirmada').length}{' '}
+                          confirmadas formalmente
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border shadow-none">
+                      <CardContent className="p-4 space-y-1">
+                        <div className="text-xs text-muted-foreground flex items-center justify-between">
+                          <span>Custo Recorrente/Mês</span>
+                          <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                        </div>
+                        <div className="text-2xl font-bold">
+                          R${' '}
+                          {resumoCustos.totalRecorrenteMensal.toLocaleString('pt-BR', {
+                            maximumFractionDigits: 0,
+                          })}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          {resumoCustos.custosInformadosCount} de {posicoes.length} estimadas
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border shadow-none">
+                      <CardContent className="p-4 space-y-1">
+                        <div className="text-xs text-muted-foreground flex items-center justify-between">
+                          <span>Vagas em Execução</span>
+                          <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
+                        </div>
+                        <div className="text-2xl font-bold">{solicitacoes.length}</div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Rastreabilidade independente
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Painel Auditável de Indicadores da Força */}
+                  <AbaIndicadoresForca
+                    empresaId={planoSelecionado.empresa}
+                    periodoReferencia={planoSelecionado.periodo_referencia || '2026-11'}
+                  />
+                </TabsContent>
+
+                {/* GRUPO 2: DEMANDAS E POSIÇÕES */}
+                <TabsContent value="demandas_posicoes" className="space-y-6 m-0">
+                  {/* Seção Posições */}
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-2">
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground">
+                          Postos Organizacionais ({posicoes.length})
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          Postos vinculados ao catálogo corporativo de cargos, centros de custo e
+                          estimativas preliminares.
+                        </p>
+                      </div>
+
+                      {(planoSelecionado.situacao === 'Rascunho' ||
+                        planoSelecionado.situacao === 'Devolvido para ajuste') && (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setNovaPosCargo(cargos[0]?.id || '')
+                            setNovaPosDemandaId(demandas[0]?.id || 'nenhuma')
+                            setNovaPosCentroCusto(centrosCusto[0]?.id || 'nenhum')
+                            setNovaPosProposito('')
+                            setNovaPosQtdLote(1)
+                            setModalNovaPosicaoOpen(true)
+                          }}
+                          className="gap-1.5 h-8 text-xs bg-[#E9530E] hover:bg-[#d44808] text-white"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Adicionar Posição
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {posicoes.map((pos) => {
+                        const solicitacaoAtiva = solicitacoes.find(
+                          (s) => s.posicao === pos.id && s.status !== 'cancelada',
+                        )
+
+                        return (
+                          <Card key={pos.id} className="border shadow-none">
+                            <CardContent className="p-3.5 space-y-2">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono text-xs font-bold text-[#E9530E]">
+                                    {pos.codigo}
+                                  </span>
+                                  <Badge variant="secondary" className="text-xs font-medium">
+                                    {pos.expand?.cargo?.nome || 'Cargo do Catálogo'}
+                                  </Badge>
+                                  {pos.lote_identificador && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] text-muted-foreground"
+                                    >
+                                      Lote ({pos.lote_indice})
+                                    </Badge>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {pos.tipo === 'nova_posicao'
+                                      ? 'Nova Posição'
+                                      : pos.tipo === 'substituicao'
+                                        ? 'Substituição'
+                                        : 'Necessidade Temporária'}
+                                  </Badge>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      pos.criticidade === 'Critica' || pos.criticidade === 'Alta'
+                                        ? 'border-destructive text-destructive'
+                                        : ''
+                                    }
+                                  >
+                                    {pos.criticidade}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              <p className="text-xs text-foreground">
+                                <strong>Propósito:</strong> {pos.proposito_resultados}
+                              </p>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-muted-foreground pt-1">
+                                <div>
+                                  <span className="font-medium text-foreground">Modalidade:</span>{' '}
+                                  {pos.modalidade_prevista}
+                                </div>
+                                <div>
+                                  <span className="font-medium text-foreground">Início:</span>{' '}
+                                  {new Date(pos.data_inicio_prevista).toLocaleDateString('pt-BR')}
+                                </div>
+                                <div>
+                                  <span className="font-medium text-foreground">
+                                    Centro de Custo:
+                                  </span>{' '}
+                                  {pos.expand?.centro_custo?.codigo || 'N/A'}
+                                </div>
+                                <div>
+                                  <span className="font-medium text-foreground">
+                                    Custo Estimado:
+                                  </span>{' '}
+                                  {pos.custo_informado && pos.custo_estimado !== undefined ? (
+                                    <span className="font-bold text-foreground">
+                                      R$ {pos.custo_estimado.toLocaleString('pt-BR')} (
+                                      {pos.custo_tipo})
+                                    </span>
+                                  ) : (
+                                    <span className="text-amber-600 font-medium">
+                                      Não informado
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {planoSelecionado.situacao === 'Aprovado' && (
+                                <div className="pt-2 border-t border-border/40 flex items-center justify-between flex-wrap gap-2">
+                                  <div className="text-[11px] text-muted-foreground">
+                                    {solicitacaoAtiva ? (
+                                      <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        Solicitação de contratação em andamento (Vaga vinculada)
+                                      </span>
+                                    ) : (
+                                      <span>
+                                        Posição aprovada disponível para solicitação de vaga.
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {!solicitacaoAtiva ? (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleGerarSolicitacaoContratacao(pos)}
+                                      className="h-7 text-xs gap-1 bg-[#E9530E] hover:bg-[#d44808] text-white"
+                                    >
+                                      <Briefcase className="w-3.5 h-3.5" />
+                                      Abrir Solicitação de Vaga
+                                    </Button>
+                                  ) : (
+                                    <Badge
+                                      variant="outline"
+                                      className="border-emerald-300 text-emerald-700 bg-emerald-50"
+                                    >
+                                      Vaga Solicitada
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+
+                      {posicoes.length === 0 && (
+                        <div className="p-8 text-center border border-dashed rounded-lg text-muted-foreground text-xs">
+                          Nenhum posto planejado cadastrado neste plano.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Seção Demandas */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-2">
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground">
+                          Demandas Corporativas Mapeadas ({demandas.length})
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          Necessidades estratégicas, gargalos e entregáveis esperados que justificam
+                          o dimensionamento.
+                        </p>
+                      </div>
+
+                      {(planoSelecionado.situacao === 'Rascunho' ||
+                        planoSelecionado.situacao === 'Devolvido para ajuste') && (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setNovaDemOrigem('')
+                            setNovaDemProblema('')
+                            setNovaDemResultado('')
+                            setNovaDemConsequencia('')
+                            setNovaDemRefProjeto('')
+                            setModalNovaDemandaOpen(true)
+                          }}
+                          className="gap-1.5 h-8 text-xs bg-[#E9530E] hover:bg-[#d44808] text-white"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Nova Demanda
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {demandas.map((dem) => (
+                        <Card key={dem.id} className="border shadow-none">
+                          <CardContent className="p-3.5 space-y-2">
+                            <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-bold text-[#E9530E]">
+                                  {dem.codigo}
+                                </span>
+                                <span className="font-medium text-xs text-foreground">
+                                  {dem.origem}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    dem.grau_confirmacao === 'confirmada'
+                                      ? 'border-emerald-500 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20'
+                                      : dem.grau_confirmacao === 'provavel'
+                                        ? 'border-blue-500 text-blue-700 bg-blue-50'
+                                        : 'border-amber-500 text-amber-700 bg-amber-50'
+                                  }
+                                >
+                                  {dem.grau_confirmacao.toUpperCase()}
+                                </Badge>
+                                <Badge variant="secondary">{dem.prioridade}</Badge>
+                              </div>
+                            </div>
+
+                            <div className="text-xs space-y-1">
+                              <p>
+                                <strong>Problema / Necessidade:</strong> {dem.problema_necessidade}
+                              </p>
+                              <p>
+                                <strong>Resultado Esperado:</strong> {dem.resultado_esperado}
+                              </p>
+                              <p className="text-destructive dark:text-red-400">
+                                <strong>Risco de não atendimento:</strong>{' '}
+                                {dem.consequencia_nao_atendimento}
+                              </p>
+                            </div>
+
+                            {dem.referencia_projeto_cliente && (
+                              <div className="p-2 bg-muted/40 rounded border border-border/40 text-[11px] text-muted-foreground flex items-center justify-between">
+                                <span>Ref. Projeto: {dem.referencia_projeto_cliente}</span>
+                                <Badge variant="outline" className="text-[10px]">
+                                  Informativo (Sem vínculo direto)
+                                </Badge>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+
+                      {demandas.length === 0 && (
+                        <div className="p-8 text-center border border-dashed rounded-lg text-muted-foreground text-xs">
+                          Nenhuma demanda registrada para este plano.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* GRUPO 3: CAPACIDADE E ALOCAÇÕES */}
+                <TabsContent value="capacidade_alocacoes" className="space-y-4 m-0">
+                  <AbaCapacidadeAlocacoes
+                    plano={planoSelecionado}
+                    posicoesPlano={posicoes}
+                    filtroEmpresa={filtroEmpresa}
+                    ocultarHeaderProps={true}
+                  />
+                </TabsContent>
+
+                {/* GRUPO 4: CUSTOS */}
+                <TabsContent value="custos" className="space-y-4 m-0">
+                  <Card className="border shadow-none">
+                    <CardHeader className="p-4 pb-2">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Demonstrativo Consolidado de Custos da Força
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Valores agregados baseados nos postos dimensionados e contratos vigentes
+                        (previsão orçamentária).
+                      </p>
+                    </CardHeader>
+                    <CardContent className="p-4 space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="p-3 bg-muted/30 rounded border">
+                          <span className="text-xs text-muted-foreground">
+                            Folha Mensal Estimada
+                          </span>
+                          <div className="text-xl font-bold mt-1 text-[#E9530E]">
+                            R${' '}
+                            {resumoCustos.totalRecorrenteMensal.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                            })}
+                          </div>
+                          <span className="text-[11px] text-muted-foreground">
+                            12 meses: R${' '}
+                            {(resumoCustos.totalRecorrenteMensal * 12).toLocaleString('pt-BR', {
+                              maximumFractionDigits: 0,
+                            })}
+                          </span>
+                        </div>
+                        <div className="p-3 bg-muted/30 rounded border">
+                          <span className="text-xs text-muted-foreground">
+                            Custos Pontuais Totais
+                          </span>
+                          <div className="text-xl font-bold mt-1 text-amber-600">
+                            R${' '}
+                            {resumoCustos.totalPontual.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                            })}
+                          </div>
+                          <span className="text-[11px] text-muted-foreground">
+                            Entregas fechadas / projetos temporários
+                          </span>
+                        </div>
+                        <div className="p-3 bg-muted/30 rounded border">
+                          <span className="text-xs text-muted-foreground">
+                            Cobertura Orçamentária
+                          </span>
+                          <div className="text-sm font-semibold mt-1">
+                            {resumoCustos.isTotalParcial ? (
+                              <Badge variant="outline" className="border-amber-400 text-amber-700">
+                                Estimativa Parcial
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="border-emerald-400 text-emerald-700"
+                              >
+                                Estimativas Concluídas
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-muted-foreground">
+                            {resumoCustos.custosNaoInformadosCount} sem valor formal
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Visão de sub-seção de custos do componente existente de capacidade */}
+                      <AbaCapacidadeAlocacoes
+                        plano={planoSelecionado}
+                        posicoesPlano={posicoes}
+                        filtroEmpresa={filtroEmpresa}
+                        secaoAtiva="custos"
+                        ocultarHeaderProps={true}
+                      />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* GRUPO 5: CENÁRIOS */}
+                <TabsContent value="cenarios" className="space-y-4 m-0">
                   <AbaCenariosComparador
                     empresaId={planoSelecionado.empresa}
                     planoBaseId={planoSelecionado.id}
                   />
                 </TabsContent>
 
-                {/* ABA ETAPA 5: INDICADORES DETERMINÍSTICOS E VERIFICÁVEIS */}
-                <TabsContent value="indicadores" className="space-y-4 pt-3">
-                  <AbaIndicadoresForca
-                    empresaId={planoSelecionado.empresa}
-                    periodoReferencia="2026-11"
-                  />
-                </TabsContent>
-
-                {/* ABA ETAPA 4: CAPACIDADE, ALOCAÇÕES, OCUPAÇÕES, COMPETÊNCIAS E CUSTOS */}
-                <TabsContent value="capacidade_alocacoes" className="space-y-4 pt-3">
-                  <AbaCapacidadeAlocacoes
-                    plano={planoSelecionado}
-                    posicoesPlano={posicoes}
-                    filtroEmpresa={filtroEmpresa}
-                  />
-                </TabsContent>
-
-                {/* ABA POSIÇÕES */}
-                <TabsContent value="posicoes" className="space-y-4 pt-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold">
-                        Postos Organizacionais Identificados
+                {/* GRUPO 6: HISTÓRICO E APROVAÇÕES */}
+                <TabsContent value="historico_aprovacoes" className="space-y-4 m-0">
+                  {/* Execução de Vagas vinculadas */}
+                  <div className="space-y-3">
+                    <div className="border-b border-border/40 pb-2">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Rastreabilidade e Execução de Contratações
                       </h3>
                       <p className="text-xs text-muted-foreground">
-                        Postos vinculados a cargos do catálogo v0.0.85, centros de custo e demandas
-                        de origem.
+                        Acompanhamento de posições transformadas em processos seletivos formais.
                       </p>
                     </div>
 
-                    {(planoSelecionado.situacao === 'Rascunho' ||
-                      planoSelecionado.situacao === 'Devolvido para ajuste') && (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setNovaPosCargo(cargos[0]?.id || '')
-                          setNovaPosDemandaId(demandas[0]?.id || 'nenhuma')
-                          setNovaPosCentroCusto(centrosCusto[0]?.id || 'nenhum')
-                          setNovaPosProposito('')
-                          setNovaPosQtdLote(1)
-                          setModalNovaPosicaoOpen(true)
-                        }}
-                        className="gap-1.5 h-8 text-xs"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Adicionar Posição
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    {posicoes.map((pos) => {
-                      const solicitacaoAtiva = solicitacoes.find(
-                        (s) => s.posicao === pos.id && s.status !== 'cancelada',
-                      )
-
-                      return (
-                        <Card key={pos.id} className="border shadow-none">
-                          <CardContent className="p-4 space-y-3">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-2">
+                    <div className="space-y-2.5">
+                      {solicitacoes.map((sol) => (
+                        <Card key={sol.id} className="border shadow-none">
+                          <CardContent className="p-3.5 space-y-2">
+                            <div className="flex items-center justify-between border-b border-border/40 pb-2">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs font-bold text-primary">
-                                  {pos.codigo}
+                                <span className="font-mono text-xs font-bold text-[#E9530E]">
+                                  Vaga ID: {sol.vaga || 'Aguardando publicação'}
                                 </span>
-                                <Badge variant="secondary" className="text-xs font-medium">
-                                  {pos.expand?.cargo?.nome || 'Cargo do Catálogo'}
-                                </Badge>
-                                {pos.lote_identificador && (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[10px] text-muted-foreground"
-                                  >
-                                    Lote ({pos.lote_indice})
-                                  </Badge>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-xs">
-                                  {pos.tipo === 'nova_posicao'
-                                    ? 'Nova Posição'
-                                    : pos.tipo === 'substituicao'
-                                      ? 'Substituição'
-                                      : 'Necessidade Temporária'}
-                                </Badge>
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    pos.criticidade === 'Critica' || pos.criticidade === 'Alta'
-                                      ? 'border-destructive text-destructive'
-                                      : ''
-                                  }
-                                >
-                                  {pos.criticidade}
+                                  {sol.status}
                                 </Badge>
                               </div>
+                              <span className="text-[11px] text-muted-foreground">
+                                {new Date(sol.data_solicitacao).toLocaleDateString('pt-BR')}
+                              </span>
                             </div>
 
-                            <p className="text-xs text-foreground">
-                              <strong>Propósito:</strong> {pos.proposito_resultados}
-                            </p>
-
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-muted-foreground pt-1">
-                              <div>
-                                <span className="font-medium text-foreground">Modalidade:</span>{' '}
-                                {pos.modalidade_prevista}
-                              </div>
-                              <div>
-                                <span className="font-medium text-foreground">Início:</span>{' '}
-                                {new Date(pos.data_inicio_prevista).toLocaleDateString('pt-BR')}
-                              </div>
-                              <div>
-                                <span className="font-medium text-foreground">
-                                  Centro de Custo:
-                                </span>{' '}
-                                {pos.expand?.centro_custo?.codigo || 'N/A'}
-                              </div>
-                              <div>
-                                <span className="font-medium text-foreground">Custo Estimado:</span>{' '}
-                                {pos.custo_informado && pos.custo_estimado !== undefined ? (
-                                  <span className="font-bold text-foreground">
-                                    R$ {pos.custo_estimado.toLocaleString('pt-BR')} (
-                                    {pos.custo_tipo})
-                                  </span>
-                                ) : (
-                                  <span className="text-amber-600 font-medium">Não informado</span>
-                                )}
-                              </div>
+                            <div className="text-xs text-muted-foreground">
+                              Solicitante: <strong>{sol.solicitado_por_nome}</strong> • Posição:{' '}
+                              <strong>{sol.posicao}</strong>
                             </div>
 
-                            {/* Ações de Integração com Vagas para Posição Aprovada */}
-                            {planoSelecionado.situacao === 'Aprovado' && (
-                              <div className="pt-2 border-t border-border/40 flex items-center justify-between">
-                                <div className="text-[11px] text-muted-foreground">
-                                  {solicitacaoAtiva ? (
-                                    <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                                      <CheckCircle2 className="w-3.5 h-3.5" />
-                                      Solicitação de contratação em andamento (Vaga vinculada)
-                                    </span>
-                                  ) : (
-                                    <span>
-                                      Posição aprovada disponível para abertura de contratação.
-                                    </span>
-                                  )}
-                                </div>
-
-                                {!solicitacaoAtiva ? (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleGerarSolicitacaoContratacao(pos)}
-                                    className="h-7 text-xs gap-1 bg-primary"
-                                  >
-                                    <Briefcase className="w-3.5 h-3.5" />
-                                    Abrir Solicitação de Vaga
-                                  </Button>
-                                ) : (
-                                  <Badge
-                                    variant="outline"
-                                    className="border-emerald-300 text-emerald-700 bg-emerald-50"
-                                  >
-                                    Vaga Solicitada
-                                  </Badge>
-                                )}
+                            {sol.historico_rastreabilidade && (
+                              <div className="text-[11px] bg-muted/30 p-2 rounded border border-border/30">
+                                {sol.historico_rastreabilidade.map((h: any, i: number) => (
+                                  <div key={i}>
+                                    [{new Date(h.data).toLocaleDateString('pt-BR')}] {h.autor}:{' '}
+                                    {h.detalhe}
+                                  </div>
+                                ))}
                               </div>
                             )}
                           </CardContent>
                         </Card>
-                      )
-                    })}
+                      ))}
 
-                    {posicoes.length === 0 && (
-                      <div className="p-8 text-center border border-dashed rounded-lg text-muted-foreground text-xs">
-                        Nenhuma posição planejada inserida neste plano.
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-
-                {/* ABA DEMANDAS */}
-                <TabsContent value="demandas" className="space-y-4 pt-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold">Demandas Corporativas Mapeadas</h3>
-                      <p className="text-xs text-muted-foreground">
-                        Problemas, necessidades e resultados esperados que justificam o
-                        dimensionamento.
-                      </p>
+                      {solicitacoes.length === 0 && (
+                        <div className="p-8 text-center border border-dashed rounded-lg text-muted-foreground text-xs">
+                          Nenhuma solicitação de contratação gerada a partir deste plano.
+                        </div>
+                      )}
                     </div>
-
-                    {(planoSelecionado.situacao === 'Rascunho' ||
-                      planoSelecionado.situacao === 'Devolvido para ajuste') && (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setNovaDemOrigem('')
-                          setNovaDemProblema('')
-                          setNovaDemResultado('')
-                          setNovaDemConsequencia('')
-                          setNovaDemRefProjeto('')
-                          setModalNovaDemandaOpen(true)
-                        }}
-                        className="gap-1.5 h-8 text-xs"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Nova Demanda
-                      </Button>
-                    )}
                   </div>
 
-                  <div className="space-y-3">
-                    {demandas.map((dem) => (
-                      <Card key={dem.id} className="border shadow-none">
-                        <CardContent className="p-4 space-y-2">
-                          <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs font-bold text-primary">
-                                {dem.codigo}
-                              </span>
-                              <span className="font-medium text-xs text-foreground">
-                                {dem.origem}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                variant="outline"
-                                className={
-                                  dem.grau_confirmacao === 'confirmada'
-                                    ? 'border-emerald-500 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20'
-                                    : dem.grau_confirmacao === 'provavel'
-                                      ? 'border-blue-500 text-blue-700 bg-blue-50'
-                                      : 'border-amber-500 text-amber-700 bg-amber-50'
-                                }
-                              >
-                                {dem.grau_confirmacao.toUpperCase()}
-                              </Badge>
-                              <Badge variant="secondary">{dem.prioridade}</Badge>
-                            </div>
+                  {/* Histórico do Plano */}
+                  <Card className="border shadow-none">
+                    <CardHeader className="p-4 pb-2">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Registro de Governança e Versões
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Controle formal de alterações e auditoria de aprovações do plano.
+                      </p>
+                    </CardHeader>
+                    <CardContent className="p-4 space-y-2 text-xs">
+                      <div className="p-3 bg-muted/30 rounded border flex items-center justify-between">
+                        <div>
+                          <span className="font-semibold text-foreground">Versão Atual:</span>{' '}
+                          {planoSelecionado.rotulo_versao} ({planoSelecionado.situacao})
+                          <div className="text-muted-foreground text-[11px] mt-0.5">
+                            Criado em {new Date(planoSelecionado.created).toLocaleString('pt-BR')}{' '}
+                            por {planoSelecionado.responsavel_nome || 'Gestor'}
                           </div>
-
-                          <div className="text-xs space-y-1">
-                            <p>
-                              <strong>Problema / Necessidade:</strong> {dem.problema_necessidade}
-                            </p>
-                            <p>
-                              <strong>Resultado Esperado:</strong> {dem.resultado_esperado}
-                            </p>
-                            <p className="text-destructive dark:text-red-400">
-                              <strong>Risco de não atendimento:</strong>{' '}
-                              {dem.consequencia_nao_atendimento}
-                            </p>
-                          </div>
-
-                          {dem.referencia_projeto_cliente && (
-                            <div className="p-2 bg-muted/40 rounded border border-border/40 text-[11px] text-muted-foreground flex items-center justify-between">
-                              <span>Ref. Projeto: {dem.referencia_projeto_cliente}</span>
-                              <Badge variant="outline" className="text-[10px]">
-                                Informativo (Sem vínculo direto)
-                              </Badge>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-
-                    {demandas.length === 0 && (
-                      <div className="p-8 text-center border border-dashed rounded-lg text-muted-foreground text-xs">
-                        Nenhuma demanda registrada para este plano.
+                        </div>
+                        {planoSelecionado.situacao === 'Aprovado' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setModalSnapshotOpen(true)}
+                            className="text-xs h-7 gap-1"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            Abrir Snapshot Congelado
+                          </Button>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </TabsContent>
-
-                {/* ABA SOLICITAÇÕES / VAGAS */}
-                <TabsContent value="solicitacoes" className="space-y-4 pt-3">
-                  <div>
-                    <h3 className="text-sm font-semibold">Acompanhamento da Execução</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Rastreabilidade independente entre posições aprovadas e vagas abertas no fluxo
-                      de contratação.
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    {solicitacoes.map((sol) => (
-                      <Card key={sol.id} className="border shadow-none">
-                        <CardContent className="p-4 space-y-2">
-                          <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs font-bold text-primary">
-                                Vaga ID: {sol.vaga || 'Aguardando'}
-                              </span>
-                              <Badge variant="outline" className="text-xs">
-                                {sol.status}
-                              </Badge>
-                            </div>
-                            <span className="text-[11px] text-muted-foreground">
-                              {new Date(sol.data_solicitacao).toLocaleDateString('pt-BR')}
-                            </span>
-                          </div>
-
-                          <div className="text-xs text-muted-foreground">
-                            Solicitante: <strong>{sol.solicitado_por_nome}</strong> • Posição:{' '}
-                            <strong>{sol.posicao}</strong>
-                          </div>
-
-                          {sol.historico_rastreabilidade && (
-                            <div className="text-[11px] bg-muted/30 p-2 rounded border border-border/30">
-                              {sol.historico_rastreabilidade.map((h: any, i: number) => (
-                                <div key={i}>
-                                  [{new Date(h.data).toLocaleDateString('pt-BR')}] {h.autor}:{' '}
-                                  {h.detalhe}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-
-                    {solicitacoes.length === 0 && (
-                      <div className="p-8 text-center border border-dashed rounded-lg text-muted-foreground text-xs">
-                        Nenhuma solicitação de contratação gerada a partir deste plano.
-                      </div>
-                    )}
-                  </div>
+                    </CardContent>
+                  </Card>
                 </TabsContent>
               </Tabs>
             </div>
-          ) : (
-            <div className="p-12 text-center border rounded-lg text-muted-foreground">
-              Selecione um plano à esquerda para visualizar seus detalhes, demandas e posições.
-            </div>
           )}
         </div>
-      </div>
+      )}
 
       {/* MODAL NOVO PLANO */}
       <Dialog open={modalNovoPlanoOpen} onOpenChange={setModalNovoPlanoOpen}>
@@ -1440,7 +1972,8 @@ export const PlanejamentoForcaPage: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Adicionar Posição Planejada</DialogTitle>
             <DialogDescription>
-              Vincule um posto ao catálogo de cargos (v0.0.85) e especifique os custos preliminares.
+              Vincule um posto ao catálogo corporativo de cargos e especifique os custos
+              preliminares.
             </DialogDescription>
           </DialogHeader>
 

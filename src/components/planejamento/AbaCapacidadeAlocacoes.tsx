@@ -77,20 +77,36 @@ export interface Props {
   plano: PlanoCapacidade | null
   posicoesPlano: PosicaoPlanejada[]
   filtroEmpresa?: string
+  secaoAtiva?: 'capacidade' | 'alocacoes' | 'projetos' | 'ocupacoes' | 'competencias' | 'custos'
+  onSecaoChange?: (
+    secao: 'capacidade' | 'alocacoes' | 'projetos' | 'ocupacoes' | 'competencias' | 'custos',
+  ) => void
+  ocultarHeaderProps?: boolean
 }
 
 export const AbaCapacidadeAlocacoes: React.FC<Props> = ({
   plano,
   posicoesPlano,
   filtroEmpresa,
+  secaoAtiva,
+  onSecaoChange,
+  ocultarHeaderProps = false,
 }) => {
   const { user } = useAuth()
   const { toast } = useToast()
   const isRh = user?.cargo_funcao === 'RH / Recrutador'
 
-  const [subAba, setSubAba] = useState<
+  const [subAbaInterna, setSubAbaInterna] = useState<
     'capacidade' | 'alocacoes' | 'projetos' | 'ocupacoes' | 'competencias' | 'custos'
   >('capacidade')
+
+  const subAba = secaoAtiva !== undefined ? secaoAtiva : subAbaInterna
+  const setSubAba = (
+    v: 'capacidade' | 'alocacoes' | 'projetos' | 'ocupacoes' | 'competencias' | 'custos',
+  ) => {
+    setSubAbaInterna(v)
+    if (onSecaoChange) onSecaoChange(v)
+  }
 
   const [mesReferencia, setMesReferencia] = useState('2026-10')
   const [incluirDemonstracao, setIncluirDemonstracao] = useState(false)
@@ -202,7 +218,7 @@ export const AbaCapacidadeAlocacoes: React.FC<Props> = ({
       setCruzamentoComp(cruzamentos)
     } catch (err: any) {
       toast({
-        title: 'Erro ao carregar dados da Etapa 4',
+        title: 'Erro ao carregar dados de capacidade e alocações',
         description: err.message,
         variant: 'destructive',
       })
@@ -400,48 +416,80 @@ export const AbaCapacidadeAlocacoes: React.FC<Props> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header com controles de período e dados demonstrativos */}
-      <Card className="border shadow-sm">
-        <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Layers className="w-5 h-5 text-primary" />
-            <div>
-              <h3 className="text-sm font-bold text-foreground">
-                Capacidade, Alocações, Ocupações e Custos (Etapa 4 - Homologação)
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Módulo 1 da Força de Trabalho • Versão 0.0.87 • Prevalência de fontes e autorização
-                server-side
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">
-                Mês de Referência:
-              </Label>
-              <Input
-                type="month"
-                value={mesReferencia}
-                onChange={(e) => setMesReferencia(e.target.value)}
-                className="h-8 w-36 text-xs font-mono"
-              />
+      {/* Controles de período e dados demonstrativos */}
+      {!ocultarHeaderProps && (
+        <Card className="border shadow-sm">
+          <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Layers className="w-5 h-5 text-[#E9530E]" />
+              <div>
+                <h3 className="text-sm font-bold text-foreground">
+                  Capacidade, Alocações, Ocupações e Custos
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Módulo 1 • Planejamento da Força de Trabalho • Prevalência de fontes e governança
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 border-l border-border/40 pl-4">
-              <Switch
-                id="toggle-demo"
-                checked={incluirDemonstracao}
-                onCheckedChange={setIncluirDemonstracao}
-              />
-              <Label htmlFor="toggle-demo" className="text-xs text-muted-foreground cursor-pointer">
-                Exibir Dados Demonstrativos
-              </Label>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs font-medium text-muted-foreground">Mês Analisado:</Label>
+                <Input
+                  type="month"
+                  value={mesReferencia}
+                  onChange={(e) => setMesReferencia(e.target.value)}
+                  className="h-8 w-36 text-xs font-mono"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 border-l border-border/40 pl-4">
+                <Switch
+                  id="toggle-demo"
+                  checked={incluirDemonstracao}
+                  onCheckedChange={setIncluirDemonstracao}
+                />
+                <Label
+                  htmlFor="toggle-demo"
+                  className="text-xs text-muted-foreground cursor-pointer"
+                >
+                  Dados de Demonstração
+                </Label>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {ocultarHeaderProps && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-muted/30 rounded-lg border border-border/40">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-[#E9530E]" />
+            <span className="text-xs font-medium text-muted-foreground">
+              Mês Analisado na Capacidade:
+            </span>
+            <Input
+              type="month"
+              value={mesReferencia}
+              onChange={(e) => setMesReferencia(e.target.value)}
+              className="h-8 w-36 text-xs font-mono bg-background"
+            />
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="toggle-demo-compact"
+              checked={incluirDemonstracao}
+              onCheckedChange={setIncluirDemonstracao}
+            />
+            <Label
+              htmlFor="toggle-demo-compact"
+              className="text-xs text-muted-foreground cursor-pointer"
+            >
+              Exibir Dados de Demonstração
+            </Label>
+          </div>
+        </div>
+      )}
 
       {/* Sub-Abas da Etapa 4 */}
       <Tabs value={subAba} onValueChange={(v: any) => setSubAba(v)} className="w-full">
@@ -481,7 +529,8 @@ export const AbaCapacidadeAlocacoes: React.FC<Props> = ({
               </h4>
               <p className="text-xs text-muted-foreground">
                 Cálculo em camadas: Bruta → Indisponibilidades (sem sobreposição) → Líquida →
-                Reserva (10%) → Alocações → Disponível para Novas Alocações.
+                Reserva de Governança (quando aplicável) → Alocações → Disponível para Novas
+                Alocações.
               </p>
             </div>
             <Badge variant="outline" className="text-xs">
@@ -576,10 +625,21 @@ export const AbaCapacidadeAlocacoes: React.FC<Props> = ({
 
                           <div className="p-2 bg-muted/40 rounded border border-border/40">
                             <div className="text-[10px] text-muted-foreground">
-                              4. Reserva (10%)
+                              {mem.reservaEstado === 'aprovada'
+                                ? `4. Reserva (${mem.reservaOperacionalPercentual}%)`
+                                : mem.reservaEstado === 'explicitamente_zero'
+                                  ? '4. Reserva (0% deliberada)'
+                                  : mem.reservaEstado === 'premissa_simulacao'
+                                    ? `4. Reserva Sim. (${mem.reservaOperacionalPercentual}%)`
+                                    : '4. Reserva (Não def.)'}
                             </div>
                             <div className="font-bold text-sm mt-0.5 text-blue-600">
-                              {mem.reservaOperacionalHoras.toFixed(1)}h
+                              {mem.reservaEstado === 'aprovada' ||
+                              mem.reservaEstado === 'premissa_simulacao'
+                                ? `${mem.reservaOperacionalHoras.toFixed(1)}h`
+                                : mem.reservaEstado === 'explicitamente_zero'
+                                  ? '0.0h'
+                                  : '—'}
                             </div>
                           </div>
 

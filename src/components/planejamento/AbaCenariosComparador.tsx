@@ -191,7 +191,12 @@ export const AbaCenariosComparador: React.FC<Props> = ({ empresaId, planoBaseId 
   }
 
   const handleConsultarIa = async (
-    acao: 'explicar_cenario' | 'sugerir_alternativas' | 'justificativa_adocao',
+    acao:
+      | 'explicar_cenario'
+      | 'sugerir_alternativas'
+      | 'justificativa_adocao'
+      | 'comparar_alternativas'
+      | 'preparar_justificativa',
   ) => {
     if (!cenarioSelecionado) return
     setIaLoading(true)
@@ -362,9 +367,32 @@ export const AbaCenariosComparador: React.FC<Props> = ({ empresaId, planoBaseId 
                     size="sm"
                     onClick={() => handleConsultarIa('explicar_cenario')}
                     className="text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300"
+                    title="Explicar comparativo e premissas deste cenário com inteligência contextual"
                   >
                     <Sparkles className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
-                    Síntese de IA
+                    Explicar este resultado
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleConsultarIa('comparar_alternativas')}
+                    className="text-xs border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 hidden sm:inline-flex"
+                    title="Comparar alternativas e destacar trade-offs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
+                    Comparar alternativas
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleConsultarIa('preparar_justificativa')}
+                    className="text-xs border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 hidden md:inline-flex"
+                    title="Preparar justificativa técnica para governança e alçada"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
+                    Preparar justificativa
                   </Button>
 
                   <Button

@@ -331,13 +331,11 @@ export default function Layout() {
                     title: 'Planejamento da Força',
                     href: '/planejamento-forca',
                     icon: BarChart3,
-                    badge: 'Etapa 3',
                   },
                   {
                     title: 'Catálogos & Padrões',
                     href: '/catalogos',
                     icon: Award,
-                    badge: 'Catálogo',
                   },
                 ],
               },
@@ -447,13 +445,11 @@ export default function Layout() {
                     title: 'Planejamento da Força',
                     href: '/planejamento-forca',
                     icon: BarChart3,
-                    badge: 'Etapa 3',
                   },
                   {
                     title: 'Catálogos & Normalização',
                     href: '/catalogos',
                     icon: Award,
-                    badge: 'Etapa 2',
                   },
                   {
                     title: 'Contratos',
@@ -685,39 +681,55 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Link Direto para Página Pública de Candidatura */}
-            <a
-              href="/candidatar"
-              target="_blank"
-              rel="noreferrer"
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#FEF1EA] dark:bg-[#212B55] text-[#C5430A] dark:text-[#F19763] hover:bg-[#FBDCC9] dark:hover:bg-[#2E3A6E] transition-colors border border-[#FBDCC9] dark:border-[#2E3A6E]"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-[#E9530E]" />
-              Ver Página Pública de Candidatura
-            </a>
-
-            {/* Period selector */}
-            <div className="hidden sm:flex items-center gap-2">
-              <Select
-                value={period}
-                onValueChange={(val) => setPeriod(val as '7d' | '30d' | '90d')}
+            {/* Link Direto para Página Pública de Candidatura (Apenas fora do módulo de Planejamento) */}
+            {!location.pathname.startsWith('/planejamento-forca') && (
+              <a
+                href="/candidatar"
+                target="_blank"
+                rel="noreferrer"
+                className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#FEF1EA] dark:bg-[#212B55] text-[#C5430A] dark:text-[#F19763] hover:bg-[#FBDCC9] dark:hover:bg-[#2E3A6E] transition-colors border border-[#FBDCC9] dark:border-[#2E3A6E]"
               >
-                <SelectTrigger className="w-[155px] h-9 text-xs font-semibold border-[#D7DCE6] dark:border-[#2E3A6E] bg-[#F7F8FB] dark:bg-[#11162B] text-[#212B55] dark:text-[#F7F8FB] rounded-lg">
-                  <SelectValue placeholder="Período" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
-                  <SelectItem value="7d" className="text-xs font-medium">
-                    Últimos 7 dias
-                  </SelectItem>
-                  <SelectItem value="30d" className="text-xs font-medium">
-                    Últimos 30 dias
-                  </SelectItem>
-                  <SelectItem value="90d" className="text-xs font-medium">
-                    Últimos 90 dias
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <Sparkles className="w-3.5 h-3.5 text-[#E9530E]" />
+                Página Pública de Candidatura
+              </a>
+            )}
+
+            {/* Seletor de Período Global (oculto no planejamento da força, pois o planejamento tem seu próprio escopo e períodos) */}
+            {!location.pathname.startsWith('/planejamento-forca') && (
+              <div className="hidden sm:flex items-center gap-2">
+                <Select
+                  value={period}
+                  onValueChange={(val) => setPeriod(val as '7d' | '30d' | '90d')}
+                >
+                  <SelectTrigger className="w-[155px] h-9 text-xs font-semibold border-[#D7DCE6] dark:border-[#2E3A6E] bg-[#F7F8FB] dark:bg-[#11162B] text-[#212B55] dark:text-[#F7F8FB] rounded-lg">
+                    <SelectValue placeholder="Período" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-[#1A2240] dark:border-[#2E3A6E] dark:text-[#F7F8FB]">
+                    <SelectItem value="7d" className="text-xs font-medium">
+                      Últimos 7 dias
+                    </SelectItem>
+                    <SelectItem value="30d" className="text-xs font-medium">
+                      Últimos 30 dias
+                    </SelectItem>
+                    <SelectItem value="90d" className="text-xs font-medium">
+                      Últimos 90 dias
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Identificação discreta de ambiente de Homologação no header quando no planejamento */}
+            {location.pathname.startsWith('/planejamento-forca') && (
+              <div className="hidden sm:flex items-center">
+                <Badge
+                  variant="outline"
+                  className="text-[11px] font-medium border-amber-300 dark:border-amber-700 bg-amber-50/80 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300"
+                >
+                  Ambiente: Homologação
+                </Badge>
+              </div>
+            )}
 
             {/* Alternância de Modo Claro / Escuro SouYess */}
             <Button
@@ -1114,8 +1126,11 @@ export default function Layout() {
         {/* Rodapé Institucional com Versão do Sistema */}
         <footer className="border-t border-[#E7EAF0] dark:border-[#2E3A6E] bg-white/60 dark:bg-[#1A2240]/60 py-3 px-4 sm:px-8 text-center text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-1">
           <span>Sistema RH Inteligente — SouYess People Hub</span>
-          <span className="font-mono text-[11px] font-semibold text-[#E9530E]">
-            v0.0.87 (Homologação)
+          <span
+            className="font-mono text-[11px] font-semibold text-[#E9530E]"
+            title="Versão da aplicação"
+          >
+            v0.0.90 (Homologação)
           </span>
         </footer>
       </div>

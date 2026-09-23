@@ -231,7 +231,12 @@ export const cenariosService = {
   async consultarIaCenarios(params: {
     cenarioId?: string
     empresaId?: string
-    acao?: 'explicar_cenario' | 'sugerir_alternativas' | 'justificativa_adocao'
+    acao?:
+      | 'explicar_cenario'
+      | 'sugerir_alternativas'
+      | 'justificativa_adocao'
+      | 'comparar_alternativas'
+      | 'preparar_justificativa'
     nomeCenario?: string
     objetivo?: string
     premissas?: PremissasCenario
