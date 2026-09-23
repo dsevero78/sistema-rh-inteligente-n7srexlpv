@@ -3,16 +3,10 @@
 /**
  * Hook de teste de sintaxe
  */
+/**
+ * Verificação do método expand / expanded nos registros do PocketBase
+ */
 onRecordsListRequest((e) => {
-  console.log('[PROBE HOOK listRequest] auth:', e.auth ? e.auth.id : 'anon')
+  // probe
   e.next()
-}, 'pessoas')
-
-onRecordViewRequest((e) => {
-  console.log('[PROBE HOOK viewRequest] auth:', e.auth ? e.auth.id : 'anon', 'record:', e.record ? e.record.id : 'no record')
-  if (e.record) {
-    e.record.set('valor_contratado', 0)
-    e.record.set('valor_hora', 0)
-  }
-  e.next()
-}, 'pessoas')
+})
