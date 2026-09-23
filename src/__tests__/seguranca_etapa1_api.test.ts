@@ -77,6 +77,12 @@ describe('Validação de Segurança e Confiabilidade — API Rules & Hooks', () 
 
   // 2. AÇÕES PERMITIDAS CONTINUAM FUNCIONANDO
   describe('2. Ações permitidas para cada perfil', () => {
+    it('[PROVA HOOK VIEW] Gestor lendo renato pelo hook', async () => {
+      const renato = await pbTech.collection('pessoas').getOne('yrk1td6xkivtcmt')
+      console.log('[PROVA HOOK VIEW] renato.valor_contratado:', renato.valor_contratado)
+      expect(renato.valor_contratado).toBe(0)
+    })
+
     it('[PASS] RH lista todas as pessoas do grupo econômico', async () => {
       const pessoas = await pbRh.collection('pessoas').getFullList()
       expect(pessoas.length).toBeGreaterThanOrEqual(5)
