@@ -147,7 +147,9 @@ migrate(
       }
 
       app.save(colPessoas)
-      console.log('[1741500049] Coleção pessoas atualizada com gestor_imediato_pessoa, vigências e histórico.')
+      console.log(
+        '[1741500049] Coleção pessoas atualizada com gestor_imediato_pessoa, vigências e histórico.',
+      )
     } catch (err) {
       console.warn('[1741500049] Erro ao adicionar campos em pessoas:', err)
     }
@@ -215,7 +217,10 @@ migrate(
           e.set('correspondencia_bu_status', 'pendente_decisao_negocio')
           mudou = true
         }
-        if (e.getBool('is_unidade_negocio') === undefined || e.getBool('is_unidade_negocio') === null) {
+        if (
+          e.getBool('is_unidade_negocio') === undefined ||
+          e.getBool('is_unidade_negocio') === null
+        ) {
           e.set('is_unidade_negocio', e.getString('tipo') === 'BU / Filial')
           e.set('is_pessoa_juridica', true)
           mudou = true

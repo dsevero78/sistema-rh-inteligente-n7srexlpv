@@ -19,7 +19,9 @@ onRecordCreateRequest((e) => {
   const record = e.record
   const novoGestor = record.getString('gestor_imediato_pessoa')
   if (novoGestor && novoGestor === record.id) {
-    throw new BadRequestError('Ciclo hierárquico inválido: uma pessoa não pode ser seu próprio gestor imediato.')
+    throw new BadRequestError(
+      'Ciclo hierárquico inválido: uma pessoa não pode ser seu próprio gestor imediato.',
+    )
   }
 
   const vInicio = record.getString('vigencia_inicio')
@@ -28,7 +30,9 @@ onRecordCreateRequest((e) => {
     const dInicio = new Date(vInicio).getTime()
     const dFim = new Date(vFim).getTime()
     if (dFim < dInicio) {
-      throw new BadRequestError('Data de término da vigência não pode ser anterior à data de início.')
+      throw new BadRequestError(
+        'Data de término da vigência não pode ser anterior à data de início.',
+      )
     }
   }
 
@@ -43,7 +47,9 @@ onRecordUpdateRequest((e) => {
 
   if (novoGestor) {
     if (novoGestor === pessoaId) {
-      throw new BadRequestError('Ciclo hierárquico inválido: uma pessoa não pode ser gestora de si mesma.')
+      throw new BadRequestError(
+        'Ciclo hierárquico inválido: uma pessoa não pode ser gestora de si mesma.',
+      )
     }
 
     // Algoritmo de detecção de ciclo inline
@@ -72,7 +78,9 @@ onRecordUpdateRequest((e) => {
     }
 
     if (temCiclo) {
-      throw new BadRequestError('Ciclo hierárquico detectado: a subordinação selecionada geraria uma referência circular (A -> B -> A).')
+      throw new BadRequestError(
+        'Ciclo hierárquico detectado: a subordinação selecionada geraria uma referência circular (A -> B -> A).',
+      )
     }
   }
 
@@ -82,7 +90,9 @@ onRecordUpdateRequest((e) => {
     const dInicio = new Date(vInicio).getTime()
     const dFim = new Date(vFim).getTime()
     if (dFim < dInicio) {
-      throw new BadRequestError('Data de término da vigência não pode ser anterior à data de início.')
+      throw new BadRequestError(
+        'Data de término da vigência não pode ser anterior à data de início.',
+      )
     }
   }
 
@@ -93,11 +103,7 @@ onRecordUpdateRequest((e) => {
     const inicioAntigo = original.getString('vigencia_inicio')
     const fimAntigo = original.getString('vigencia_fim')
 
-    if (
-      gestorAntigo !== novoGestor ||
-      inicioAntigo !== vInicio ||
-      fimAntigo !== vFim
-    ) {
+    if (gestorAntigo !== novoGestor || inicioAntigo !== vInicio || fimAntigo !== vFim) {
       let historico = []
       try {
         const histRaw = original.get('historico_movimentacoes')
@@ -121,8 +127,35 @@ onRecordUpdateRequest((e) => {
         vigencia_fim_nova: vFim,
         motivo: 'Atualização de estrutura organizacional / vigência',
       })
+    }
 
-      record.set('historico_movimentacoes', historico)
+    const areaAntiga = original.getString('area')
+    const novaArea = record.getString('area')
+    if (areaAntiga !== novaArea) {
+      let historicoArea = []
+      try {
+        const histRaw =
+          record.get('historico_movimentacoes') || original.get('historico_movimentacoes')
+        if (Array.isArray(histRaw)) {
+          historicoArea = histRaw
+        } else if (typeof histRaw === 'string' && histRaw.trim()) {
+          historicoArea = JSON.parse(histRaw)
+        }
+      } catch (_) {
+        historicoArea = []
+      }
+
+      historicoArea.push({
+        data_movimentacao: new Date().toISOString(),
+        usuario_responsavel: e.auth ? e.auth.id : 'sistema',
+        area_anterior: areaAntiga,
+        area_nova: novaArea,
+        gestor_anterior: gestorAntigo,
+        gestor_novo: novoGestor,
+        motivo: 'Alteração de área / movimentação de estrutura',
+      })
+
+      record.set('historico_movimentacoes', historicoArea)
     }
   } catch (errHist) {
     console.warn('[hierarquia_hook] Aviso ao processar histórico:', errHist)
@@ -138,7 +171,8 @@ routerAdd('GET', '/backend/v1/organograma/arvore', (c) => {
     return c.json(401, { error: 'Autenticação requerida' })
   }
 
-  const dataReferenciaStr = c.queryParam('data_referencia') || new Date().toISOString().split('T')[0]
+  const dataReferenciaStr =
+    c.queryParam('data_referencia') || new Date().toISOString().split('T')[0]
   const dataRef = new Date(dataReferenciaStr).getTime()
   const buFiltro = c.queryParam('bu_id') || ''
 
@@ -213,6 +247,47 @@ routerAdd('GET', '/backend/v1/organograma/arvore', (c) => {
       }
     }
 
+    // Reconstrução histórica de subordinação e área a partir de historico_movimentacoes:
+    // Se a data de referência é anterior a alguma movimentação registrada, resgata a estrutura anterior
+    let gestorHistorico = p.getString('gestor_imediato_pessoa') || null
+    let areaHistorica = p.getString('area') || null
+
+    try {
+      const histRaw = p.get('historico_movimentacoes')
+      let histList = []
+      if (Array.isArray(histRaw)) {
+        histList = histRaw
+      } else if (typeof histRaw === 'string' && histRaw.trim()) {
+        histList = JSON.parse(histRaw)
+      }
+
+      if (histList && histList.length > 0) {
+        // Ordena movimentações da mais recente para a mais antiga
+        const sortedHist = histList.slice().sort((a, b) => {
+          const tA = new Date(a.data_movimentacao || 0).getTime()
+          const tB = new Date(b.data_movimentacao || 0).getTime()
+          return tB - tA
+        })
+
+        for (let hIdx = 0; hIdx < sortedHist.length; hIdx++) {
+          const mov = sortedHist[hIdx]
+          const tMov = new Date(mov.data_movimentacao || 0).getTime()
+          // Se a movimentação aconteceu DEPOIS da data de referência consultada,
+          // o estado na data de referência era o anterior a essa movimentação!
+          if (tMov > dataRef) {
+            if (mov.gestor_anterior !== undefined) {
+              gestorHistorico = mov.gestor_anterior || null
+            }
+            if (mov.area_anterior !== undefined) {
+              areaHistorica = mov.area_anterior || null
+            }
+          }
+        }
+      }
+    } catch (errH) {
+      console.warn('[organograma_historico] Falha ao parsear movimentações:', errH)
+    }
+
     const node = {
       id: p.id,
       nome: p.getString('nome'),
@@ -221,10 +296,16 @@ routerAdd('GET', '/backend/v1/organograma/arvore', (c) => {
       tipo_pessoa: p.getString('tipo_pessoa'),
       departamento: p.getString('departamento'),
       empresa_id: p.getString('empresa'),
-      empresa_nome: empresaMap[p.getString('empresa')] ? empresaMap[p.getString('empresa')].nome : 'Não informada',
-      area_id: p.getString('area'),
-      area_nome: areaMap[p.getString('area')] ? areaMap[p.getString('area')].nome : 'Não informada',
-      gestor_imediato_id: p.getString('gestor_imediato_pessoa') || null,
+      empresa_nome: empresaMap[p.getString('empresa')]
+        ? empresaMap[p.getString('empresa')].nome
+        : 'Não informada',
+      area_id: areaHistorica,
+      area_nome: areaMap[areaHistorica]
+        ? areaMap[areaHistorica].nome
+        : areaMap[p.getString('area')]
+          ? areaMap[p.getString('area')].nome
+          : 'Não informada',
+      gestor_imediato_id: gestorHistorico,
       gestor_responsavel_user_id: p.getString('gestor_responsavel') || null,
       gestor_nome: p.getString('gestor_nome') || '',
       vigencia_inicio: vInicioStr,
@@ -232,7 +313,6 @@ routerAdd('GET', '/backend/v1/organograma/arvore', (c) => {
       rotulo_vigencia: p.getString('rotulo_vigencia') || 'Vigente a partir da implantação',
       situacao_contrato: p.getString('situacao_contrato'),
     }
-
     // SANITIZAÇÃO DE DADOS FINANCEIROS:
     // Apenas RH / Recrutador e Diretoria podem ver remuneração/valores contratuais
     if (isRhOuDiretoria) {

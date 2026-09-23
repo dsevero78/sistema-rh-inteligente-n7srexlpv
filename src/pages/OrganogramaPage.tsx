@@ -225,8 +225,8 @@ export const OrganogramaPage: React.FC = () => {
             <Badge className="bg-orange-100 text-orange-800 border-orange-300">v0.0.93</Badge>
           </div>
           <p className="text-sm text-slate-600 mt-1 max-w-2xl">
-            Visualização estrutural de vínculos organizacionais, relações de subordinação hierárquica e
-            separação entre Pessoa Jurídica (CNPJ) e Unidades de Negócio (BU).
+            Visualização estrutural de vínculos organizacionais, relações de subordinação
+            hierárquica e separação entre Pessoa Jurídica (CNPJ) e Unidades de Negócio (BU).
           </p>
         </div>
 
@@ -266,8 +266,8 @@ export const OrganogramaPage: React.FC = () => {
                 Hierarquia Organizacional ≠ Alocação
               </p>
               <p className="text-xs text-blue-800/80 mt-0.5">
-                A subordinação define reporte disciplinar e liderança formal. Alocações em projetos e
-                demandas temporárias não alteram a linha de reporte.
+                A subordinação define reporte disciplinar e liderança formal. Alocações em projetos
+                e demandas temporárias não alteram a linha de reporte.
               </p>
             </div>
           </CardContent>
@@ -281,8 +281,8 @@ export const OrganogramaPage: React.FC = () => {
                 Empresa Jurídica × BU Operacional
               </p>
               <p className="text-xs text-amber-800/80 mt-0.5">
-                Pessoas jurídicas possuem CNPJ formal; BUs são unidades de negócio. A correspondência
-                automática permanece como pendência de decisão de negócio.
+                Pessoas jurídicas possuem CNPJ formal; BUs são unidades de negócio. A
+                correspondência automática permanece como pendência de decisão de negócio.
               </p>
             </div>
           </CardContent>
@@ -453,8 +453,8 @@ export const OrganogramaPage: React.FC = () => {
                             <div>
                               <span className="font-semibold block">Ausência de Gestor Direto</span>
                               <span>
-                                Sem vínculo de subordinação hierárquica cadastrado. Posição no topo ou
-                                com reporte à governança.
+                                Sem vínculo de subordinação hierárquica cadastrado. Posição no topo
+                                ou com reporte à governança.
                               </span>
                             </div>
                           </div>
@@ -468,7 +468,9 @@ export const OrganogramaPage: React.FC = () => {
                             <span className="text-slate-500">Início:</span>
                             <span className="font-medium text-slate-800">
                               {nodoSelecionado.vigencia_inicio
-                                ? new Date(nodoSelecionado.vigencia_inicio).toLocaleDateString('pt-BR')
+                                ? new Date(nodoSelecionado.vigencia_inicio).toLocaleDateString(
+                                    'pt-BR',
+                                  )
                                 : 'Vigente a partir da implantação'}
                             </span>
                           </div>
@@ -488,15 +490,17 @@ export const OrganogramaPage: React.FC = () => {
 
                       {/* Dados sensíveis e remuneração */}
                       <div className="pt-2 border-t">
-                        <span className="text-slate-400 block mb-1">Dados Financeiros & Remuneração:</span>
+                        <span className="text-slate-400 block mb-1">
+                          Dados Financeiros & Remuneração:
+                        </span>
                         {nodoSelecionado.dados_financeiros_ocultos ? (
                           <div className="p-2.5 rounded bg-slate-100 border border-slate-200 text-slate-600 flex items-start gap-2">
                             <ShieldAlert className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
                             <div>
                               <span className="font-medium block">Restrito por Alçada</span>
                               <span className="text-[11px]">
-                                Valores contratuais e remuneração individual são protegidos e visíveis
-                                apenas para perfis autorizados de RH e Diretoria.
+                                Valores contratuais e remuneração individual são protegidos e
+                                visíveis apenas para perfis autorizados de RH e Diretoria.
                               </span>
                             </div>
                           </div>
@@ -506,9 +510,12 @@ export const OrganogramaPage: React.FC = () => {
                               <span>Valor Contratado Mensal:</span>
                               <span className="font-bold">
                                 R${' '}
-                                {Number(nodoSelecionado.valor_contratado || 0).toLocaleString('pt-BR', {
-                                  minimumFractionDigits: 2,
-                                })}
+                                {Number(nodoSelecionado.valor_contratado || 0).toLocaleString(
+                                  'pt-BR',
+                                  {
+                                    minimumFractionDigits: 2,
+                                  },
+                                )}
                               </span>
                             </div>
                             {Number(nodoSelecionado.valor_hora || 0) > 0 && (
@@ -529,7 +536,8 @@ export const OrganogramaPage: React.FC = () => {
                   </Card>
                 ) : (
                   <Card className="p-6 text-center text-slate-400 text-xs">
-                    Selecione um colaborador na árvore para visualizar os detalhes de vigência e reporte.
+                    Selecione um colaborador na árvore para visualizar os detalhes de vigência e
+                    reporte.
                   </Card>
                 )}
               </div>
@@ -652,7 +660,8 @@ export const OrganogramaPage: React.FC = () => {
                         Relações entre Pessoas Jurídicas (CNPJ) e Unidades de Negócio (BU)
                       </CardTitle>
                       <CardDescription className="text-xs text-slate-500">
-                        Evolução da governança: uma empresa jurídica formal pode abrigar múltiplas BUs.
+                        Evolução da governança: uma empresa jurídica formal pode abrigar múltiplas
+                        BUs.
                       </CardDescription>
                     </div>
                     <Badge variant="outline" className="text-xs bg-slate-50">
@@ -664,11 +673,13 @@ export const OrganogramaPage: React.FC = () => {
                   <div className="p-3 rounded-lg bg-amber-50/80 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
                     <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold block">Status de Correspondência das BUs SouYess</span>
+                      <span className="font-bold block">
+                        Status de Correspondência das BUs SouYess
+                      </span>
                       <span>
-                        Os registros existentes (Tecnologia, Vértice Mídia, Operações) foram preservados
-                        e NÃO foram associados compulsoriamente às 5 BUs da SouYess. Esta correspondência
-                        está formalmente registrada no sistema como{' '}
+                        Os registros existentes (Tecnologia, Vértice Mídia, Operações) foram
+                        preservados e NÃO foram associados compulsoriamente às 5 BUs da SouYess.
+                        Esta correspondência está formalmente registrada no sistema como{' '}
                         <strong>"pendente de decisão de negócio"</strong>, respeitando a governança
                         corporativa.
                       </span>
@@ -712,7 +723,10 @@ export const OrganogramaPage: React.FC = () => {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-400">Status da Correspondência BU:</span>
-                            <Badge variant="outline" className="text-[10px] text-amber-700 bg-amber-50">
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] text-amber-700 bg-amber-50"
+                            >
                               {emp.correspondencia_bu_status === 'pendente_decisao_negocio'
                                 ? 'Pendente Decisão de Negócio'
                                 : emp.correspondencia_bu_status}

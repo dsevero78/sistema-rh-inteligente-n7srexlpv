@@ -87,7 +87,8 @@ export const organogramaService = {
       if (atual === pessoaId) {
         return {
           temCiclo: true,
-          motivo: 'Ciclo hierárquico detectado: a pessoa selecionada já se subordina direta ou indiretamente a este colaborador (A → B → A).',
+          motivo:
+            'Ciclo hierárquico detectado: a pessoa selecionada já se subordina direta ou indiretamente a este colaborador (A → B → A).',
         }
       }
       if (visitados.has(atual)) {
