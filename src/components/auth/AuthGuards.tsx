@@ -21,25 +21,29 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Checagem síncrona rigorosa de credencial existente no storage e memória
   const backup = loadSessionBackup()
-  const backupTokenNotExpired = backup?.token && !isJwtTokenExpired(backup.token)
-  const pbTokenNotExpired = pb.authStore.token && !isJwtTokenExpired(pb.authStore.token)
+  const backupTokenHasLength = Boolean(backup?.token && backup.token.length > 10)
+  const pbTokenHasLength = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
 
   // Checagem direta de fallback de strings em localStorage caso loadSessionBackup não tenha capturado
-  let directStorageHasValidToken = false
+  let directStorageHasToken = false
   if (typeof window !== 'undefined') {
     try {
       const rawApp = localStorage.getItem('souyess.session.backup')
       if (rawApp) {
         const parsedApp = JSON.parse(rawApp)
-        if (parsedApp?.token && !isJwtTokenExpired(parsedApp.token)) {
-          directStorageHasValidToken = true
+        if (
+          parsedApp?.token &&
+          typeof parsedApp.token === 'string' &&
+          parsedApp.token.length > 10
+        ) {
+          directStorageHasToken = true
         }
       }
       const rawPb = localStorage.getItem('pocketbase_auth')
       if (rawPb) {
         const parsedPb = JSON.parse(rawPb)
-        if (parsedPb?.token && !isJwtTokenExpired(parsedPb.token)) {
-          directStorageHasValidToken = true
+        if (parsedPb?.token && typeof parsedPb.token === 'string' && parsedPb.token.length > 10) {
+          directStorageHasToken = true
         }
       }
     } catch {
@@ -47,13 +51,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }
 
-  const hasAnyCred = Boolean(
-    backupTokenNotExpired ||
-    pbTokenNotExpired ||
-    directStorageHasValidToken ||
-    (backup?.token && backup.token.length > 10) ||
-    (pb.authStore.token && pb.authStore.token.length > 10),
-  )
+  const hasAnyCred = Boolean(backupTokenHasLength || pbTokenHasLength || directStorageHasToken)
 
   // Se o contexto ainda não registrou isAuthenticated mas há credencial em localStorage/SDK, auto-restaura
   useEffect(() => {
@@ -100,8 +98,9 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   }
 
   // ANTES de qualquer <Navigate to="/login">, última verificação síncrona estrita
+  // Tolera qualquer token salvo com comprimento > 10, sem ejetar caso precise de refresh
   const lastCheckBackup = loadSessionBackup()
-  if (lastCheckBackup?.token && !isJwtTokenExpired(lastCheckBackup.token)) {
+  if (lastCheckBackup?.token && lastCheckBackup.token.length > 10) {
     restorePbAuthStoreFromBackup()
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] dark:bg-[#11162B]">
@@ -117,6 +116,33 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Apenas navega para /login se expressamente NÃO existir credencial alguma em localStorage nem em memória:
   if (!isAuthenticated && !hasAnyCred) {
+    // Última checagem hiper-estrita de qualquer token em localStorage antes de permitir ejetar para /login
+    let storageHasToken = false
+    if (typeof window !== 'undefined') {
+      try {
+        const rawApp = localStorage.getItem('souyess.session.backup')
+        if (rawApp && rawApp.includes('"token"')) storageHasToken = true
+        const rawPb = localStorage.getItem('pocketbase_auth')
+        if (rawPb && rawPb.includes('"token"')) storageHasToken = true
+      } catch {
+        /* noop */
+      }
+    }
+
+    if (storageHasToken) {
+      restorePbAuthStoreFromBackup()
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#F7F8FB] dark:bg-[#11162B]">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 text-[#E9530E] animate-spin" />
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+              Verificando sessão ativa...
+            </p>
+          </div>
+        </div>
+      )
+    }
+
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
@@ -137,26 +163,27 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
     (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
   const destination = rawTarget.startsWith('/login') ? '/dashboard' : rawTarget
 
-  // Checagem direta de credencial
+  // Checagem direta de credencial (qualquer token presente no backup ou pb.authStore é suficiente para barrar o form de login)
   const backup = loadSessionBackup()
-  const backupTokenNotExpired = backup?.token && !isJwtTokenExpired(backup.token)
-  const pbTokenNotExpired = pb.authStore.token && !isJwtTokenExpired(pb.authStore.token)
-
-  let directStorageHasValidToken = false
+  let directStorageHasToken = false
   if (typeof window !== 'undefined') {
     try {
       const rawApp = localStorage.getItem('souyess.session.backup')
       if (rawApp) {
         const parsedApp = JSON.parse(rawApp)
-        if (parsedApp?.token && !isJwtTokenExpired(parsedApp.token)) {
-          directStorageHasValidToken = true
+        if (
+          parsedApp?.token &&
+          typeof parsedApp.token === 'string' &&
+          parsedApp.token.length > 10
+        ) {
+          directStorageHasToken = true
         }
       }
       const rawPb = localStorage.getItem('pocketbase_auth')
       if (rawPb) {
         const parsedPb = JSON.parse(rawPb)
-        if (parsedPb?.token && !isJwtTokenExpired(parsedPb.token)) {
-          directStorageHasValidToken = true
+        if (parsedPb?.token && typeof parsedPb.token === 'string' && parsedPb.token.length > 10) {
+          directStorageHasToken = true
         }
       }
     } catch {
@@ -164,11 +191,9 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }
 
-  const hasAnyBackup = Boolean(backupTokenNotExpired || (backup?.token && backup.token.length > 10))
-  const hasPbToken = Boolean(
-    pbTokenNotExpired || (pb.authStore.token && pb.authStore.token.length > 10),
-  )
-  const hasCredential = isAuthenticated || hasAnyBackup || hasPbToken || directStorageHasValidToken
+  const hasAnyBackup = Boolean(backup?.token && backup.token.length > 10)
+  const hasPbToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
+  const hasCredential = isAuthenticated || hasAnyBackup || hasPbToken || directStorageHasToken
 
   useEffect(() => {
     if (!hasCredential) return

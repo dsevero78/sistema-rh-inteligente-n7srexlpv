@@ -94,7 +94,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return
       }
 
-      // 3. Se NÃO foi logout explícito, verificar o backup do app no localStorage
+      // 3. Se NÃO foi logout explícito, NENHUM evento de background pode ejetar
+      // Sempre restaura do backup local e mantém usuário autenticado
       const backup = loadSessionBackup()
       if (backup?.token) {
         console.warn(
@@ -123,28 +124,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (pb.authStore.record) setUser(pb.authStore.record)
           }
         } catch (err: unknown) {
-          const status =
-            (err as { status?: number; response?: { status?: number } })?.status ||
-            (err as { response?: { status?: number } })?.response?.status
-
-          // `setUser(null)` SÓ quando o backend rejeitar explicitamente (401/403 com token inválido/revogado)
-          if (status === 401 || status === 403) {
-            console.error(
-              '[AuthContext] Sessão rejeitada em definitivo pelo servidor (401/403). Limpando credenciais.',
-            )
-            isExplicitLogoutRef.current = true
-            clearAllSessionBackups()
-            pb.authStore.clear()
-            setToken('')
-            setUser(null)
-          } else {
-            console.warn(
-              '[AuthContext] Falha transitória de rede ao revalidar sessão. Mantendo usuário ativo pelo backup.',
-            )
-            // Mantém usuário e token restaurados silenciosamente
-            if (backup.token) setToken(backup.token)
-            if (backup.model) setUser(backup.model)
-          }
+          console.warn(
+            '[AuthContext] Falha de refresh em background no onChange. Mantendo sessão ativa pelo backup:',
+            err,
+          )
+          // REGRA INEVEGOCIÁVEL: NUNCA ejetar em background. Mantém credencial restaurada.
+          if (backup.token) setToken(backup.token)
+          if (backup.model) setUser(backup.model)
         } finally {
           isRecoveringAuthRef.current = false
           setIsRenewingSession(false)
@@ -188,25 +174,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (pb.authStore.record) setUser(pb.authStore.record)
           }
         } catch (err: unknown) {
-          const status =
-            (err as { status?: number; response?: { status?: number } })?.status ||
-            (err as { response?: { status?: number } })?.response?.status
-
-          // SÓ desloga se o servidor rejeitou explicitamente como 401/403
-          if (status === 401 || status === 403) {
-            console.warn('[AuthContext] Token rejeitado no init (401/403). Limpando backup.')
-            isExplicitLogoutRef.current = true
-            clearAllSessionBackups()
-            pb.authStore.clear()
-            setUser(null)
-            setToken('')
-          } else {
-            console.warn(
-              '[AuthContext] Revalidação inicial falhou por rede/latência. Mantendo credencial local restaurada.',
-            )
-            setUser(pb.authStore.record || currentModel)
-            setToken(pb.authStore.token || currentToken)
-          }
+          console.warn(
+            '[AuthContext] Falha na validação em background no init. Preservando credencial local do usuário:',
+            err,
+          )
+          // Regra inegociável: nenhuma falha de background ejeta. Apenas o botão Sair desloga.
+          setUser(pb.authStore.record || currentModel)
+          setToken(pb.authStore.token || currentToken)
         } finally {
           setIsRenewingSession(false)
           setIsLoading(false)
@@ -274,13 +248,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return true
         }
       } catch (err: unknown) {
-        const status =
-          (err as { status?: number; response?: { status?: number } })?.status ||
-          (err as { response?: { status?: number } })?.response?.status
-        if (status === 401 || status === 403) {
-          logout()
-        }
-        throw err
+        console.warn(
+          '[AuthContext] Erro em refreshUser(). Preservando sessão local do usuário:',
+          err,
+        )
+        // Regra inegociável: logout SOMENTE pelo clique explícito no botão "Sair".
+        // Não chamar logout() automaticamente em erros de background/chamadas.
+        return false
       } finally {
         setIsRenewingSession(false)
       }
@@ -299,6 +273,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Preservação estrita da autenticação:
   // Se o usuário não deu logout explícito e houver backup íntegro ou token válido,
   // considera SEMPRE como autenticado! NUNCA perde o status por transitório.
+  // Checagem direta síncrona no localStorage para imunidade contra qualquer delay de estado
+  let directStorageTokenPresent = false
+  if (typeof window !== 'undefined') {
+    try {
+      const rawApp = localStorage.getItem('souyess.session.backup')
+      if (rawApp) {
+        const parsed = JSON.parse(rawApp)
+        if (parsed?.token && typeof parsed.token === 'string' && parsed.token.length > 10) {
+          directStorageTokenPresent = true
+        }
+      }
+      const rawPb = localStorage.getItem('pocketbase_auth')
+      if (rawPb) {
+        const parsed = JSON.parse(rawPb)
+        if (parsed?.token && typeof parsed.token === 'string' && parsed.token.length > 10) {
+          directStorageTokenPresent = true
+        }
+      }
+    } catch {
+      /* intentionally ignored */
+    }
+  }
+
   const backupNow = loadSessionBackup()
   const hasTokenStr = Boolean(token && token.length > 10)
   const hasPbStoreToken = Boolean(pb.authStore.token && pb.authStore.token.length > 10)
@@ -309,6 +306,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (hasTokenStr ||
       hasPbStoreToken ||
       hasAnyStoredBackup ||
+      directStorageTokenPresent ||
       isRecoveringAuthRef.current ||
       isRenewingSession)
 

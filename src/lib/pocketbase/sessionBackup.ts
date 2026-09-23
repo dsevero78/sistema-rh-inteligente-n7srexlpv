@@ -192,9 +192,9 @@ export async function singleFlightSafeAuthRefresh(): Promise<boolean> {
     try {
       const authData = await pb.collection('users').authRefresh()
       if (authData?.token) {
-        // Grava no pb.authStore e no backup proprietário
-        pb.authStore.save(authData.token, authData.record)
+        // Sincronização atômica garantida: grava no backup ANTES ou junto para nunca ficar sem token
         saveSessionBackup(authData.token, authData.record)
+        pb.authStore.save(authData.token, authData.record)
         return true
       }
       return false
@@ -203,22 +203,16 @@ export async function singleFlightSafeAuthRefresh(): Promise<boolean> {
         (err as { status?: number; response?: { status?: number } })?.status ||
         (err as { response?: { status?: number } })?.response?.status
 
-      // Apenas 401 e 403 do servidor indicam que o token foi expressamente revogado/inválido
-      if (status === 401 || status === 403) {
-        console.error(
-          '[SessionBackup] authRefresh rejeitado pelo backend com 401/403. Revogando sessão.',
-        )
-        clearAllSessionBackups()
-        pb.authStore.clear()
-        throw err
-      }
-
-      // Falha temporária de rede (offline, timeout, 502, 503) NÃO desloga
+      // Regra inegociável: logout SOMENTE pelo clique explícito no botão "Sair".
+      // Nenhum evento em background (refresh, timeout, oscilação de rede) pode limpar as credenciais
+      // ou disparar ejeção da sessão do usuário.
       console.warn(
-        '[SessionBackup] Erro transitório durante authRefresh (status:',
+        '[SessionBackup] Falha ou rejeição no authRefresh em segundo plano (status:',
         status,
-        '). Mantendo backup.',
+        '). Mantendo credencial salva intacta e restaurando pb.authStore.',
       )
+      // Garante que o authStore continue com o token salvo do backup
+      restorePbAuthStoreFromBackup()
       return false
     } finally {
       activeRefreshPromise = null

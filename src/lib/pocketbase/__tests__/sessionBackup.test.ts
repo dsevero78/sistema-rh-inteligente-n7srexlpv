@@ -135,4 +135,63 @@ describe('SessionBackup & Auto-Recovery', () => {
     const updatedBackup = loadSessionBackup()
     expect(updatedBackup?.token).toBe(refreshedToken)
   })
+
+  it('usuário em página interna → refresh de token em background → não deve ejetar nem limpar credenciais salvas', async () => {
+    const validToken =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6InVzZXJfYmFja2dyb3VuZCIsImV4cCI6MjUyNDYwODAwMH0.sig'
+    const userModel = { id: 'user_background', email: 'rh.operacional@empresa.com' } as any
+
+    // 1. Simula usuário logado navegando em página interna (/candidatos/123)
+    saveSessionBackup(validToken, userModel)
+    restorePbAuthStoreFromBackup()
+    expect(pb.authStore.token).toBe(validToken)
+    expect(pb.authStore.record?.id).toBe('user_background')
+
+    // 2. Simula oscilação temporária de rede ou chamada concorrente durante refresh de token em segundo plano
+    const authRefreshSpy = vi.spyOn(pb.collection('users'), 'authRefresh').mockRejectedValueOnce({
+      status: 0,
+      message: 'Failed to fetch / network glitch',
+    })
+
+    const refreshResult = await singleFlightSafeAuthRefresh()
+    expect(refreshResult).toBe(false)
+    expect(authRefreshSpy).toHaveBeenCalledTimes(1)
+
+    // 3. Regra inegociável: credencial salva no localStorage e pb.authStore NUNCA são destruídas
+    const currentBackup = loadSessionBackup()
+    expect(currentBackup).not.toBeNull()
+    expect(currentBackup?.token).toBe(validToken)
+    expect(currentBackup?.model?.id).toBe('user_background')
+    expect(pb.authStore.token).toBe(validToken)
+
+    // 4. Mesmo se o SDK PocketBase emitir evento onChange vazio transitório, pb.authStore é imediatamente restaurado
+    pb.authStore.clear()
+    const autoRestored = restorePbAuthStoreFromBackup()
+    expect(autoRestored?.token).toBe(validToken)
+    expect(pb.authStore.token).toBe(validToken)
+  })
+
+  it('refresh de token bem-sucedido em background: atualiza atomicamente pb.authStore e sessionBackup sem navegação para /login', async () => {
+    const initialToken =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6InVzZXJfcmVuZXciLCJleHAiOjE3MDAwMDAwMDB9.sig1'
+    const updatedToken =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6InVzZXJfcmVuZXciLCJleHAiOjI1MjQ2MDgwMDB9.sig2'
+    const userRecord = { id: 'user_renew', name: 'Analista RH' } as any
+
+    saveSessionBackup(initialToken, userRecord)
+    restorePbAuthStoreFromBackup()
+
+    vi.spyOn(pb.collection('users'), 'authRefresh').mockResolvedValueOnce({
+      token: updatedToken,
+      record: userRecord,
+    } as any)
+
+    const ok = await singleFlightSafeAuthRefresh()
+    expect(ok).toBe(true)
+
+    // Ambos os locais contêm o novo token
+    expect(pb.authStore.token).toBe(updatedToken)
+    const backup = loadSessionBackup()
+    expect(backup?.token).toBe(updatedToken)
+  })
 })

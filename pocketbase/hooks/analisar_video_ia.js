@@ -82,6 +82,13 @@ routerAdd(
       return 'Requer Alinhamento'
     }
 
+    // Adiciona log claro quando o download do vídeo retornar HTML em vez de mídia
+    const registrarLogErroDownload = (candidatoNome, urlVideo, contentType, bodySnippet) => {
+      console.log(
+        `[analisar_video_ia] FALHA DE ACESSO AO VÍDEO DO CANDIDATO (${candidatoNome}): A URL retornou HTML (${contentType || 'desconhecido'}) em vez de stream de vídeo/mídia. O Google Drive está bloqueando o acesso público direto. Detalhes: ${sanitizarTexto(bodySnippet, 200)}`,
+      )
+    }
+
     // Trunca texto com segurança evitando estourar limites
     const sanitizarTexto = (val, maxLen) => {
       if (val === null || val === undefined) return ''
@@ -182,6 +189,7 @@ routerAdd(
 
     // Normalizador de URLs de streaming (Google Drive, Dropbox, Loom, etc.) - Preservar 0.0.76
     let linkProcessado = videoLink ? videoLink.trim() : ''
+    let driveFileId = ''
     if (linkProcessado) {
       // 1. Google Drive: converter para download direto
       const driveMatch =
@@ -190,6 +198,7 @@ routerAdd(
           /drive\.google\.com\/(?:open|uc)\?(?:[a-zA-Z0-9_=&-]*&)?id=([a-zA-Z0-9_-]+)/i,
         )
       if (driveMatch && driveMatch[1]) {
+        driveFileId = driveMatch[1]
         linkProcessado = `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`
       }
 
@@ -206,6 +215,60 @@ routerAdd(
       const loomMatch = linkProcessado.match(/loom\.com\/share\/([a-zA-Z0-9_-]+)/i)
       if (loomMatch && loomMatch[1]) {
         linkProcessado = `https://www.loom.com/embed/${loomMatch[1]}`
+      }
+    }
+
+    // Pré-validação ativa de acesso HTTP ao link de vídeo (se for URL remota)
+    let preFalhaAcessoHttp = false
+    let preFalhaMotivo = ''
+    let preContentType = ''
+    if (linkProcessado && !videoFile) {
+      try {
+        const httpCheck = $http.send({
+          url: linkProcessado,
+          method: 'GET',
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+          timeout: 15,
+        })
+        const checkHeaders = httpCheck.headers || {}
+        for (const hk in checkHeaders) {
+          if (hk.toLowerCase() === 'content-type') {
+            preContentType = Array.isArray(checkHeaders[hk])
+              ? checkHeaders[hk].join('; ')
+              : String(checkHeaders[hk])
+            break
+          }
+        }
+        const checkBody = httpCheck.raw ? String(httpCheck.raw) : ''
+        const checkIsHtml =
+          preContentType.toLowerCase().includes('text/html') ||
+          checkBody.includes('<!DOCTYPE html>') ||
+          checkBody.includes('<html')
+        const checkIsLoginOuNegado =
+          checkBody.includes('accounts.google.com') ||
+          checkBody.includes('ServiceLogin') ||
+          checkBody.includes('Google Drive – Acesso Negado') ||
+          checkBody.includes('Access Denied') ||
+          checkBody.includes('Sign in') ||
+          checkBody.includes('Fazer login')
+
+        if (driveFileId && checkIsHtml) {
+          preFalhaAcessoHttp = true
+          preFalhaMotivo = checkIsLoginOuNegado
+            ? 'O Google Drive exige autenticação ou está negando o acesso direto (página HTML de login retornada pelo link).'
+            : 'O link do Google Drive retornou uma página HTML em vez do arquivo de mídia de vídeo.'
+          registrarLogErroDownload(
+            candidato.getString('nome') || candidatoId,
+            linkProcessado,
+            preContentType,
+            checkBody.substring(0, 300),
+          )
+        }
+      } catch (errCheck) {
+        console.log('[analisar_video_ia] Aviso na pré-checagem HTTP do vídeo:', errCheck.message)
       }
     }
 
@@ -356,6 +419,7 @@ INSTRUÇÕES ESPECÍFICAS DESTA EXECUÇÃO:
         `${rawResumoExecutivo} ${rawRecomendacao} ${String(parsed.analise_linguistica?.estrutura_fala || '')} ${String(parsed.analise_linguistica?.justificativa || '')}`.toLowerCase()
 
       const ehErroAcessoVideo =
+        preFalhaAcessoHttp ||
         textoCompletoAnalise.includes('não pôde ser acessado') ||
         textoCompletoAnalise.includes('nao pode ser acessado') ||
         textoCompletoAnalise.includes('não foi possível realizar a análise') ||
@@ -413,6 +477,7 @@ INSTRUÇÕES ESPECÍFICAS DESTA EXECUÇÃO:
       if (ehErroAcessoVideo) {
         // Fluxo de Falha no Acesso ao Vídeo (Preserva score do candidato sem zerar nem punir)
         const msgErro =
+          preFalhaMotivo ||
           rawResumoExecutivo ||
           'Não foi possível acessar o vídeo pelo link fornecido. Verifique se o arquivo está compartilhado como público no Google Drive ou plataforma de streaming e tente novamente.'
 
@@ -449,7 +514,10 @@ INSTRUÇÕES ESPECÍFICAS DESTA EXECUÇÃO:
         analiseRecord.set('status_analise', 'erro_acesso')
         analiseRecord.set(
           'erro_detalhes',
-          'O link do vídeo não pôde ser visualizado ou acessado publicamente.',
+          'O Google Drive está bloqueando o acesso direto — verifique o compartilhamento (Qualquer pessoa com o link / Leitor) ou use link alternativo via YouTube (não listado) ou Loom.',
+        )
+        console.log(
+          `[analisar_video_ia] Vídeo do candidato ${nomeCadastro} não pôde ser acessado: o Google Drive retornou bloqueio/HTML ou a IA não conseguiu carregar o streaming. Registrando status_analise='erro_acesso'.`,
         )
         analiseRecord.set('nome_detectado_no_video', '')
         analiseRecord.set('conflito_identidade', false)
@@ -487,7 +555,7 @@ INSTRUÇÕES ESPECÍFICAS DESTA EXECUÇÃO:
           success: false,
           status_analise: 'erro_acesso',
           error:
-            'Não foi possível acessar o vídeo pelo link fornecido. Verifique se o arquivo está compartilhado como "Qualquer pessoa com o link" (Visualizador) no Google Drive e tente novamente.',
+            'O Google Drive está bloqueando o acesso ao arquivo (página HTML/login retornada em vez de mídia). Verifique as configurações de compartilhamento ("Qualquer pessoa com o link / Leitor") ou utilize um link alternativo como YouTube (não listado) ou Loom.',
           data: {
             analiseId: analiseRecord.id,
             status_analise: 'erro_acesso',
