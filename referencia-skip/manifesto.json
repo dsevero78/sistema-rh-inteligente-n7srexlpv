@@ -1,0 +1,802 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "identificacao": {
+    "titulo": "Manifesto do Pacote de Referência Visual e Funcional",
+    "projeto": "Sistema RH Inteligente / SouYess People Hub",
+    "finalidade": "Reprodução fiel da interface e dos comportamentos atuais durante a migração futura para PostgreSQL",
+    "ambiente": "HOMOLOGAÇÃO",
+    "versao_frontend": "0.0.101",
+    "data_captura_documentacao": "2026-09-23",
+    "metodologia": "Analise estática de código-fonte e base de dados de homologação. Nenhuma inspeção visual de telas renderizadas foi realizada nesta cadeia de ferramentas.",
+    "aviso_legal": "Nenhuma captura de tela, vídeo, mockup ou imagem gerada por IA foi fabricada. Todas as capturas listadas neste manifesto estão com status 'nao_capturado' e devem ser produzidas manualmente pelo administrador conforme o ROTEIRO-CAPTURAS.md."
+  },
+  "perfil_captura": {
+    "perfis_utilizados": ["RH / Recrutador", "Gestor Contratante"],
+    "viewports_obrigatorios": ["1440x900", "1280x800", "768x1024", "390x844"],
+    "zoom_obrigatorio": "100%",
+    "dpr_recomendado": 1,
+    "fontes_renderizadas": "Deve ser registrado via DevTools (Computed > Rendered Fonts) em cada captura; atualmente NAO VERIFICADO."
+  },
+  "capturas_planejadas": [
+    {
+      "id": "CAP-01",
+      "tela": "Login",
+      "rota": "/login",
+      "estado": "tela inteira, credenciais pré-carregadas",
+      "perfil": "público",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/auth/Login.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-02",
+      "tela": "Login",
+      "rota": "/login",
+      "estado": "layout mobile adaptado",
+      "perfil": "público",
+      "viewport": "390x844",
+      "componente_origem": "src/pages/auth/Login.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-03",
+      "tela": "Login",
+      "rota": "/login",
+      "estado": "validação de campo obrigatório em branco",
+      "perfil": "público",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/auth/Login.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-04",
+      "tela": "Layout Global / Menu Lateral",
+      "rota": "/dashboard",
+      "estado": "menu expandido, perfil RH, badges de contagem",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/components/Layout.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-05",
+      "tela": "Layout Global / Menu Lateral Drawer",
+      "rota": "/dashboard",
+      "estado": "drawer aberto via hambúrguer, backdrop escurecido",
+      "perfil": "RH / Recrutador",
+      "viewport": "390x844 e 768x1024",
+      "componente_origem": "src/components/Layout.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-06",
+      "tela": "Layout Global / Menu Lateral Gestor",
+      "rota": "/dashboard",
+      "estado": "menu restrito do Gestor Contratante",
+      "perfil": "Gestor Contratante",
+      "viewport": "1280x800",
+      "componente_origem": "src/components/Layout.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-07",
+      "tela": "Pessoas — Lista",
+      "rota": "/pessoas",
+      "estado": "preenchida com dados de homologação",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900 e 1280x800",
+      "componente_origem": "src/pages/PessoasListaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-08",
+      "tela": "Pessoas — Lista",
+      "rota": "/pessoas",
+      "estado": "filtros de modalidade PJ e BU Tecnologia aplicados",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/PessoasListaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-09",
+      "tela": "Pessoas — Lista",
+      "rota": "/pessoas",
+      "estado": "modal de novo cadastro de pessoa aberto",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/PessoasListaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-10",
+      "tela": "Pessoas — Lista",
+      "rota": "/pessoas",
+      "estado": "modal Aproveitar Fontes aberto",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/PessoasListaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-11",
+      "tela": "Pessoas — Lista",
+      "rota": "/pessoas",
+      "estado": "busca por termo inexistente (estado vazio)",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/PessoasListaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-12",
+      "tela": "Pessoas — Lista",
+      "rota": "/pessoas",
+      "estado": "lista adaptada a mobile",
+      "perfil": "RH / Recrutador",
+      "viewport": "390x844",
+      "componente_origem": "src/pages/PessoasListaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-13",
+      "tela": "Pessoas — Ficha Detalhes",
+      "rota": "/pessoas/:id",
+      "estado": "aba geral/resumo, perfil RH visualizando valores",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/PessoaDetalhesPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-14",
+      "tela": "Pessoas — Ficha Detalhes",
+      "rota": "/pessoas/:id",
+      "estado": "aba Documentos (Cofre) com arquivos anexados",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/PessoaDetalhesPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-15",
+      "tela": "Pessoas — Ficha Detalhes",
+      "rota": "/pessoas/:id",
+      "estado": "modal de upload de documento",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/PessoaDetalhesPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-16",
+      "tela": "Pessoas — Ficha Detalhes",
+      "rota": "/pessoas/:id",
+      "estado": "aba Contratos e Vínculos",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/PessoaDetalhesPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-17",
+      "tela": "Pessoas — Ficha Detalhes",
+      "rota": "/pessoas/:id",
+      "estado": "aba Férias CLT / Descanso PJ",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/PessoaDetalhesPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-18",
+      "tela": "Pessoas — Ficha Detalhes",
+      "rota": "/pessoas/:id",
+      "estado": "modo de edição ativo com botões salvar/cancelar",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/PessoaDetalhesPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-19",
+      "tela": "Pessoas — Ficha Detalhes",
+      "rota": "/pessoas/:id",
+      "estado": "acesso de gestor de BU a registro de outra BU (bloqueio/escopo)",
+      "perfil": "Gestor Contratante",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/PessoaDetalhesPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-20",
+      "tela": "Planejamento da Força — Workspace",
+      "rota": "/planejamento-forca",
+      "estado": "plano PLANO-2026-TECH-01 selecionado, versão v1.0",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900 e 1280x800",
+      "componente_origem": "src/pages/PlanejamentoForcaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-21",
+      "tela": "Planejamento da Força — Lista de Planos",
+      "rota": "/planejamento-forca",
+      "estado": "modo lista gerencial com filtros de BU e situação",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/PlanejamentoForcaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-22",
+      "tela": "Planejamento da Força — Visão Geral",
+      "rota": "/planejamento-forca",
+      "estado": "sub-aba 1 (indicadores e resumo executivo)",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/PlanejamentoForcaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-23",
+      "tela": "Planejamento da Força — Demandas e Posições",
+      "rota": "/planejamento-forca",
+      "estado": "sub-aba 2 (tabela de postos dimensionados)",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/PlanejamentoForcaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-24",
+      "tela": "Planejamento da Força — Nova Posição",
+      "rota": "/planejamento-forca",
+      "estado": "modal de nova posição em lote aberto",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/PlanejamentoForcaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-25",
+      "tela": "Planejamento da Força — Nova Demanda",
+      "rota": "/planejamento-forca",
+      "estado": "modal de registrar demanda planejada aberto",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/PlanejamentoForcaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-26",
+      "tela": "Planejamento da Força — Custos",
+      "rota": "/planejamento-forca",
+      "estado": "sub-aba de custos consolidados",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/PlanejamentoForcaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-27",
+      "tela": "Planejamento da Força — Cenários",
+      "rota": "/planejamento-forca",
+      "estado": "sub-aba de cenários comparativos com IA",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/PlanejamentoForcaPage.tsx + src/components/planejamento/AbaCenariosComparador.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-28",
+      "tela": "Planejamento da Força — Histórico e Aprovações",
+      "rota": "/planejamento-forca",
+      "estado": "sub-aba de histórico, rastreabilidade e governança",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/PlanejamentoForcaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-29",
+      "tela": "Planejamento da Força — Snapshot",
+      "rota": "/planejamento-forca",
+      "estado": "modal do snapshot imutável da aprovação",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/PlanejamentoForcaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-30",
+      "tela": "Planejamento da Força — Workspace",
+      "rota": "/planejamento-forca",
+      "estado": "workspace em mobile",
+      "perfil": "RH / Recrutador",
+      "viewport": "390x844",
+      "componente_origem": "src/pages/PlanejamentoForcaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-31",
+      "tela": "Capacidade — Memória de Cálculo",
+      "rota": "/planejamento-forca",
+      "estado": "sub-aba Capacidade com camadas 1-6 visíveis",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/components/planejamento/AbaCapacidadeAlocacoes.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-32",
+      "tela": "Capacidade — Memória de Cálculo",
+      "rota": "/planejamento-forca",
+      "estado": "cartão de CAPACIDADE NÃO DETERMINADA",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/components/planejamento/AbaCapacidadeAlocacoes.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-33",
+      "tela": "Capacidade — Alocações",
+      "rota": "/planejamento-forca",
+      "estado": "sub-aba Alocações com propostas e confirmadas",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/components/planejamento/AbaCapacidadeAlocacoes.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-34",
+      "tela": "Capacidade — Nova Alocação",
+      "rota": "/planejamento-forca",
+      "estado": "modal de propor nova alocação aberto",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/components/planejamento/AbaCapacidadeAlocacoes.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-35",
+      "tela": "Capacidade — Bloqueio de Sobrealocação",
+      "rota": "/planejamento-forca",
+      "estado": "modal de bloqueio/justificativa de exceção BLOQUEIO_CAPACIDADE",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/components/planejamento/AbaCapacidadeAlocacoes.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-36",
+      "tela": "Capacidade — Projetos",
+      "rota": "/planejamento-forca",
+      "estado": "sub-aba Projetos",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/components/planejamento/AbaCapacidadeAlocacoes.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-37",
+      "tela": "Capacidade — Ocupações de Posições",
+      "rota": "/planejamento-forca",
+      "estado": "sub-aba Ocupações",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/components/planejamento/AbaCapacidadeAlocacoes.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-38",
+      "tela": "Capacidade — Competências por Ocupante",
+      "rota": "/planejamento-forca",
+      "estado": "sub-aba Competências (matriz cruzada)",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/components/planejamento/AbaCapacidadeAlocacoes.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-39",
+      "tela": "Empresas e Unidades",
+      "rota": "/empresas",
+      "estado": "painel multi-empresa com Holding e BUs",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900 e 1280x800",
+      "componente_origem": "src/pages/EmpresasUnidadesPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-40",
+      "tela": "Empresas e Unidades",
+      "rota": "/empresas",
+      "estado": "modal de nova empresa/BU",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/EmpresasUnidadesPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-41",
+      "tela": "Empresas e Unidades",
+      "rota": "/empresas",
+      "estado": "modal de gestão de áreas departamentais",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/EmpresasUnidadesPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-42",
+      "tela": "Empresas e Unidades",
+      "rota": "/empresas",
+      "estado": "aba de Gestão de Usuários com escopo de BU",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/EmpresasUnidadesPage.tsx + src/components/AbaGestaoUsuarios.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-43",
+      "tela": "Catálogos e Normalização",
+      "rota": "/catalogos",
+      "estado": "aba de cargos corporativos",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/CatalogosNormalizacaoPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-44",
+      "tela": "Catálogos e Normalização",
+      "rota": "/catalogos",
+      "estado": "aba de competências e proficiências",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/CatalogosNormalizacaoPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-45",
+      "tela": "Catálogos e Normalização",
+      "rota": "/catalogos",
+      "estado": "aba de centros de custo",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/CatalogosNormalizacaoPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-46",
+      "tela": "Catálogos e Normalização",
+      "rota": "/catalogos",
+      "estado": "aba de normalização de termos legados",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/CatalogosNormalizacaoPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-47",
+      "tela": "Catálogos e Normalização",
+      "rota": "/catalogos",
+      "estado": "modal de criação de cargo",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/CatalogosNormalizacaoPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-48",
+      "tela": "Organograma — Árvore",
+      "rota": "/organograma",
+      "estado": "árvore hierárquica expandida",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900 e 1280x800",
+      "componente_origem": "src/pages/OrganogramaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-49",
+      "tela": "Organograma — Árvore",
+      "rota": "/organograma",
+      "estado": "ramo recolhido",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/OrganogramaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-50",
+      "tela": "Organograma — Tabela",
+      "rota": "/organograma",
+      "estado": "aba de visão em tabela",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/OrganogramaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-51",
+      "tela": "Organograma — PJ × BU",
+      "rota": "/organograma",
+      "estado": "aba de PJ × BU",
+      "perfil": "RH / Recrutador",
+      "viewport": "1440x900",
+      "componente_origem": "src/pages/OrganogramaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-52",
+      "tela": "Organograma — Data de Referência",
+      "rota": "/organograma",
+      "estado": "seletor de data de referência",
+      "perfil": "RH / Recrutador",
+      "viewport": "1280x800",
+      "componente_origem": "src/pages/OrganogramaPage.tsx",
+      "status": "nao_capturado"
+    },
+    {
+      "id": "CAP-53",
+      "tela": "Organograma",
+      "rota": "/organograma",
+      "estado": "organograma em mobile",
+      "perfil": "RH / Recrutador",
+      "viewport": "390x844",
+      "componente_origem": "src/pages/OrganogramaPage.tsx",
+      "status": "nao_capturado"
+    }
+  ],
+  "arquivos_copiados": [
+    {
+      "origem": "src/main.css",
+      "destino": "referencia-skip/codigo-referencia/src/main.css",
+      "sanitizado": false
+    },
+    {
+      "origem": "tailwind.config.ts",
+      "destino": "referencia-skip/codigo-referencia/tailwind.config.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "components.json",
+      "destino": "referencia-skip/codigo-referencia/components.json",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/App.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/App.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/components/Layout.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/components/Layout.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/pages/auth/Login.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/pages/auth/Login.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/pages/auth/ForgotPassword.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/pages/auth/ForgotPassword.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/pages/auth/ResetPassword.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/pages/auth/ResetPassword.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/pages/auth/VerifyEmail.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/pages/auth/VerifyEmail.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/pages/PessoasListaPage.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/pages/PessoasListaPage.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/pages/PessoaDetalhesPage.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/pages/PessoaDetalhesPage.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/pages/PlanejamentoForcaPage.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/pages/PlanejamentoForcaPage.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/pages/OrganogramaPage.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/pages/OrganogramaPage.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/pages/EmpresasUnidadesPage.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/pages/EmpresasUnidadesPage.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/pages/CatalogosNormalizacaoPage.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/pages/CatalogosNormalizacaoPage.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/components/AbaGestaoUsuarios.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/components/AbaGestaoUsuarios.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/components/planejamento/AbaCapacidadeAlocacoes.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/components/planejamento/AbaCapacidadeAlocacoes.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/components/planejamento/AbaCenariosComparador.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/components/planejamento/AbaCenariosComparador.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/components/planejamento/AbaIndicadoresForca.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/components/planejamento/AbaIndicadoresForca.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/components/pessoas/AbaFeriasClt.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/components/pessoas/AbaFeriasClt.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/components/pessoas/AbaDescansoPj.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/components/pessoas/AbaDescansoPj.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/components/pessoas/AbaBeneficiosVinculo.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/components/pessoas/AbaBeneficiosVinculo.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/components/pessoas/SecaoContratosEVinculos.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/components/pessoas/SecaoContratosEVinculos.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/components/pessoas/AbaHorasPessoa.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/components/pessoas/AbaHorasPessoa.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/components/auth/AuthGuards.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/components/auth/AuthGuards.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/contexts/AuthContext.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/contexts/AuthContext.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/contexts/PeriodContext.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/contexts/PeriodContext.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/contexts/ThemeContext.tsx",
+      "destino": "referencia-skip/codigo-referencia/src/contexts/ThemeContext.tsx",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/services/pessoasService.ts",
+      "destino": "referencia-skip/codigo-referencia/src/services/pessoasService.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/services/planejamentoForcaService.ts",
+      "destino": "referencia-skip/codigo-referencia/src/services/planejamentoForcaService.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/services/capacidadeService.ts",
+      "destino": "referencia-skip/codigo-referencia/src/services/capacidadeService.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/services/organogramaService.ts",
+      "destino": "referencia-skip/codigo-referencia/src/services/organogramaService.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/services/catalogosService.ts",
+      "destino": "referencia-skip/codigo-referencia/src/services/catalogosService.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/services/empresasService.ts",
+      "destino": "referencia-skip/codigo-referencia/src/services/empresasService.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/services/feriasDescansoService.ts",
+      "destino": "referencia-skip/codigo-referencia/src/services/feriasDescansoService.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/services/indicadoresForcaService.ts",
+      "destino": "referencia-skip/codigo-referencia/src/services/indicadoresForcaService.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/services/cenariosService.ts",
+      "destino": "referencia-skip/codigo-referencia/src/services/cenariosService.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/lib/pocketbase/client.ts",
+      "destino": "referencia-skip/codigo-referencia/src/lib/pocketbase/client.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/lib/pocketbase/errors.ts",
+      "destino": "referencia-skip/codigo-referencia/src/lib/pocketbase/errors.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/lib/utils.ts",
+      "destino": "referencia-skip/codigo-referencia/src/lib/utils.ts",
+      "sanitizado": false
+    },
+    {
+      "origem": "pocketbase/migrations/1741500040_seguranca_regras_api_escopo_bu.js",
+      "destino": "referencia-skip/codigo-referencia/pocketbase/migrations/1741500040_seguranca_regras_api_escopo_bu.js",
+      "sanitizado": false
+    },
+    {
+      "origem": "pocketbase/hooks/seguranca_usuarios.js",
+      "destino": "referencia-skip/codigo-referencia/pocketbase/hooks/seguranca_usuarios.js",
+      "sanitizado": false
+    },
+    {
+      "origem": "pocketbase/hooks/seguranca_valores_mascaramento.js",
+      "destino": "referencia-skip/codigo-referencia/pocketbase/hooks/seguranca_valores_mascaramento.js",
+      "sanitizado": false
+    },
+    {
+      "origem": "src/__tests__/test_probe.test.ts",
+      "destino": "referencia-skip/codigo-referencia/src/__tests__/test_probe.test.ts",
+      "sanitizado": true,
+      "credenciais_substituidas": ["URL de backend PocketBase (literal) -> PB_TEST_URL"]
+    },
+    {
+      "origem": "src/__tests__/anti_ejection_login_perfis.test.ts",
+      "destino": "referencia-skip/codigo-referencia/src/__tests__/anti_ejection_login_perfis.test.ts",
+      "sanitizado": true,
+      "credenciais_substituidas": ["e-mail RH -> PB_TEST_RH_EMAIL", "senha -> PB_TEST_SENHA"]
+    },
+    {
+      "origem": "src/services/__tests__/pessoasService.test.ts",
+      "destino": "referencia-skip/codigo-referencia/src/services/__tests__/pessoasService.test.ts",
+      "sanitizado": true,
+      "credenciais_substituidas": []
+    }
+  ],
+  "assets_copiados": [],
+  "assets_restritos": [
+    {
+      "arquivo": "src/assets/souyess-design-system-guia-completo-89944.html",
+      "motivo_nao_copiado": "Possível material de marca/terceiros com dúvida de licença de redistribuição; registrado em vez de copiado. Documento deve ser obtido manualmente pelo administrador se necessário."
+    }
+  ],
+  "zips": {
+    "gerados": false,
+    "motivo": "A cadeia de ferramentas não oferece execução de comandos de shell (zip/sha256sum). Os zips podem ser produzidos pelo administrador a partir da pasta versionada no GitHub (download do repositório)."
+  },
+  "pdf": {
+    "gerado": false,
+    "motivo": "Nenhuma ferramenta real de geração de PDF disponível nesta cadeia."
+  }
+}

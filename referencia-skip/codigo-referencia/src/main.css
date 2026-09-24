@@ -1,0 +1,528 @@
+/* Global styles - Theme, font, utilities, animations and global components */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500;700&family=Montserrat:ital,wght@0,300..800;1,300..800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* SouYess Design System tokens */
+    /* Laranja SouYess #E9530E (19 89% 48%) */
+    /* Azul Profundo SouYess #212B55 (228 44% 23%) */
+    /* Azul Aceso #345EA9 (218 53% 44%) */
+    /* Superfície / Off-White #F7F8FB (225 33% 98%) */
+
+    --background: 225 33% 98%; /* #F7F8FB off-white */
+    --foreground: 228 43% 12%; /* #11162B near-black deep ink */
+
+    --card: 0 0% 100%; /* #FFFFFF white surface */
+    --card-foreground: 228 43% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 228 43% 12%;
+
+    /* Primary is SouYess Laranja #E9530E */
+    --primary: 19 89% 48%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary is Navy 50 / Gray 100 subtle */
+    --secondary: 226 23% 94%; /* #ECEEF4 */
+    --secondary-foreground: 228 44% 23%; /* #212B55 */
+
+    --muted: 220 20% 96%; /* #F2F4F8 */
+    --muted-foreground: 221 11% 47%; /* #6B7384 */
+
+    --accent: 22 92% 96%; /* #FEF1EA orange-50 tint */
+    --accent-foreground: 19 89% 41%; /* #C5430A */
+
+    --destructive: 5 66% 50%; /* #D5392C SouYess Danger */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 18% 88%; /* #D7DCE6 */
+    --input: 220 18% 88%;
+    --ring: 19 89% 48%; /* SouYess orange ring */
+
+    --radius: 0.5rem; /* 8px standard SouYess */
+
+    /* Sidebar e superfícies de menu SouYess — paleta escura do guia:
+       Base Deep Ink #11162B (--navy-900) no topo com gradiente sutil até Dark Surface #1A2240 (--navy-800) na base */
+    --sidebar-background: 228 43% 12%; /* #11162B Deep Ink near-black base */
+    --sidebar-foreground: 220 20% 98%; /* #F7F8FB */
+    --sidebar-primary: 19 89% 48%; /* #E9530E */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 228 39% 30%; /* #2E3A6E Hover navy */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 228 39% 30%; /* #2E3A6E com opacidade / divisor legível */
+    --sidebar-ring: 19 89% 48%;
+
+    /* Charts mapped to SouYess palette */
+    --chart-1: 19 89% 48%; /* Laranja #E9530E */
+    --chart-2: 218 53% 44%; /* Azul Aceso #345EA9 */
+    --chart-3: 156 67% 37%; /* Verde Sucesso #1F9D6A */
+    --chart-4: 44 100% 45%; /* Amarelo Warning #E5A700 */
+    --chart-5: 228 44% 23%; /* Azul Profundo #212B55 */
+
+    /* SouYess explicit tokens for direct CSS variables */
+    --orange-50: #fef1ea;
+    --orange-100: #fbdcc9;
+    --orange-200: #f6bc97;
+    --orange-300: #f19763;
+    --orange-400: #ed7338;
+    --orange-500: #e9530e;
+    --orange-600: #c5430a;
+    --orange-700: #9b340a;
+    --orange-800: #6f2608;
+
+    --navy-50: #eceef4;
+    --navy-100: #d3d7e5;
+    --navy-200: #a8b0c9;
+    --navy-300: #7480a6;
+    --navy-400: #4a567e;
+    --navy-600: #2e3a6e;
+    --navy-700: #212b55;
+    --navy-800: #1a2240;
+    --navy-900: #11162b;
+
+    --blue-50: #edf2f9;
+    --blue-100: #d7e0f0;
+    --blue-400: #4f76bc;
+    --blue-500: #345ea9;
+    --blue-600: #2a4d8c;
+
+    --gray-50: #f2f4f8;
+    --gray-100: #e7eaf0;
+    --gray-200: #d7dce6;
+    --gray-300: #bfc5d2;
+    --gray-400: #98a0b0;
+    --gray-500: #6b7384;
+    --gray-600: #4d5566;
+    --gray-700: #353c4d;
+    --gray-800: #1f2435;
+
+    --success-500: #1f9d6a;
+    --success-100: #ddf3e8;
+    --warning-500: #e5a700;
+    --warning-100: #fbf1d2;
+    --danger-500: #d5392c;
+    --danger-100: #f8ddd9;
+    --info-500: #3b6fe0;
+    --info-100: #dce6fa;
+
+    --font-sans:
+      'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-body:
+      'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-display:
+      'Montserrat', 'Gotham', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+
+  .dark {
+    /* Paleta profunda do guia institucional SouYess:
+       Base Deep Ink #11162B (--navy-900: 228 43% 12%)
+       Superfícies elevadas Dark Surface #1A2240 (--navy-800: 227 42% 18%)
+       Divisores e bordas #2E3A6E (--navy-600: 229 41% 31%)
+       Texto claro principal #F7F8FB (225 33% 98%) / secundário #D3D7E5 (226 23% 86%)
+       Ação primária Laranja SouYess #E9530E (19 89% 48%) com alto contraste AA
+    */
+    --background: 228 43% 12%; /* #11162B Deep Ink */
+    --foreground: 225 33% 98%; /* #F7F8FB */
+
+    --card: 227 42% 18%; /* #1A2240 Dark Surface */
+    --card-foreground: 225 33% 98%;
+
+    --popover: 227 42% 18%; /* #1A2240 Dark Surface */
+    --popover-foreground: 225 33% 98%;
+
+    --primary: 19 89% 48%; /* #E9530E Laranja SouYess mantido */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 229 41% 25%; /* #212B55 Navy 700 para superfícies secundárias */
+    --secondary-foreground: 225 33% 98%;
+
+    --muted: 229 41% 22%;
+    --muted-foreground: 226 20% 70%; /* #A8B0C9 tom legível */
+
+    --accent: 229 41% 31%; /* #2E3A6E */
+    --accent-foreground: 225 33% 98%;
+
+    --destructive: 5 66% 54%; /* #D5392C legível sobre fundo escuro */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 229 41% 31%; /* #2E3A6E divisor institucional */
+    --input: 229 41% 31%;
+    --ring: 19 89% 48%;
+
+    /* Sidebar permanece coerente nos dois modos (gradiente #11162B → #1A2240) */
+    --sidebar-background: 228 43% 12%;
+    --sidebar-foreground: 225 33% 98%;
+    --sidebar-primary: 19 89% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 229 41% 31%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 229 41% 31%;
+    --sidebar-ring: 19 89% 48%;
+
+    --chart-1: 19 89% 52%;
+    --chart-2: 218 60% 58%;
+    --chart-3: 156 67% 48%;
+    --chart-4: 44 100% 52%;
+    --chart-5: 226 50% 65%;
+  }
+
+  /* Ajustes globais de elementos para modo escuro sem depender de inversão mecânica */
+  .dark input,
+  .dark textarea,
+  .dark select {
+    color-scheme: dark;
+  }
+
+  /* Coesão de componentes padrão no Dark Mode SouYess */
+  .dark .bg-white {
+    background-color: #1a2240 !important;
+  }
+  .dark .bg-slate-50,
+  .dark .bg-slate-50\/40,
+  .dark .bg-slate-50\/50,
+  .dark .bg-slate-50\/70,
+  .dark .bg-slate-50\/80,
+  .dark .bg-gray-50 {
+    background-color: #141b34 !important;
+  }
+  .dark .bg-slate-100,
+  .dark .bg-slate-100\/60,
+  .dark .bg-slate-100\/70,
+  .dark .bg-slate-100\/80,
+  .dark .bg-gray-100 {
+    background-color: #212b55 !important;
+  }
+  /* Mapeamento de textos institucionais SouYess para contraste perfeito no escuro */
+  .dark .text-slate-900,
+  .dark .text-\[\#11162B\],
+  .dark .text-\[\#212B55\],
+  .dark .text-gray-900 {
+    color: #f7f8fb !important;
+  }
+  .dark .text-slate-800,
+  .dark .text-gray-800 {
+    color: #eceef4 !important;
+  }
+  .dark .text-slate-700,
+  .dark .text-gray-700 {
+    color: #d3d7e5 !important;
+  }
+  .dark .text-slate-600,
+  .dark .text-\[\#4D5566\],
+  .dark .text-gray-600 {
+    color: #a8b0c9 !important;
+  }
+  .dark .text-slate-500,
+  .dark .text-\[\#6B7384\],
+  .dark .text-gray-500 {
+    color: #8c96b3 !important;
+  }
+  .dark .text-slate-400,
+  .dark .text-\[\#98A0B0\],
+  .dark .text-gray-400 {
+    color: #7480a6 !important;
+  }
+  .dark .border-slate-100,
+  .dark .border-slate-200,
+  .dark .border-slate-200\/80,
+  .dark .border-slate-200\/90,
+  .dark .border-slate-300,
+  .dark .border-\[\#D7DCE6\],
+  .dark .border-\[\#E7EAF0\],
+  .dark .border-\[\#F2F4F8\],
+  .dark .border-gray-200,
+  .dark .border-gray-300 {
+    border-color: #2e3a6e !important;
+  }
+  .dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+  .dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+  .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #2e3a6e !important;
+  }
+  .dark .hover\:bg-slate-50:hover,
+  .dark .hover\:bg-slate-50\/70:hover,
+  .dark .hover\:bg-slate-50\/80:hover,
+  .dark .hover\:bg-gray-50:hover {
+    background-color: #242e54 !important;
+  }
+  .dark .hover\:bg-slate-100:hover,
+  .dark .hover\:bg-gray-100:hover {
+    background-color: #2e3a6e !important;
+  }
+  /* Badges coloridos no modo escuro para não estourarem em branco */
+  .dark .bg-emerald-50,
+  .dark .bg-emerald-100 {
+    background-color: rgba(31, 157, 106, 0.22) !important;
+    color: #6ee7b7 !important;
+    border-color: rgba(31, 157, 106, 0.4) !important;
+  }
+  .dark .bg-amber-50,
+  .dark .bg-amber-100,
+  .dark .bg-\[\#FBF1D2\] {
+    background-color: rgba(229, 167, 0, 0.22) !important;
+    color: #fde047 !important;
+    border-color: rgba(229, 167, 0, 0.4) !important;
+  }
+  .dark .bg-rose-50,
+  .dark .bg-rose-100,
+  .dark .bg-red-50,
+  .dark .bg-red-100,
+  .dark .bg-\[\#F8DDD9\] {
+    background-color: rgba(213, 57, 44, 0.22) !important;
+    color: #fca5a5 !important;
+    border-color: rgba(213, 57, 44, 0.4) !important;
+  }
+  .dark .bg-blue-50,
+  .dark .bg-blue-100,
+  .dark .bg-\[\#EDF2F9\] {
+    background-color: rgba(52, 94, 169, 0.25) !important;
+    color: #93c5fd !important;
+    border-color: rgba(52, 94, 169, 0.45) !important;
+  }
+  .dark .bg-purple-50,
+  .dark .bg-purple-100 {
+    background-color: rgba(147, 51, 234, 0.22) !important;
+    color: #d8b4fe !important;
+    border-color: rgba(147, 51, 234, 0.4) !important;
+  }
+  .dark .bg-indigo-50,
+  .dark .bg-indigo-100 {
+    background-color: rgba(79, 70, 229, 0.22) !important;
+    color: #a5b4fc !important;
+    border-color: rgba(79, 70, 229, 0.4) !important;
+  }
+  .dark .bg-\[\#FEF1EA\],
+  .dark .bg-\[\#FBDCC9\] {
+    background-color: rgba(233, 83, 14, 0.2) !important;
+    color: #f19763 !important;
+    border-color: rgba(233, 83, 14, 0.35) !important;
+  }
+  .dark .shadow-xs,
+  .dark .shadow-sm,
+  .dark .shadow-md,
+  .dark .shadow-lg,
+  .dark .shadow-xl,
+  .dark .shadow-2xl {
+    box-shadow: 0 4px 20px -2px rgba(11, 16, 36, 0.65) !important;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-sans {
+    font-family: var(--font-sans);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  ::selection {
+    background: #e9530e;
+    color: #ffffff;
+  }
+
+  /* NEVER REMOVE THIS */
+  section[aria-label='Notifications alt+T'] {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+
+@layer utilities {
+  /* KEEP ALL THE ANIMATIONS CLASSES THAT ARE USED BELOW */
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fade-in-up {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-in-down {
+    from {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-out-up {
+    from {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes fade-out-down {
+    from {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-down {
+    from {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes spotlight {
+    from {
+      opacity: 0;
+      transform: translate(-72%, -62%) scale(0.5);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -40%) scale(1);
+    }
+  }
+
+  .animate-accordion-down {
+    animation: accordion-down 0.2s ease-out;
+  }
+
+  .animate-accordion-up {
+    animation: accordion-up 0.2s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out;
+  }
+
+  .animate-fade-out {
+    animation: fade-out 0.5s ease-out;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s ease-out;
+  }
+
+  .animate-fade-in-down {
+    animation: fade-in-down 0.6s ease-out;
+  }
+
+  .animate-fade-out-up {
+    animation: fade-out-up 0.6s ease-out;
+  }
+
+  .animate-fade-out-down {
+    animation: fade-out-down 0.6s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.6s ease-out;
+  }
+
+  .animate-slide-down {
+    animation: slide-down 0.6s ease-out;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-spotlight {
+    animation: spotlight 2s ease forwards;
+  }
+}
